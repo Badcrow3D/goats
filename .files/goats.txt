@@ -1,0 +1,27 @@
+goats
+
+a small, deterministic simulation for projectiles on 2d terrain, and that includes: terrain as a bitmap mask, a fixed-timestep integrator, collision detection by sampling, surface normal estimation, and reflection with energy loss. 
+
+basic structure and requirements:
+
+player:
+id
+name
+location
+health
+
+level:
+collision map
+terrain color
+background color
+
+world:
+list of players
+current level
+
+state:
+active player
+mode
+simulation step
+
+
