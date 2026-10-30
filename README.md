@@ -1,7 +1,6 @@
 # goats — projectile sim (Godot 4.6)
 
-Copy `sim/` and `main.gd` into your project. Create `main.tscn` (root Node2D), attach `main.gd`, set it as the main scene.
-Set Physics Ticks per Second to 60.
+Copy `sim/` and `main.gd` into project. Create `main.tscn` (root Node2D), attach `main.gd`, set it as the main scene. confirm Physics Ticks per Second at 60.
 
 sim/
   player_data.gd   id, name, location, health
