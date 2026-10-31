@@ -21,7 +21,7 @@ var vx: int  # fixed-point pixels per tick
 var vy: int
 var fuse: int          # ticks until detonation
 var bounces: int = 0
-var max_bounces: int = 4
+var max_bounces: int = 0 # old value 4
 var alive: bool = true
 
 func _init(px: int, py: int, p_vx_fp: int, p_vy_fp: int, p_fuse: int = 240) -> void:

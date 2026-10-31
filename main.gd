@@ -30,12 +30,17 @@ func _ready() -> void:
 	self.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	
 func _physics_process(_dt: float) -> void:
+	var dir := 0
 	if sim.state.mode == GameState.Mode.AIMING:
+		if Input.is_physical_key_pressed(KEY_A): dir -= 1
+		if Input.is_physical_key_pressed(KEY_D): dir += 1
+		sim.walk(dir)	
+		if Input.is_physical_key_pressed(KEY_W): sim.jump(dir)
 		if Input.is_physical_key_pressed(KEY_LEFT):  angle = mini(angle + 1, 180)
 		if Input.is_physical_key_pressed(KEY_RIGHT): angle = maxi(angle - 1, 0)
 		if Input.is_physical_key_pressed(KEY_UP):    power = mini(power + 1, 100)
 		if Input.is_physical_key_pressed(KEY_DOWN):  power = maxi(power - 1, 1)
-		if Input.is_physical_key_pressed(KEY_SPACE): sim.fire(angle, power)
+		if Input.is_physical_key_pressed(KEY_SPACE): sim.fire(angle, power)		
 	sim.tick()
 	if sim.crater_dirty:
 		var lvl := sim.world.current_level

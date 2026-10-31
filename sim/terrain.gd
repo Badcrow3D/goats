@@ -68,3 +68,12 @@ func update_image_region(img: Image, rect: Rect2i, terrain_color: Color, backgro
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			img.set_pixel(x, y, terrain_color if mask[y * width + x] != 0 else background_color)
+			
+func rect_is_free(x: int, y: int, w: int, h: int) -> bool:
+	for yy in range(y, y + h):
+		for xx in range(x, x + w):
+			if is_solid(xx, yy):
+				return false
+	return true
+	
+				
