@@ -13,7 +13,7 @@ var angle := 45
 var power := 60
 
 func _ready() -> void:
-	scale = Vector2(2, 2)
+	scale = Vector2(1, 1)
 	var terrain := Terrain.new(W, H)
 	terrain.generate(11222)
 	var level := LevelData.new(terrain)
