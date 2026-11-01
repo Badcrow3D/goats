@@ -1,6 +1,7 @@
 Goats Noats
 
 - trees and mountains versions of parallax backgrounds
+- ambient crow
 
 Multiple goats per player
 Team indicator
