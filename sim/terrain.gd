@@ -26,8 +26,11 @@ func in_bounds(x: int, y: int) -> bool:
 func generate(seed_value: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
+	@warning_ignore("integer_division")
 	var lo: int = height / 3
+	@warning_ignore("integer_division")
 	var hi: int = height * 5 / 6
+	@warning_ignore("integer_division")
 	var h: int = height * 6 / 10
 	var slope: int = 0
 	for x in width:

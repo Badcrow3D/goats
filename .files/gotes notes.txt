@@ -1,0 +1,21 @@
+Goats Noats
+
+- trees and mountains versions of parallax backgrounds
+
+Multiple goats per player
+Team indicator
+Aiming reticle sprite instead of line
+Player sprite instead of rectangle
+Missile sprite with rotation
+Direct hits
+Damage numbers
+Turn timer with text
+Random wind per turn and indicator
+Moving and jumping consumes energy with meter
+Hold fire to charge up power release to fire with meter
+Hold jump to change angle from flat to vertical release to jump with audio feedback
+Parallax mountains background
+Custom level bitmaps with color
+Parallax background bitmaps
+Explosion smoke fire and burning effects also with wind
+

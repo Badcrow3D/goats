@@ -1,25 +1,42 @@
-goats
+Audio walk jump launch and explode with background music
+Multiple goats per player
+Team indicator
+Aiming reticle sprite instead of line
+Player sprite instead of rectangle
+Missile sprite with rotation
+Direct hits
+Damage numbers
+Turn timer with text
+Random wind per turn and indicator
+Moving and jumping consumes energy with meter
+Hold fire to charge up power release to fire with meter
+Hold jump to change angle from flat to vertical release to jump with audio feedback
+Parallax mountains background
+Custom level bitmaps with color
+Explosion smoke fire and burning effects also with wind
 
-a small, deterministic simulation for projectiles on 2d terrain, and that includes: terrain as a bitmap mask, a fixed-timestep integrator, collision detection by sampling, surface normal estimation, and reflection with energy loss. 
+Goats
 
-basic structure and requirements:
+A deterministic simulation for projectiles on 2d terrain, that includes: terrain as a bitmap mask, a fixed-timestep integrator, collision detection by sampling, surface normal estimation, and reflection with energy loss. 
 
-player:
+Basic structure:
+
+Player:
 id
 name
 location
 health
 
-level:
+Level:
 collision map
 terrain color
 background color
 
-world:
+World:
 list of players
 current level
 
-state:
+State:
 active player
 mode
 simulation step

@@ -80,7 +80,6 @@ func _tick_projectile() -> void:
 	elif ev == Projectile.Event.LEFT_WORLD:
 		state.mode = GameState.Mode.TURN_END
 
-@warning_ignore("integer_division")
 func _explode(cx: int, cy: int) -> void:
 	last_crater = world.current_level.collision_map.carve_circle(cx, cy, CRATER_RADIUS)
 	crater_dirty = true
@@ -233,5 +232,3 @@ func jump(dir: int) -> void:
 	p.fall_fx = 0
 	p.fall_frac = 0
 	
-	
-			
