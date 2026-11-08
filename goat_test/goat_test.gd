@@ -15,11 +15,14 @@ const GOAT_GRAVITY_SCALE := 2.0
 
 @export var walk_speed := 32.0
 @export var equipment := Equipment.BACKPACK_AND_LAUNCHER
+@export var jump_pause_duration := 0.0
+@export var landing_pause_duration := 0.0
 
 var facing := 1.0
 var is_walking := false
 var is_charging_jump := false
 var jump_released := false
+var jump_pause_remaining := 0.0
 var jump_charge := 0.0
 var jump_minimum_x := 160.0
 var jump_maximum_x := 28.0
@@ -36,19 +39,21 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	jump_pause_remaining = maxf(jump_pause_remaining - delta, 0.0)
+	var was_on_floor := goat.is_on_floor()
 	var direction := _walk_direction()
-	var can_walk := goat.is_on_floor() and not is_charging_jump
+	var can_walk := was_on_floor and not is_charging_jump and jump_pause_remaining == 0.0
 	if is_charging_jump:
 		goat.velocity.x = 0.0
-		if jump_released:
+		if not jump_released:
+			jump_charge = minf(jump_charge + delta, jump_charge_time)
+		elif jump_pause_remaining == 0.0:
 			var charge_ratio := minf(jump_charge / jump_charge_time, 1.0)
 			goat.velocity = Vector2(
 				lerpf(jump_minimum_x, jump_maximum_x, charge_ratio) * facing,
 				-lerpf(jump_minimum, jump_maximum, charge_ratio)
 			)
 			is_charging_jump = false
-		else:
-			jump_charge = minf(jump_charge + delta, jump_charge_time)
 	elif can_walk:
 		goat.velocity.x = direction * walk_speed
 		if not is_zero_approx(direction):
@@ -56,6 +61,9 @@ func _physics_process(delta: float) -> void:
 
 	goat.velocity += goat.get_gravity() * GOAT_GRAVITY_SCALE * delta
 	goat.move_and_slide()
+	if not was_on_floor and goat.is_on_floor() and landing_pause_duration > 0.0:
+		jump_pause_remaining = landing_pause_duration
+		goat.velocity.x = 0.0
 
 	is_walking = can_walk and goat.is_on_floor() and not is_zero_approx(goat.get_real_velocity().x)
 	if is_walking:
@@ -95,12 +103,13 @@ func _sync_equipment_pose() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.physical_keycode != KEY_ENTER or event.echo:
 		return
-	if event.pressed and goat.is_on_floor() and not is_charging_jump:
+	if event.pressed and goat.is_on_floor() and not is_charging_jump and jump_pause_remaining == 0.0:
 		is_charging_jump = true
 		jump_released = false
 		jump_charge = 0.0
-	elif not event.pressed and is_charging_jump:
+	elif not event.pressed and is_charging_jump and not jump_released:
 		jump_released = true
+		jump_pause_remaining = jump_pause_duration
 
 
 func _unhandled_input(event: InputEvent) -> void:

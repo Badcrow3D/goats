@@ -68,7 +68,7 @@ func _build_tuning_controls() -> void:
 		tuning_grid.add_child(label)
 
 		var value := Label.new()
-		value.custom_minimum_size.x = 52.0
+		value.custom_minimum_size.x = 44.0
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		tuning_grid.add_child(value)
 		tuning_labels[field] = value
@@ -77,8 +77,8 @@ func _build_tuning_controls() -> void:
 		var step: float = TUNING_FIELDS[field].step
 		for direction: int in [-1, 1]:
 			var button := Button.new()
-			button.text = "−" if direction < 0 else "+"
-			button.custom_minimum_size.x = 24.0
+			button.text = "-" if direction < 0 else "+"
+			button.custom_minimum_size.x = 20.0
 			button.focus_mode = Control.FOCUS_NONE
 			button.pressed.connect(_adjust_tuning.bind(field, direction * step))
 			tuning_grid.add_child(button)
@@ -125,7 +125,12 @@ func _physics_process(delta: float) -> void:
 	elif is_charging_jump or not goat.is_on_floor():
 		restoring_launcher = false
 
-	var can_aim := goat.is_on_floor() and not is_charging_jump and is_zero_approx(_walk_direction())
+	var can_aim := (
+		goat.is_on_floor()
+		and not is_charging_jump
+		and jump_pause_remaining == 0.0
+		and is_zero_approx(_walk_direction())
+	)
 	if can_aim:
 		var turn := Input.get_axis("ui_left", "ui_right")
 		if not is_zero_approx(turn):

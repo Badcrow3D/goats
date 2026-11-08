@@ -81,7 +81,7 @@ animations = [{
 }],
 "loop": 1,
 "name": &"walk_left",
-"speed": 10.0
+"speed": 12.5
 }, {
 "frames": [{
 "duration": 1.0,
@@ -101,7 +101,7 @@ animations = [{
 }],
 "loop": 1,
 "name": &"walk_right",
-"speed": 10.0
+"speed": 12.5
 }]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_goat"]

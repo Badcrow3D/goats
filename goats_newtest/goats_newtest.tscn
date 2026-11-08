@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats_newtest/goats_newtest.gd" id="2_test"]
 [ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_launcher"]
 [ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
+[ext_resource type="FontFile" path="res://assets/porto-buena.regular.otf" id="5_ui_font"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_arena_ground"]
 size = Vector2(1280, 120)
@@ -11,8 +12,17 @@ size = Vector2(1280, 120)
 [sub_resource type="RectangleShape2D" id="Rectangle_arena_wall"]
 size = Vector2(16, 720)
 
+[sub_resource type="Theme" id="Theme_pixel_ui"]
+default_font = ExtResource("5_ui_font")
+default_font_size = 14
+GridContainer/constants/h_separation = 4
+GridContainer/constants/v_separation = 2
+VBoxContainer/constants/separation = 3
+
 [node name="GoatsNewTest" unique_id=2051334170 instance=ExtResource("1_base")]
 script = ExtResource("2_test")
+jump_pause_duration = 0.16
+landing_pause_duration = 0.32
 aim_speed = 90.0
 cursor_distance = 40.0
 
@@ -53,20 +63,22 @@ position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
 [node name="Controls" parent="." index="3" unique_id=558322142]
-theme_override_font_sizes/font_size = 16
+theme = SubResource("Theme_pixel_ui")
+theme_override_font_sizes/font_size = 14
 text = "A / D  Walk     LEFT / RIGHT  Face     UP / DOWN  Aim     ENTER  Charge jump     SPACE  Charge shot"
 
 [node name="TuningOverlay" type="CanvasLayer" parent="." index="4"]
 
 [node name="Panel" type="PanelContainer" parent="TuningOverlay"]
 offset_left = 16.0
-offset_top = 42.0
+offset_top = 36.0
+theme = SubResource("Theme_pixel_ui")
 
 [node name="Margin" type="MarginContainer" parent="TuningOverlay/Panel"]
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
 
 [node name="Settings" type="VBoxContainer" parent="TuningOverlay/Panel/Margin"]
 
