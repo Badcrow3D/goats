@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://dy30w6r71qf2w"]
+
+[ext_resource type="PackedScene" uid="uid://bftqjsmblcn88" path="res://goat_test/goat_test.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats_newtest/goats_newtest.gd" id="2_test"]
+[ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_launcher"]
+[ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
+
+[sub_resource type="RectangleShape2D" id="Rectangle_arena_ground"]
+size = Vector2(1280, 120)
+
+[sub_resource type="RectangleShape2D" id="Rectangle_arena_wall"]
+size = Vector2(16, 720)
+
+[node name="GoatsNewTest" unique_id=2051334170 instance=ExtResource("1_base")]
+script = ExtResource("2_test")
+aim_speed = 90.0
+cursor_distance = 40.0
+
+[node name="Sky" parent="." index="0" unique_id=401434795]
+polygon = PackedVector2Array(0, 0, 1280, 0, 1280, 720, 0, 720)
+
+[node name="Ground" parent="." index="1" unique_id=1606866610]
+position = Vector2(640, 660)
+
+[node name="Surface" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="0" unique_id=1054111697]
+polygon = PackedVector2Array(-640, -60, 640, -60, 640, 60, -640, 60)
+
+[node name="CollisionShape2D" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="1" unique_id=1899400447]
+shape = SubResource("Rectangle_arena_ground")
+
+[node name="LeftWall" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="2" unique_id=863796011]
+position = Vector2(-648, -300)
+shape = SubResource("Rectangle_arena_wall")
+
+[node name="RightWall" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="3" unique_id=284999796]
+position = Vector2(648, -300)
+shape = SubResource("Rectangle_arena_wall")
+
+[node name="Goat" parent="." index="2" unique_id=163038628]
+position = Vector2(640, 576)
+
+[node name="AnimatedSprite2D" parent="Goat" parent_id_path=PackedInt32Array(163038628) index="0" unique_id=2143000917]
+visible = false
+
+[node name="AimLauncher" type="Sprite2D" parent="Goat" parent_id_path=PackedInt32Array(163038628) index="4" unique_id=1377482768]
+texture = ExtResource("3_launcher")
+hframes = 21
+vframes = 2
+frame = 10
+
+[node name="AimCursor" type="Sprite2D" parent="Goat" parent_id_path=PackedInt32Array(163038628) index="5" unique_id=1092474658]
+position = Vector2(37, -6)
+texture = ExtResource("4_cursor")
+
+[node name="Controls" parent="." index="3" unique_id=558322142]
+theme_override_font_sizes/font_size = 16
+text = "A / D  Walk     LEFT / RIGHT  Face     UP / DOWN  Aim     ENTER  Charge jump     SPACE  Charge shot"
+
+[node name="TuningOverlay" type="CanvasLayer" parent="." index="4"]
+
+[node name="Panel" type="PanelContainer" parent="TuningOverlay"]
+offset_left = 16.0
+offset_top = 42.0
+
+[node name="Margin" type="MarginContainer" parent="TuningOverlay/Panel"]
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="Settings" type="VBoxContainer" parent="TuningOverlay/Panel/Margin"]
+
+[node name="Title" type="Label" parent="TuningOverlay/Panel/Margin/Settings"]
+text = "Jump and fire tuning"
+
+[node name="Values" type="GridContainer" parent="TuningOverlay/Panel/Margin/Settings"]
+columns = 4

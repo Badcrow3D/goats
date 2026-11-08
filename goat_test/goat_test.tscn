@@ -1,0 +1,174 @@
+[gd_scene format=3 uid="uid://bftqjsmblcn88"]
+
+[ext_resource type="Script" uid="uid://nmcbgfvfrun5" path="res://goat_test/goat_test.gd" id="1_test"]
+[ext_resource type="Texture2D" uid="uid://ur3cigsq6isw" path="res://sprites/goat24_layers.png" id="2_layers"]
+
+[sub_resource type="RectangleShape2D" id="Rectangle_ground"]
+size = Vector2(640, 60)
+
+[sub_resource type="RectangleShape2D" id="Rectangle_wall"]
+size = Vector2(16, 360)
+
+[sub_resource type="AtlasTexture" id="Atlas_idle"]
+atlas = ExtResource("2_layers")
+region = Rect2(0, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_5"]
+atlas = ExtResource("2_layers")
+region = Rect2(120, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_6"]
+atlas = ExtResource("2_layers")
+region = Rect2(144, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_7"]
+atlas = ExtResource("2_layers")
+region = Rect2(168, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_8"]
+atlas = ExtResource("2_layers")
+region = Rect2(192, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_9"]
+atlas = ExtResource("2_layers")
+region = Rect2(216, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_0"]
+atlas = ExtResource("2_layers")
+region = Rect2(0, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
+atlas = ExtResource("2_layers")
+region = Rect2(24, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
+atlas = ExtResource("2_layers")
+region = Rect2(48, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_3"]
+atlas = ExtResource("2_layers")
+region = Rect2(72, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_4"]
+atlas = ExtResource("2_layers")
+region = Rect2(96, 48, 24, 24)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_goat"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_idle")
+}],
+"loop": 0,
+"name": &"idle",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_6")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_7")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_8")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_9")
+}],
+"loop": 1,
+"name": &"walk_left",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_4")
+}],
+"loop": 1,
+"name": &"walk_right",
+"speed": 10.0
+}]
+
+[sub_resource type="RectangleShape2D" id="Rectangle_goat"]
+size = Vector2(12, 16)
+
+[node name="GoatTest" type="Node2D" unique_id=1077545872]
+texture_filter = 1
+script = ExtResource("1_test")
+
+[node name="Sky" type="Polygon2D" parent="." unique_id=401434795]
+color = Color(0.35686275, 0.69803923, 0.9882353, 1)
+polygon = PackedVector2Array(0, 0, 640, 0, 640, 360, 0, 360)
+
+[node name="Ground" type="StaticBody2D" parent="." unique_id=1606866610]
+position = Vector2(320, 330)
+
+[node name="Surface" type="Polygon2D" parent="Ground" unique_id=1054111697]
+color = Color(0.21568628, 0.6039216, 0.34901962, 1)
+polygon = PackedVector2Array(-320, -30, 320, -30, 320, 30, -320, 30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground" unique_id=1899400447]
+shape = SubResource("Rectangle_ground")
+
+[node name="LeftWall" type="CollisionShape2D" parent="Ground" unique_id=863796011]
+position = Vector2(-328, -150)
+shape = SubResource("Rectangle_wall")
+
+[node name="RightWall" type="CollisionShape2D" parent="Ground" unique_id=284999796]
+position = Vector2(328, -150)
+shape = SubResource("Rectangle_wall")
+
+[node name="Goat" type="CharacterBody2D" parent="." unique_id=163038628]
+position = Vector2(320, 276)
+collision_layer = 2
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Goat" unique_id=2143000917]
+scale = Vector2(2, 2)
+sprite_frames = SubResource("SpriteFrames_goat")
+animation = &"idle"
+
+[node name="Backpack" type="Sprite2D" parent="Goat/AnimatedSprite2D" unique_id=755079811]
+show_behind_parent = true
+texture = ExtResource("2_layers")
+hframes = 10
+vframes = 3
+
+[node name="Launcher" type="Sprite2D" parent="Goat/AnimatedSprite2D" unique_id=151829350]
+texture = ExtResource("2_layers")
+hframes = 10
+vframes = 3
+frame = 10
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Goat" unique_id=1763410790]
+position = Vector2(0, 16)
+shape = SubResource("Rectangle_goat")
+
+[node name="MuzzleRight" type="Marker2D" parent="Goat" unique_id=1893191331]
+position = Vector2(-3, -5)
+
+[node name="MuzzleTip" type="Marker2D" parent="Goat/MuzzleRight" unique_id=1780984275]
+position = Vector2(17, 0)
+
+[node name="MuzzleLeft" type="Marker2D" parent="Goat" unique_id=878330686]
+position = Vector2(2, -5)
+
+[node name="Controls" type="Label" parent="." unique_id=558322142]
+offset_left = 16.0
+offset_top = 12.0
+theme_override_font_sizes/font_size = 10
+text = "LEFT / RIGHT  Walk     ENTER  Hold to charge, release to jump     LEFT CLICK  Aim and fire"

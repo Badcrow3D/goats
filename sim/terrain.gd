@@ -78,5 +78,26 @@ func rect_is_free(x: int, y: int, w: int, h: int) -> bool:
 			if is_solid(xx, yy):
 				return false
 	return true
-	
-				
+
+## Builds the collision mask from an image: alpha >= threshold = solid.
+## Integer compare on the raw alpha byte, so the same PNG always gives the same mask.
+static func from_image(img: Image, alpha_threshold: int = 128) -> Terrain:
+	var src := img
+	if src.get_format() != Image.FORMAT_RGBA8:
+		src = img.duplicate() as Image
+		src.convert(Image.FORMAT_RGBA8)
+	var t := Terrain.new(src.get_width(), src.get_height())
+	var data := src.get_data()   # RGBA8: alpha is every 4th byte
+	for i in t.width * t.height:
+		if data[i * 4 + 3] >= alpha_threshold:
+			t.mask[i] = 1
+	return t
+
+## Rendering helper: makes every pixel in rect that is now air fully transparent,
+## leaving the artwork of the remaining terrain untouched.
+func erase_image_region(img: Image, rect: Rect2i) -> void:
+	var clear := Color(0, 0, 0, 0)
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			if mask[y * width + x] == 0:
+				img.set_pixel(x, y, clear)

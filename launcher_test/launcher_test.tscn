@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://launcher_test/launcher_test.gd" id="1_test"]
+[ext_resource type="Texture2D" path="res://sprites/launcher48.png" id="2_launcher"]
+[ext_resource type="Texture2D" path="res://sprites/cursor.png" id="3_cursor"]
+
+[sub_resource type="RectangleShape2D" id="Rectangle_ground"]
+size = Vector2(640, 60)
+
+[sub_resource type="RectangleShape2D" id="Rectangle_wall"]
+size = Vector2(16, 360)
+
+[node name="LauncherTest" type="Node2D"]
+texture_filter = 1
+script = ExtResource("1_test")
+
+[node name="Sky" type="Polygon2D" parent="."]
+color = Color(0.35686275, 0.69803923, 0.9882353, 1)
+polygon = PackedVector2Array(0, 0, 640, 0, 640, 360, 0, 360)
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(320, 330)
+
+[node name="Surface" type="Polygon2D" parent="Ground"]
+color = Color(0.21568628, 0.6039216, 0.34901962, 1)
+polygon = PackedVector2Array(-320, -30, 320, -30, 320, 30, -320, 30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("Rectangle_ground")
+
+[node name="LeftWall" type="CollisionShape2D" parent="Ground"]
+position = Vector2(-328, -150)
+shape = SubResource("Rectangle_wall")
+
+[node name="RightWall" type="CollisionShape2D" parent="Ground"]
+position = Vector2(328, -150)
+shape = SubResource("Rectangle_wall")
+
+[node name="Launcher" type="Sprite2D" parent="."]
+position = Vector2(320, 276)
+texture = ExtResource("2_launcher")
+hframes = 21
+vframes = 2
+frame = 10
+
+[node name="ProjectileOrigin" type="Marker2D" parent="Launcher"]
+
+[node name="AimCursor" type="Sprite2D" parent="."]
+position = Vector2(357, 270)
+texture = ExtResource("3_cursor")
+
+[node name="Controls" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 12.0
+theme_override_font_sizes/font_size = 10
+text = "LEFT / RIGHT  Face     UP / DOWN  Aim"

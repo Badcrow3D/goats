@@ -8,6 +8,7 @@ extends RefCounted
 const TICKS_PER_SECOND := 60
 const CRATER_RADIUS := 18
 const MAX_DAMAGE := 40
+const MUZZLE_OFFSET := Vector2i(0, -6)   # shot spawn relative to a player's feet
 
 const WALK_INTERVAL := 4        # ticks per pixel walked (30 px/s at 60 Hz)
 const MAX_STEP_UP := 2          # px climbed per step; 2 = ~63 degrees, use 1 for 45
@@ -54,7 +55,8 @@ func fire_fixed(vx_fp: int, vy_fp: int) -> void:
 	var p := world.get_player(state.active_player)
 	if p.falling:
 		return
-	projectile = Projectile.new(p.location.x, p.location.y - 6, vx_fp, vy_fp)
+	var muzzle := p.location + MUZZLE_OFFSET
+	projectile = Projectile.new(muzzle.x, muzzle.y, vx_fp, vy_fp)
 	state.mode = GameState.Mode.PROJECTILE_FLIGHT
 
 func tick() -> void:

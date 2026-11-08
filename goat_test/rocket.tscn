@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://goat_test/rocket.gd" id="1_rocket"]
+[ext_resource type="Texture2D" path="res://sprites/rocket16_40.png" id="2_sheet"]
+
+[sub_resource type="CircleShape2D" id="Circle_rocket"]
+radius = 3.0
+
+[node name="Rocket" type="CharacterBody2D"]
+collision_layer = 0
+script = ExtResource("1_rocket")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_sheet")
+hframes = 10
+vframes = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("Circle_rocket")
