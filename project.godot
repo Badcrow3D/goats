@@ -13,6 +13,7 @@ config_version=5
 config/name="goats"
 run/main_scene="uid://dy30w6r71qf2w"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+run/max_fps=60
 boot_splash/show_image=false
 boot_splash/use_filter=false
 config/icon="res://icon.svg"

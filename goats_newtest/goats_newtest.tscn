@@ -9,6 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://eqf2u42j82wl" path="res://sprites/launcher48_goat.png" id="7_goat"]
 [ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats_newtest/goat.gd" id="8_goat_state"]
 [ext_resource type="PackedScene" uid="uid://brr41rw5k0fap" path="res://goat_test/goat_hurtbox.tscn" id="9_hurtbox"]
+[ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats_newtest/wind_leaves.gd" id="10_wind_leaves"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_arena_ground"]
 size = Vector2(1280, 120)
@@ -35,6 +36,9 @@ landing_pause_duration = 0.32
 [node name="Sky" parent="." index="0" unique_id=401434795]
 polygon = PackedVector2Array(0, 0, 1280, 0, 1280, 720, 0, 720)
 
+[node name="WindLeaves" type="MultiMeshInstance2D" parent="Sky" index="0" unique_id=660560211]
+script = ExtResource("10_wind_leaves")
+
 [node name="Ground" parent="." index="1" unique_id=1606866610]
 position = Vector2(640, 660)
 
@@ -42,13 +46,16 @@ position = Vector2(640, 660)
 polygon = PackedVector2Array(-640, -60, 640, -60, 640, 60, -640, 60)
 
 [node name="CollisionShape2D" parent="Ground" index="1" unique_id=1899400447]
+visible = false
 shape = SubResource("Rectangle_arena_ground")
 
 [node name="LeftWall" parent="Ground" index="2" unique_id=863796011]
+visible = false
 position = Vector2(-648, -300)
 shape = SubResource("Rectangle_arena_wall")
 
 [node name="RightWall" parent="Ground" index="3" unique_id=284999796]
+visible = false
 position = Vector2(648, -300)
 shape = SubResource("Rectangle_arena_wall")
 

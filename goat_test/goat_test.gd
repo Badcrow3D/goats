@@ -3,6 +3,7 @@ extends Node2D
 enum Equipment { GOAT_ONLY, BACKPACK, BACKPACK_AND_LAUNCHER }
 
 const ROCKET := preload("res://goat_test/rocket.tscn")
+const Rocket := preload("res://goat_test/rocket.gd")
 
 @onready var goat: CharacterBody2D = $Goat
 @onready var sprite: AnimatedSprite2D = $Goat/AnimatedSprite2D
@@ -121,10 +122,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_fire_rocket(muzzle, direction)
 
 
-func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> void:
+func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
 	var tip_offset := Vector2(muzzle_tip.position.x * facing, muzzle_tip.position.y)
-	var rocket := ROCKET.instantiate()
+	var rocket := ROCKET.instantiate() as Rocket
 	rocket.position = to_local(muzzle.to_global(tip_offset))
 	rocket.velocity = direction * rocket.speed * power
 	rocket.shooter_hurtbox = goat.get_node("Hurtbox")
 	add_child(rocket)
+	return rocket

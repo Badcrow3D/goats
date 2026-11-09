@@ -21,6 +21,8 @@ const FLAT_LAUNCHER_COLUMN := 10.0
 const LAUNCHER_RETURN_SPEED := 30.0
 const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
+const MAX_WIND_LEVEL := 5
+const WIND_ACCELERATION_PER_LEVEL := 20.0
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
 const SPRITE_LAYERS_SECTION := "sprite_layers"
@@ -47,6 +49,7 @@ const TUNING_FIELDS := {
 @onready var aim_backpack: Sprite2D = $Goat/AimBackpack
 @onready var aim_cursor: Sprite2D = $Goat/AimCursor
 @onready var arena_camera: Camera2D = $ArenaCamera
+@onready var wind_leaves := $Sky/WindLeaves
 @onready var camera_target := arena_camera.position
 @onready var zoom_label: Label = $TuningOverlay/Panel/Margin/Settings/ZoomLabel
 @onready var tuning_grid: GridContainer = $TuningOverlay/Panel/Margin/Settings/Values
@@ -67,6 +70,7 @@ var restoring_launcher := false
 var launcher_column := FLAT_LAUNCHER_COLUMN
 var mouse_unlocked := false
 var arena_bounds: Rect2
+var wind_level := 0
 var teams: Dictionary[int, Team] = {}
 
 
@@ -83,6 +87,8 @@ func _ready() -> void:
 	arena_bounds = Rect2(sky.to_global(sky.polygon[0]), Vector2.ZERO)
 	for point in sky.polygon:
 		arena_bounds = arena_bounds.expand(sky.to_global(point))
+	wind_leaves.setup(arena_bounds)
+	_set_wind(randi_range(-MAX_WIND_LEVEL, MAX_WIND_LEVEL))
 	_update_mouse_mode()
 	get_viewport().size_changed.connect(_clamp_camera_position)
 	camera_target = goat.global_position
@@ -310,6 +316,23 @@ func _update_shot_charge(delta: float) -> void:
 		shot_released = false
 	else:
 		shot_charge = minf(shot_charge + delta, fire_charge_time)
+
+
+func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
+	var rocket := super(muzzle, direction, power)
+	rocket.wind_acceleration = wind_level * WIND_ACCELERATION_PER_LEVEL
+	rocket.impacted.connect(_roll_wind)
+	return rocket
+
+
+func _roll_wind() -> void:
+	var offset := randi_range(1, 2 * MAX_WIND_LEVEL)
+	_set_wind(wrapi(wind_level + offset, -MAX_WIND_LEVEL, MAX_WIND_LEVEL + 1))
+
+
+func _set_wind(level: int) -> void:
+	wind_level = level
+	wind_leaves.set_wind(float(level) / MAX_WIND_LEVEL)
 
 
 func _update_aim_display(snapped_aim: float, delta: float) -> void:

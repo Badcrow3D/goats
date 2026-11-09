@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+signal impacted
+
 const ANGLE_FRAMES := 40
 const GoatHurtbox := preload("res://goat_test/goat_hurtbox.gd")
 
@@ -12,6 +14,7 @@ const GoatHurtbox := preload("res://goat_test/goat_hurtbox.gd")
 @onready var impact_cast: ShapeCast2D = $ImpactCast
 
 var shooter_hurtbox: Area2D
+var wind_acceleration := 0.0
 var lifetime := 4.0
 
 
@@ -23,6 +26,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	lifetime -= delta
+	velocity.x += wind_acceleration * delta
 	velocity.y += gravity * delta
 	_update_sprite_angle()
 	var motion := velocity * delta
@@ -34,8 +38,12 @@ func _physics_process(delta: float) -> void:
 			if hurtbox:
 				hurtbox.apply_damage(direct_damage)
 				break
+		impacted.emit()
 		queue_free()
-	elif move_and_collide(motion) or lifetime <= 0.0:
+	elif move_and_collide(motion):
+		impacted.emit()
+		queue_free()
+	elif lifetime <= 0.0:
 		queue_free()
 
 
