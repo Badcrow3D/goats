@@ -50,15 +50,19 @@ func surface_y(x: int) -> int:
 	return height
 
 ## Removes a filled circle. Returns the affected rect (for partial redraws).
-func carve_circle(cx: int, cy: int, r: int) -> Rect2i:
-	var r2: int = r * r
-	for y in range(maxi(cy - r, 0), mini(cy + r + 1, height)):
-		for x in range(maxi(cx - r, 0), mini(cx + r + 1, width)):
-			var dx: int = x - cx
-			var dy: int = y - cy
+func carve_circle(cx: int, cy: int, r: int, center_between_pixels := false) -> Rect2i:
+	# Use doubled coordinates to sample half-pixel offsets with integer math.
+	var offset := 1 if center_between_pixels else 0
+	var r2 := 4 * r * r
+	var diameter := 2 * r + 1 - offset
+	var rect := Rect2i(cx - r, cy - r, diameter, diameter).intersection(Rect2i(0, 0, width, height))
+	for y in range(rect.position.y, rect.end.y):
+		var dy := 2 * (y - cy) + offset
+		for x in range(rect.position.x, rect.end.x):
+			var dx := 2 * (x - cx) + offset
 			if dx * dx + dy * dy <= r2:
 				mask[y * width + x] = 0
-	return Rect2i(cx - r, cy - r, r * 2 + 1, r * 2 + 1).intersection(Rect2i(0, 0, width, height))
+	return rect
 
 ## Rendering helpers (not part of the simulation).
 func make_image(terrain_color: Color, background_color: Color) -> Image:

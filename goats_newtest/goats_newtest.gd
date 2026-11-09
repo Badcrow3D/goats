@@ -23,6 +23,7 @@ const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
 const MAX_WIND_LEVEL := 5
 const WIND_ACCELERATION_PER_LEVEL := 20.0
+const TERRAIN_BURN_COLOR := Color("#4c4947")
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
 const SPRITE_LAYERS_SECTION := "sprite_layers"
@@ -35,6 +36,8 @@ const TUNING_FLOORS := {
 	"fire_charge_time": 0.1,
 	"fire_min_amount": 0.1,
 	"fire_max_amount": 0.1,
+	"explosion_radius": 1.0,
+	"scorch_radius_modifier": 0.0,
 	"gravity_scale": 0.05,
 }
 
@@ -60,6 +63,8 @@ const TUNING_FLOORS := {
 var fire_charge_time := 2.0
 var fire_min_amount := 0.25
 var fire_max_amount := 3.0
+var explosion_radius := float(Simulation.CRATER_RADIUS)
+var scorch_radius_modifier := 3.0
 var sprite_layers: Dictionary[String, bool] = {"goat": true, "backpack": true, "launcher": true}
 var showing_aim_pose := false
 var aim_degrees := 0.0
@@ -193,10 +198,13 @@ func _move_goat(delta: float) -> float:
 
 
 func _follow_slope(at: Vector2) -> Vector2:
-	for up in range(Simulation.MAX_STEP_UP + 1):
+	# The step limits are in bitmap pixels, while the goat moves in world pixels.
+	var max_step_up := roundi(Simulation.MAX_STEP_UP * terrain_view.scale.y)
+	var max_step_down := roundi(Simulation.MAX_STEP_DOWN * terrain_view.scale.y)
+	for up in range(max_step_up + 1):
 		var candidate := at - Vector2(0, up)
 		if _body_is_free(candidate):
-			for down in Simulation.MAX_STEP_DOWN:
+			for down in max_step_down:
 				if not _body_is_free(candidate + Vector2.DOWN):
 					break
 				candidate.y += 1.0
@@ -523,7 +531,12 @@ func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> R
 
 func _carve_terrain(world_pixel: Vector2i) -> void:
 	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
-	terrain_view.carve(terrain.carve_circle(pixel.x, pixel.y, Simulation.CRATER_RADIUS))
+	var radius := roundi(explosion_radius)
+	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
+	var scorch_width := roundi(scorch_radius_modifier)
+	if scorch_width > 0:
+		terrain_view.scorch_circle(pixel, radius + scorch_width, TERRAIN_BURN_COLOR)
+	terrain_view.carve(crater)
 
 
 func _roll_wind() -> void:
