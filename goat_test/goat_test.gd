@@ -41,7 +41,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	jump_pause_remaining = maxf(jump_pause_remaining - delta, 0.0)
-	var was_on_floor := goat.is_on_floor()
+	var was_on_floor := _is_grounded()
 	var direction := _walk_direction()
 	var can_walk := was_on_floor and not is_charging_jump and jump_pause_remaining == 0.0
 	if is_charging_jump:
@@ -61,12 +61,12 @@ func _physics_process(delta: float) -> void:
 			facing = signf(direction)
 
 	goat.velocity += goat.get_gravity() * gravity_scale * delta
-	goat.move_and_slide()
-	if not was_on_floor and goat.is_on_floor() and landing_pause_duration > 0.0:
+	var moved_x := _move_goat(delta)
+	if not was_on_floor and _is_grounded() and landing_pause_duration > 0.0:
 		jump_pause_remaining = landing_pause_duration
 		goat.velocity.x = 0.0
 
-	is_walking = can_walk and goat.is_on_floor() and not is_zero_approx(goat.get_real_velocity().x)
+	is_walking = can_walk and _is_grounded() and not is_zero_approx(moved_x)
 	if is_walking:
 		sprite.flip_h = false
 		sprite.play(&"walk_left" if facing < 0.0 else &"walk_right")
@@ -78,6 +78,15 @@ func _physics_process(delta: float) -> void:
 		if sprite.frame < finish_start:
 			sprite.set_frame_and_progress(finish_start, 0.0)
 	_sync_equipment_pose()
+
+
+func _is_grounded() -> bool:
+	return goat.is_on_floor()
+
+
+func _move_goat(_delta: float) -> float:
+	goat.move_and_slide()
+	return goat.get_real_velocity().x
 
 
 func _walk_direction() -> float:
@@ -104,7 +113,7 @@ func _sync_equipment_pose() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.physical_keycode != KEY_ENTER or event.echo:
 		return
-	if event.pressed and goat.is_on_floor() and not is_charging_jump and jump_pause_remaining == 0.0:
+	if event.pressed and _is_grounded() and not is_charging_jump and jump_pause_remaining == 0.0:
 		is_charging_jump = true
 		jump_released = false
 		jump_charge = 0.0
