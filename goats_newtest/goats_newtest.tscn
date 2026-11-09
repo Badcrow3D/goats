@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats_newtest/goat.gd" id="8_goat_state"]
 [ext_resource type="PackedScene" uid="uid://brr41rw5k0fap" path="res://goat_test/goat_hurtbox.tscn" id="9_hurtbox"]
 [ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats_newtest/wind_leaves.gd" id="10_wind_leaves"]
+[ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats_newtest/wind_clouds.gd" id="11_wind_clouds"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_arena_ground"]
 size = Vector2(1280, 120)
@@ -36,7 +37,10 @@ landing_pause_duration = 0.32
 [node name="Sky" parent="." index="0" unique_id=401434795]
 polygon = PackedVector2Array(0, 0, 1280, 0, 1280, 720, 0, 720)
 
-[node name="WindLeaves" type="MultiMeshInstance2D" parent="Sky" index="0" unique_id=660560211]
+[node name="WindClouds" type="MultiMeshInstance2D" parent="Sky" index="0" unique_id=1874248682]
+script = ExtResource("11_wind_clouds")
+
+[node name="WindLeaves" type="MultiMeshInstance2D" parent="Sky" index="1" unique_id=660560211]
 script = ExtResource("10_wind_leaves")
 
 [node name="Ground" parent="." index="1" unique_id=1606866610]
@@ -91,6 +95,10 @@ position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
 [node name="Controls" parent="." index="3" unique_id=558322142]
+offset_left = 18.0
+offset_top = 13.0
+offset_right = 1282.0
+offset_bottom = 28.0
 theme = SubResource("Theme_pixel_ui")
 theme_override_font_sizes/font_size = 14
 text = "A / D  Walk (tap to turn)     W / S  Aim     ENTER  Charge jump     SPACE  Charge shot     WHEEL  Zoom     MOUSE  Pan     RIGHT CLICK  Toggle pointer     ESC  Quit"

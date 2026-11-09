@@ -50,6 +50,7 @@ const TUNING_FIELDS := {
 @onready var aim_cursor: Sprite2D = $Goat/AimCursor
 @onready var arena_camera: Camera2D = $ArenaCamera
 @onready var wind_leaves := $Sky/WindLeaves
+@onready var wind_clouds := $Sky/WindClouds
 @onready var camera_target := arena_camera.position
 @onready var zoom_label: Label = $TuningOverlay/Panel/Margin/Settings/ZoomLabel
 @onready var tuning_grid: GridContainer = $TuningOverlay/Panel/Margin/Settings/Values
@@ -88,6 +89,7 @@ func _ready() -> void:
 	for point in sky.polygon:
 		arena_bounds = arena_bounds.expand(sky.to_global(point))
 	wind_leaves.setup(arena_bounds)
+	wind_clouds.setup(arena_bounds)
 	_set_wind(randi_range(-MAX_WIND_LEVEL, MAX_WIND_LEVEL))
 	_update_mouse_mode()
 	get_viewport().size_changed.connect(_clamp_camera_position)
@@ -332,7 +334,9 @@ func _roll_wind() -> void:
 
 func _set_wind(level: int) -> void:
 	wind_level = level
-	wind_leaves.set_wind(float(level) / MAX_WIND_LEVEL)
+	var strength := float(level) / MAX_WIND_LEVEL
+	wind_leaves.set_wind(strength)
+	wind_clouds.set_wind(strength, wind_leaves.drift_speed)
 
 
 func _update_aim_display(snapped_aim: float, delta: float) -> void:

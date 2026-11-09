@@ -1,7 +1,7 @@
 extends MultiMeshInstance2D
 
 const LEAF_TEXTURE := preload("res://sprites/leaf16.png")
-const LEAF_SHADER := preload("res://goats_newtest/wind_leaves.gdshader")
+const LEAF_SHADER := preload("res://goats_newtest/instanced_sprite_sheet.gdshader")
 const LEAF_SIZE := 16
 const MAX_LEAVES := 60
 const MAX_DRIFT_SPEED := 60.0
