@@ -1,7 +1,6 @@
 extends "res://goat_test/goat_test.gd"
 
 const Goat := preload("res://goats_newtest/goat.gd")
-const LEVEL_TEXTURE := preload("res://levels/level1.png")
 
 class Team:
 	var id: int
@@ -48,11 +47,13 @@ const TUNING_FIELDS := {
 @onready var aim_pose: Sprite2D = $Goat/AimPose
 @onready var aim_cursor: Sprite2D = $Goat/AimCursor
 @onready var arena_camera: Camera2D = $ArenaCamera
+@onready var terrain_view: TerrainView = $Terrain
 @onready var wind_layers := [
 	$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear,
 	$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear,
 ]
 @onready var camera_target := arena_camera.position
+@onready var tuning_overlay: CanvasLayer = $TuningOverlay
 @onready var zoom_label: Label = $TuningOverlay/Panel/Margin/Settings/ZoomLabel
 @onready var tuning_grid: GridContainer = $TuningOverlay/Panel/Margin/Settings/Values
 @onready var layer_controls: HBoxContainer = $TuningOverlay/Panel/Margin/Settings/LayerControls
@@ -73,7 +74,6 @@ var launcher_column := FLAT_LAUNCHER_COLUMN
 var mouse_unlocked := false
 var arena_bounds: Rect2
 var terrain: Terrain
-var terrain_view: TerrainView
 var goat_body: Rect2i
 var player_spawn_x: int
 var standing_spawn_x: int
@@ -91,7 +91,6 @@ func _ready() -> void:
 	var opposing_team := Team.new(standing_goat.team_id, "Orange", Color.DARK_ORANGE)
 	opposing_team.goats.append(standing_goat)
 	teams[opposing_team.id] = opposing_team
-	$Controls.reparent($TuningOverlay, false)
 	for layer in wind_layers:
 		layer.setup(arena_bounds)
 	_set_wind(randi_range(-MAX_WIND_LEVEL, MAX_WIND_LEVEL))
@@ -113,8 +112,7 @@ func _ready() -> void:
 
 
 func _setup_level() -> void:
-	$Ground.free()
-	var image := LEVEL_TEXTURE.get_image()
+	var image := terrain_view.texture.get_image()
 	image.convert(Image.FORMAT_RGBA8)
 	terrain = Terrain.from_image(image)
 	arena_bounds = Rect2(Vector2.ZERO, Vector2(terrain.width, terrain.height))
@@ -129,10 +127,6 @@ func _setup_level() -> void:
 	arena_camera.limit_right = terrain.width
 	arena_camera.limit_bottom = terrain.height
 
-	terrain_view = TerrainView.new()
-	sky.z_index = -2
-	terrain_view.z_index = -1
-	add_child(terrain_view)
 	terrain_view.setup(terrain, image)
 
 	var collider: CollisionShape2D = $Goat/CollisionShape2D
@@ -368,6 +362,10 @@ func _apply_sprite_layers() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_F1:
+			tuning_overlay.visible = not tuning_overlay.visible
+			get_viewport().set_input_as_handled()
+			return
 		if event.physical_keycode == KEY_A or event.physical_keycode == KEY_D:
 			var direction := -1.0 if event.physical_keycode == KEY_A else 1.0
 			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC if direction != facing else 0
