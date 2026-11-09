@@ -437,16 +437,19 @@ func _clamp_camera_position() -> void:
 func _update_shot_charge(delta: float) -> void:
 	if not is_charging_shot:
 		return
-	if shot_released:
-		var muzzle := muzzle_left if facing < 0.0 else muzzle_right
-		var direction := Vector2(facing, 0).rotated(muzzle.global_rotation)
-		var charge_ratio := minf(shot_charge / fire_charge_time, 1.0)
-		var power := lerpf(fire_min_amount, fire_max_amount, charge_ratio)
-		_fire_rocket(muzzle, direction, power)
-		is_charging_shot = false
-		shot_released = false
-	else:
+	if not shot_released:
 		shot_charge = minf(shot_charge + delta, fire_charge_time)
+		if not is_equal_approx(shot_charge, fire_charge_time):
+			return
+		shot_charge = fire_charge_time
+
+	var muzzle := muzzle_left if facing < 0.0 else muzzle_right
+	var direction := Vector2(facing, 0).rotated(muzzle.global_rotation)
+	var charge_ratio := minf(shot_charge / fire_charge_time, 1.0)
+	var power := lerpf(fire_min_amount, fire_max_amount, charge_ratio)
+	_fire_rocket(muzzle, direction, power)
+	is_charging_shot = false
+	shot_released = false
 
 
 func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:

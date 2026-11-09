@@ -1,17 +1,21 @@
-painted level
-
-arrow towards offscreen active goat
+jump and landing animations
+author idle loop, play on inactive goat
 
 charging feedback
 
-jump and landing animations
-possible climbing animations
+deployed launcher mode with no jumping, no launcher with no walking delay on facing
+
+bouncing weapon test
+bounce back on jumping into wall
+bounce goat by amount of damage, simple location no rotation
 
 parachute backpack
 deploy launcher
-no jump during launcher deployed
 
-author idle loop
+bounced goat animation
+
+arrow towards offscreen active goat
+possible climbing animations
 
 explosion
 particle effects
@@ -23,6 +27,7 @@ multiple goats per team
 mushrooms in mountain level
 flowers in forest level
 trees background
+mountains background
 
 desert level
 tropical level
@@ -32,5 +37,3 @@ snow and mountain
 cliffs and dessert sand, cactus, rocks
 tropical and beach, palm trees, rocks
 alien, swamp, jungle, city, castle ?
-
-
