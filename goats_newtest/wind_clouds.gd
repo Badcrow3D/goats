@@ -5,19 +5,15 @@ const CLOUD_SHADER := preload("res://goats_newtest/instanced_sprite_sheet.gdshad
 const CLOUD_SIZE := Vector2(64, 32)
 const CLOUD_COUNT := 10
 
-var cloud_positions := PackedVector2Array()
-var speed_multipliers := PackedFloat32Array()
-var left_edge := 0.0
-var right_edge := 0.0
-var drift_speed := 0.0
-
+@export_range(0.0, 1.0, 0.0025) var scroll_factor := 0.175
 
 func setup(arena_bounds: Rect2) -> void:
 	var half_size := CLOUD_SIZE * 0.5
-	left_edge = arena_bounds.position.x - half_size.x
-	right_edge = arena_bounds.end.x + half_size.x
+	var cloud_area := Rect2(arena_bounds.position, Vector2(arena_bounds.size.x, arena_bounds.size.y * (1.0 / 3.0)))
 	var top := arena_bounds.position.y + half_size.y
-	var bottom := arena_bounds.position.y + arena_bounds.size.y / 3.0 - half_size.y
+	var bottom := cloud_area.end.y - half_size.y
+	cloud_area.position = to_local(cloud_area.position)
+	RenderingServer.canvas_item_set_custom_rect(get_canvas_item(), true, cloud_area.grow(1.0))
 
 	texture = CLOUD_TEXTURE
 	var cloud_material := ShaderMaterial.new()
@@ -32,37 +28,19 @@ func setup(arena_bounds: Rect2) -> void:
 	quad.size = CLOUD_SIZE
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_2D
-	multimesh.use_colors = true
 	multimesh.mesh = quad
 	multimesh.instance_count = CLOUD_COUNT
 
-	cloud_positions.resize(CLOUD_COUNT)
-	speed_multipliers.resize(CLOUD_COUNT)
 	for index in CLOUD_COUNT:
-		var fraction := (index + 0.5) / CLOUD_COUNT
-		var x := lerpf(arena_bounds.position.x, arena_bounds.end.x, fraction)
-		cloud_positions[index] = Vector2(x, randf_range(top, bottom))
-		speed_multipliers[index] = randf_range(0.9, 1.1)
-		multimesh.set_instance_color(index, Color(1.0, 1.0, 1.0, randf_range(0.55, 0.75)))
-		_update_instance_transform(index)
-	set_wind(0.0, 0.0)
+		var x := randf_range(arena_bounds.position.x + half_size.x, arena_bounds.end.x - half_size.x)
+		var origin := to_local(Vector2(x, randf_range(top, bottom)).round())
+		multimesh.set_instance_transform_2d(index, Transform2D(0.0, origin))
+	set_wind(0.0)
 
 
-func set_wind(strength: float, leaf_drift_speed: float) -> void:
-	drift_speed = leaf_drift_speed * 0.25
+func set_wind(strength: float) -> void:
 	multimesh.visible_instance_count = roundi(absf(strength) * CLOUD_COUNT)
-	set_process(multimesh.visible_instance_count > 0)
 
 
-func _process(delta: float) -> void:
-	for index in multimesh.visible_instance_count:
-		var position_next := cloud_positions[index]
-		var distance := drift_speed * speed_multipliers[index] * delta
-		position_next.x = wrapf(position_next.x + distance, left_edge, right_edge)
-		cloud_positions[index] = position_next
-		_update_instance_transform(index)
-
-
-func _update_instance_transform(index: int) -> void:
-	var origin := to_local(cloud_positions[index].round())
-	multimesh.set_instance_transform_2d(index, Transform2D(0.0, origin))
+func update_parallax(camera_offset: Vector2) -> void:
+	position = -camera_offset * scroll_factor

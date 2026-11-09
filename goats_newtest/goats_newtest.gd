@@ -44,13 +44,13 @@ const TUNING_FIELDS := {
 
 @onready var player_goat: Goat = $Goat
 @onready var standing_goat: Goat = $StandingGoat
-@onready var aim_launcher: Sprite2D = $Goat/AimLauncher
-@onready var aim_goat: Sprite2D = $Goat/AimGoat
-@onready var aim_backpack: Sprite2D = $Goat/AimBackpack
+@onready var aim_pose: Sprite2D = $Goat/AimPose
 @onready var aim_cursor: Sprite2D = $Goat/AimCursor
 @onready var arena_camera: Camera2D = $ArenaCamera
-@onready var wind_leaves := $Sky/WindLeaves
-@onready var wind_clouds := $Sky/WindClouds
+@onready var wind_layers := [
+	$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear,
+	$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear,
+]
 @onready var camera_target := arena_camera.position
 @onready var zoom_label: Label = $TuningOverlay/Panel/Margin/Settings/ZoomLabel
 @onready var tuning_grid: GridContainer = $TuningOverlay/Panel/Margin/Settings/Values
@@ -88,8 +88,8 @@ func _ready() -> void:
 	arena_bounds = Rect2(sky.to_global(sky.polygon[0]), Vector2.ZERO)
 	for point in sky.polygon:
 		arena_bounds = arena_bounds.expand(sky.to_global(point))
-	wind_leaves.setup(arena_bounds)
-	wind_clouds.setup(arena_bounds)
+	for layer in wind_layers:
+		layer.setup(arena_bounds)
 	_set_wind(randi_range(-MAX_WIND_LEVEL, MAX_WIND_LEVEL))
 	_update_mouse_mode()
 	get_viewport().size_changed.connect(_clamp_camera_position)
@@ -229,15 +229,14 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_sprite_layers() -> void:
-	sprite.visible = not showing_aim_pose
+	# The aiming atlas is composited. Use the layered idle pose for individual layer previews.
+	aim_pose.visible = showing_aim_pose and sprite_layers["goat"] and sprite_layers["backpack"] and sprite_layers["launcher"]
+	sprite.visible = not aim_pose.visible
 	# Hide only the body texture so its child equipment can still draw.
 	sprite.self_modulate.a = 1.0 if sprite_layers["goat"] else 0.0
 	backpack.visible = sprite_layers["backpack"]
 	launcher.visible = sprite_layers["launcher"]
-	aim_goat.visible = showing_aim_pose and sprite_layers["goat"]
-	aim_backpack.visible = showing_aim_pose and sprite_layers["backpack"]
-	aim_launcher.visible = showing_aim_pose and sprite_layers["launcher"]
-	aim_cursor.visible = aim_launcher.visible
+	aim_cursor.visible = showing_aim_pose and sprite_layers["launcher"]
 
 
 func _input(event: InputEvent) -> void:
@@ -303,6 +302,9 @@ func _clamp_camera_position() -> void:
 	# Snap the viewport origin to a render pixel without discarding small mouse movements.
 	var origin_pixels := (camera_target * camera_zoom - half_view_pixels).round()
 	arena_camera.position = (origin_pixels + half_view_pixels) / camera_zoom
+	var camera_offset := arena_camera.position - arena_bounds.get_center()
+	for layer in wind_layers:
+		layer.update_parallax(camera_offset)
 
 
 func _update_shot_charge(delta: float) -> void:
@@ -335,8 +337,8 @@ func _roll_wind() -> void:
 func _set_wind(level: int) -> void:
 	wind_level = level
 	var strength := float(level) / MAX_WIND_LEVEL
-	wind_leaves.set_wind(strength)
-	wind_clouds.set_wind(strength, wind_leaves.drift_speed)
+	for layer in wind_layers:
+		layer.set_wind(strength)
 
 
 func _update_aim_display(snapped_aim: float, delta: float) -> void:
@@ -347,11 +349,9 @@ func _update_aim_display(snapped_aim: float, delta: float) -> void:
 		launcher_column = move_toward(launcher_column, target_column, LAUNCHER_RETURN_SPEED * delta)
 		restoring_launcher = launcher_column != target_column
 	var row := 1 if facing < 0.0 else 0
-	aim_launcher.frame_coords = Vector2i(column, row)
-	aim_goat.frame_coords = aim_launcher.frame_coords
-	aim_backpack.frame_coords = aim_launcher.frame_coords
+	aim_pose.frame_coords = Vector2i(column, row)
 
 	var angle := deg_to_rad(snapped_aim)
 	var direction := Vector2(facing * cos(angle), -sin(angle))
 	var origin := LEFT_AIM_ORIGIN if facing < 0.0 else RIGHT_AIM_ORIGIN
-	aim_cursor.global_position = (aim_launcher.to_global(origin) + direction * cursor_distance).round()
+	aim_cursor.global_position = (aim_pose.to_global(origin) + direction * cursor_distance).round()
