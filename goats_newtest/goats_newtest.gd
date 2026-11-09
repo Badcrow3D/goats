@@ -26,16 +26,16 @@ const WIND_ACCELERATION_PER_LEVEL := 20.0
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
 const SPRITE_LAYERS_SECTION := "sprite_layers"
-const TUNING_FIELDS := {
-	"jump_minimum_x": {"label": "Jump minimum X", "step": 1.0, "floor": 1.0},
-	"jump_minimum": {"label": "Jump minimum Y", "step": 1.0, "floor": 1.0},
-	"jump_maximum_x": {"label": "Jump maximum X", "step": 1.0, "floor": 1.0},
-	"jump_maximum": {"label": "Jump maximum Y", "step": 1.0, "floor": 1.0},
-	"jump_charge_time": {"label": "Jump charge time (s)", "step": 0.1, "floor": 0.1},
-	"fire_charge_time": {"label": "Fire charge time (s)", "step": 0.1, "floor": 0.1},
-	"fire_min_amount": {"label": "Fire min amount", "step": 0.1, "floor": 0.1},
-	"fire_max_amount": {"label": "Fire max amount", "step": 0.1, "floor": 0.1},
-	"gravity_scale": {"label": "Gravity scale", "step": 0.1, "floor": 0.05},
+const TUNING_FLOORS := {
+	"jump_minimum_x": 1.0,
+	"jump_minimum": 1.0,
+	"jump_maximum_x": 1.0,
+	"jump_maximum": 1.0,
+	"jump_charge_time": 0.1,
+	"fire_charge_time": 0.1,
+	"fire_min_amount": 0.1,
+	"fire_max_amount": 0.1,
+	"gravity_scale": 0.05,
 }
 
 @export var aim_speed := 90.0
@@ -53,15 +53,13 @@ const TUNING_FIELDS := {
 	$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear,
 ]
 @onready var camera_target := arena_camera.position
-@onready var tuning_overlay: CanvasLayer = $TuningOverlay
-@onready var zoom_label: Label = $TuningOverlay/Panel/Margin/Settings/ZoomLabel
-@onready var tuning_grid: GridContainer = $TuningOverlay/Panel/Margin/Settings/Values
-@onready var layer_controls: HBoxContainer = $TuningOverlay/Panel/Margin/Settings/LayerControls
+@onready var console: CanvasLayer = $Console
+@onready var console_output: RichTextLabel = $Console/Panel/Margin/Rows/Output
+@onready var console_input: LineEdit = $Console/Panel/Margin/Rows/Input
 
 var fire_charge_time := 2.0
 var fire_min_amount := 0.25
 var fire_max_amount := 3.0
-var tuning_labels: Dictionary[String, Label] = {}
 var sprite_layers: Dictionary[String, bool] = {"goat": true, "backpack": true, "launcher": true}
 var showing_aim_pose := false
 var aim_degrees := 0.0
@@ -99,63 +97,68 @@ func _ready() -> void:
 	camera_target = goat.global_position
 	_zoom_camera(1)
 	_load_tuning()
-	_build_tuning_controls()
-	for layer: String in sprite_layers:
-		var checkbox := CheckBox.new()
-		checkbox.text = layer.capitalize()
-		checkbox.focus_mode = Control.FOCUS_NONE
-		checkbox.button_pressed = sprite_layers[layer]
-		checkbox.toggled.connect(_toggle_sprite_layer.bind(layer))
-		layer_controls.add_child(checkbox)
+	var font := console_output.get_theme_font("normal_font")
+	var font_size := console_output.get_theme_font_size("normal_font_size")
+	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
+	console_input.text_submitted.connect(_run_console_command)
 	_update_aim_display(0.0, 0.0)
 	_apply_sprite_layers()
 
 
 func _setup_level() -> void:
-	var image := terrain_view.texture.get_image()
+	var image := terrain_view.texture.get_image().duplicate() as Image
 	image.convert(Image.FORMAT_RGBA8)
 	terrain = Terrain.from_image(image)
-	arena_bounds = Rect2(Vector2.ZERO, Vector2(terrain.width, terrain.height))
+	arena_bounds = Rect2(Vector2.ZERO, Vector2(image.get_size()) * terrain_view.scale)
 
 	var sky: Polygon2D = $Sky
 	sky.polygon = PackedVector2Array([
-		Vector2.ZERO, Vector2(terrain.width, 0), arena_bounds.end, Vector2(0, terrain.height),
+		Vector2.ZERO, Vector2(arena_bounds.size.x, 0), arena_bounds.end, Vector2(0, arena_bounds.size.y),
 	])
 	RenderingServer.set_default_clear_color(sky.color)
 	arena_camera.limit_left = 0
 	arena_camera.limit_top = 0
-	arena_camera.limit_right = terrain.width
-	arena_camera.limit_bottom = terrain.height
+	arena_camera.limit_right = roundi(arena_bounds.end.x)
+	arena_camera.limit_bottom = roundi(arena_bounds.end.y)
 
 	terrain_view.setup(terrain, image)
 
 	var collider: CollisionShape2D = $Goat/CollisionShape2D
 	var body_size := Vector2i((collider.shape as RectangleShape2D).size)
 	goat_body = Rect2i(Vector2i(collider.position) - Vector2i(body_size / 2), body_size)
-	player_spawn_x = roundi(terrain.width * 0.5)
-	standing_spawn_x = roundi(terrain.width * 0.6)
+	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
+	standing_spawn_x = roundi(arena_bounds.size.x * 0.6)
 	goat.position = _spawn_at(player_spawn_x)
 	standing_goat.position = _spawn_at(standing_spawn_x)
 
 
 func _spawn_at(preferred_x: int) -> Vector2:
 	# Cast down through the mask across the goat's feet so slopes cannot bury its body.
-	for offset in terrain.width:
+	for offset in ceili(arena_bounds.size.x):
 		for x in [preferred_x + offset, preferred_x - offset]:
-			if x + goat_body.position.x < 0 or x + goat_body.end.x > terrain.width:
+			var footprint := _bitmap_body_rect(Vector2(x, 0))
+			if footprint.position.x < 0 or footprint.end.x > terrain.width:
 				continue
 			var surface := terrain.height
-			for column in range(x + goat_body.position.x, x + goat_body.end.x):
+			for column in range(footprint.position.x, footprint.end.x):
 				surface = mini(surface, terrain.surface_y(column))
 			if surface < terrain.height:
-				return Vector2(x, surface - goat_body.end.y)
+				return Vector2(x, surface * terrain_view.scale.y - goat_body.end.y)
 	push_error("Level bitmap has no solid spawn surface.")
 	return Vector2(preferred_x, 0)
 
 
+func _bitmap_body_rect(at: Vector2) -> Rect2i:
+	# Cover every source pixel touched by the goat's world-space collision box.
+	var origin := at.round() + Vector2(goat_body.position)
+	var pixel_start := Vector2i((origin / terrain_view.scale).floor())
+	var pixel_end := Vector2i(((origin + Vector2(goat_body.size)) / terrain_view.scale).ceil())
+	return Rect2i(pixel_start, pixel_end - pixel_start)
+
+
 func _body_is_free(at: Vector2) -> bool:
-	var pixel := Vector2i(at.round()) + goat_body.position
-	return terrain.rect_is_free(pixel.x, pixel.y, goat_body.size.x, goat_body.size.y)
+	var rect := _bitmap_body_rect(at)
+	return terrain.rect_is_free(rect.position.x, rect.position.y, rect.size.x, rect.size.y)
 
 
 func _is_grounded() -> bool:
@@ -182,8 +185,8 @@ func _move_goat(delta: float) -> float:
 			break
 		goat.position = next
 
-	if goat.position.y > terrain.height or goat.position.x < -goat_body.size.x \
-			or goat.position.x > terrain.width + goat_body.size.x:
+	if goat.position.y > arena_bounds.end.y or goat.position.x < -goat_body.size.x \
+			or goat.position.x > arena_bounds.end.x + goat_body.size.x:
 		goat.position = _spawn_at(player_spawn_x)
 		goat.velocity = Vector2.ZERO
 	return goat.position.x - start.x
@@ -223,7 +226,7 @@ func _settle_standing_goat(delta: float) -> void:
 	standing_goat.position.y += moved
 	if not is_equal_approx(moved, distance):
 		standing_fall_speed = 0.0
-	if standing_goat.position.y > terrain.height:
+	if standing_goat.position.y > arena_bounds.end.y:
 		standing_goat.position = _spawn_at(standing_spawn_x)
 		standing_fall_speed = 0.0
 
@@ -236,10 +239,10 @@ func _load_tuning() -> void:
 			push_warning("Could not load tuning settings: %s" % error_string(error))
 		return
 
-	for field: String in TUNING_FIELDS:
+	for field: String in TUNING_FLOORS:
 		var saved: Variant = config.get_value(TUNING_SECTION, field, get(field))
 		if (saved is float or saved is int) and is_finite(float(saved)):
-			set(field, maxf(float(saved), TUNING_FIELDS[field].floor))
+			set(field, maxf(float(saved), TUNING_FLOORS[field]))
 	jump_maximum = maxf(jump_minimum, jump_maximum)
 	fire_max_amount = maxf(fire_min_amount, fire_max_amount)
 	for layer: String in sprite_layers:
@@ -248,58 +251,92 @@ func _load_tuning() -> void:
 			sprite_layers[layer] = saved
 
 
-func _build_tuning_controls() -> void:
-	for field: String in TUNING_FIELDS:
-		var label := Label.new()
-		label.text = TUNING_FIELDS[field].label
-		tuning_grid.add_child(label)
-
-		var value := Label.new()
-		value.custom_minimum_size.x = 44.0
-		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		tuning_grid.add_child(value)
-		tuning_labels[field] = value
-		_update_tuning_label(field)
-
-		var step: float = TUNING_FIELDS[field].step
-		for direction: int in [-1, 1]:
-			var button := Button.new()
-			button.text = "-" if direction < 0 else "+"
-			button.custom_minimum_size.x = 20.0
-			button.focus_mode = Control.FOCUS_NONE
-			button.pressed.connect(_adjust_tuning.bind(field, direction * step))
-			tuning_grid.add_child(button)
-
-
-func _adjust_tuning(field: String, amount: float) -> void:
-	var current: float = get(field)
-	var value := maxf(snappedf(current + amount, 0.01), TUNING_FIELDS[field].floor)
-	match field:
-		"jump_minimum":
-			value = minf(value, jump_maximum)
-		"jump_maximum":
-			value = maxf(value, jump_minimum)
-		"fire_min_amount":
-			value = minf(value, fire_max_amount)
-		"fire_max_amount":
-			value = maxf(value, fire_min_amount)
-	if is_equal_approx(value, current):
+func _run_console_command(command: String) -> void:
+	console_input.clear()
+	var words := command.replace("\t", " ").split(" ", false)
+	if words.is_empty():
 		return
 
+	var lines := PackedStringArray(["> " + command])
+	match words[0]:
+		"vars":
+			if words.size() != 1:
+				lines.append("Usage: vars")
+			else:
+				for field: String in TUNING_FLOORS:
+					lines.append("%s = %s" % [field, get(field)])
+				for layer: String in sprite_layers:
+					lines.append("%s = %s" % [layer, sprite_layers[layer]])
+		"set":
+			lines.append(_set_console_variable(words))
+		"reset":
+			if words.size() != 1:
+				lines.append("Usage: reset")
+			else:
+				_reload_level.call_deferred()
+				return
+		_:
+			lines.append("Unknown command: " + words[0])
+
+	var first_line := 0
+	if not console_output.text.is_empty():
+		first_line = console_output.get_line_count()
+		console_output.text += "\n"
+	console_output.text += "\n".join(lines)
+	console_output.scroll_to_line(first_line)
+
+
+func _set_console_variable(words: PackedStringArray) -> String:
+	if words.size() != 3:
+		return "Usage: set varname value"
+
+	var field := words[1]
+	var value_text := words[2]
+	if sprite_layers.has(field):
+		if value_text != "true" and value_text != "false":
+			return "%s expects true or false." % field
+		sprite_layers[field] = value_text == "true"
+		_apply_sprite_layers()
+		_save_tuning()
+		return "%s = %s" % [field, sprite_layers[field]]
+
+	if not TUNING_FLOORS.has(field):
+		return "Unknown variable: " + field
+	if not value_text.is_valid_float() or not is_finite(value_text.to_float()):
+		return "%s expects a finite number." % field
+
+	var value := value_text.to_float()
+	var minimum: float = TUNING_FLOORS[field]
+	var maximum := INF
+	match field:
+		"jump_minimum":
+			maximum = jump_maximum
+		"jump_maximum":
+			minimum = jump_minimum
+		"fire_min_amount":
+			maximum = fire_max_amount
+		"fire_max_amount":
+			minimum = fire_min_amount
+	if value < minimum:
+		return "%s must be at least %s." % [field, minimum]
+	if value > maximum:
+		return "%s must be at most %s." % [field, maximum]
+
 	set(field, value)
-	_update_tuning_label(field)
 	_save_tuning()
+	return "%s = %s" % [field, get(field)]
 
 
-func _toggle_sprite_layer(enabled: bool, layer: String) -> void:
-	sprite_layers[layer] = enabled
-	_apply_sprite_layers()
-	_save_tuning()
+func _reload_level() -> void:
+	var error := get_tree().reload_current_scene()
+	if error != OK:
+		console_output.text += "\nCould not reset level: " + error_string(error)
+		console_output.scroll_to_line(console_output.get_line_count() - 1)
 
 
 func _save_tuning() -> void:
 	var config := ConfigFile.new()
-	for key: String in TUNING_FIELDS:
+	for key: String in TUNING_FLOORS:
 		config.set_value(TUNING_SECTION, key, get(key))
 	for layer: String in sprite_layers:
 		config.set_value(SPRITE_LAYERS_SECTION, layer, sprite_layers[layer])
@@ -308,12 +345,8 @@ func _save_tuning() -> void:
 		push_warning("Could not save tuning settings: %s" % error_string(error))
 
 
-func _update_tuning_label(field: String) -> void:
-	tuning_labels[field].text = String.num(get(field), 2)
-
-
 func _walk_direction() -> float:
-	if Time.get_ticks_msec() < walk_start_msec:
+	if console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
 	return float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 
@@ -334,7 +367,7 @@ func _physics_process(delta: float) -> void:
 		and jump_pause_remaining == 0.0
 		and is_zero_approx(_walk_direction())
 	)
-	if can_aim:
+	if can_aim and not console.visible:
 		var elevation := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
 		aim_degrees = clampf(aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
@@ -361,17 +394,24 @@ func _apply_sprite_layers() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_F1:
-			tuning_overlay.visible = not tuning_overlay.visible
+	if event is InputEventKey and event.physical_keycode == KEY_QUOTELEFT:
+		if event.pressed and not event.echo:
+			_toggle_console()
+		get_viewport().set_input_as_handled()
+		return
+	if console.visible:
+		if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed:
+			_toggle_console()
 			get_viewport().set_input_as_handled()
-			return
+		return
+
+	if event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_A or event.physical_keycode == KEY_D:
 			var direction := -1.0 if event.physical_keycode == KEY_A else 1.0
 			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC if direction != facing else 0
 			if _is_grounded() and not is_charging_jump and jump_pause_remaining == 0.0:
 				facing = direction
-	if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed:
+	if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed and not event.echo:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
@@ -398,7 +438,29 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
+func _toggle_console() -> void:
+	console.visible = not console.visible
+	if console.visible:
+		if is_charging_jump:
+			is_charging_jump = false
+			jump_released = false
+			jump_pause_remaining = 0.0
+		is_charging_shot = false
+		shot_released = false
+		console_input.grab_focus()
+	else:
+		console_input.release_focus()
+	_update_mouse_mode()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not console.visible:
+		super(event)
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if console.visible:
+		return
 	if event is InputEventKey and event.physical_keycode == KEY_SPACE and not event.echo:
 		if event.pressed and not is_charging_shot:
 			is_charging_shot = true
@@ -411,12 +473,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func _zoom_camera(amount: int) -> void:
 	var zoom_level := clampi(int(arena_camera.zoom.x) + amount, 1, camera_max_zoom)
 	arena_camera.zoom = Vector2.ONE * float(zoom_level)
-	zoom_label.text = "Camera zoom: %d%%" % (zoom_level * 100)
 	_clamp_camera_position()
 
 
 func _update_mouse_mode() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if mouse_unlocked else Input.MOUSE_MODE_CAPTURED
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if mouse_unlocked or console.visible else Input.MOUSE_MODE_CAPTURED
 
 
 func _clamp_camera_position() -> void:
@@ -453,13 +514,15 @@ func _update_shot_charge(delta: float) -> void:
 func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
 	var rocket := super(muzzle, direction, power)
 	rocket.terrain = terrain
+	rocket.terrain_pixel_size = terrain_view.scale
 	rocket.wind_acceleration = wind_level * WIND_ACCELERATION_PER_LEVEL
 	rocket.exploded_at.connect(_carve_terrain)
 	rocket.impacted.connect(_roll_wind)
 	return rocket
 
 
-func _carve_terrain(pixel: Vector2i) -> void:
+func _carve_terrain(world_pixel: Vector2i) -> void:
+	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
 	terrain_view.carve(terrain.carve_circle(pixel.x, pixel.y, Simulation.CRATER_RADIUS))
 
 

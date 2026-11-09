@@ -108,14 +108,16 @@ animations = [{
 }]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_goat"]
-size = Vector2(12, 16)
+size = Vector2(8, 16)
 
 [sub_resource type="Theme" id="Theme_pixel_ui"]
 default_font = ExtResource("5_ui_font")
 default_font_size = 16
-GridContainer/constants/h_separation = 4
-GridContainer/constants/v_separation = 2
-VBoxContainer/constants/separation = 3
+RichTextLabel/constants/line_separation = 0
+VBoxContainer/constants/separation = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_console"]
+bg_color = Color(0.10588235, 0.10588235, 0.10588235, 1)
 
 [node name="GoatsNewTest" type="Node2D" unique_id=2051334170]
 texture_filter = 1
@@ -128,7 +130,7 @@ landing_pause_duration = 0.32
 [node name="Sky" type="Polygon2D" parent="." unique_id=401434795]
 z_index = -2
 color = Color(0.35686275, 0.69803923, 0.9882353, 1)
-polygon = PackedVector2Array(0, 0, 1400, 0, 1400, 800, 0, 800)
+polygon = PackedVector2Array(0, 0, 2800, 0, 2800, 1600, 0, 1600)
 
 [node name="CloudsFar" type="MultiMeshInstance2D" parent="Sky" unique_id=1774499158]
 self_modulate = Color(1, 1, 1, 0.35)
@@ -160,12 +162,13 @@ script = ExtResource("10_wind_leaves")
 
 [node name="Terrain" type="Sprite2D" parent="." unique_id=1167225093]
 z_index = -1
+scale = Vector2(2, 2)
 texture = ExtResource("12_level")
 centered = false
 script = ExtResource("13_terrain")
 
 [node name="Goat" type="CharacterBody2D" parent="." unique_id=163038628]
-position = Vector2(700, 295)
+position = Vector2(1371, 615)
 collision_layer = 2
 script = ExtResource("8_goat_state")
 team_id = 1
@@ -214,56 +217,41 @@ frame = 10
 position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
-[node name="TuningOverlay" type="CanvasLayer" parent="." unique_id=1101330]
+[node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
+visible = false
 
-[node name="Controls" type="Label" parent="TuningOverlay" unique_id=558322142]
-offset_left = 18.0
-offset_top = 12.0
-offset_right = 1616.0
-offset_bottom = 28.0
+[node name="Panel" type="PanelContainer" parent="Console" unique_id=384858294]
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
 theme = SubResource("Theme_pixel_ui")
-theme_override_font_sizes/font_size = 16
-text = "A/D Walk  W/S Aim    ENTER Jump     SPACE Fire    Mouse Pan/Zoom    Mouse2 Pointer    F1 Hide    ESC Quit"
+theme_override_styles/panel = SubResource("StyleBox_console")
 
-[node name="Panel" type="PanelContainer" parent="TuningOverlay" unique_id=1224958721]
-offset_left = 16.0
-offset_top = 36.0
-theme = SubResource("Theme_pixel_ui")
-
-[node name="Margin" type="MarginContainer" parent="TuningOverlay/Panel" unique_id=176321882]
+[node name="Margin" type="MarginContainer" parent="Console/Panel" unique_id=1816086556]
 layout_mode = 2
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 4
-theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 4
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
 
-[node name="Settings" type="VBoxContainer" parent="TuningOverlay/Panel/Margin" unique_id=1753708592]
+[node name="Rows" type="VBoxContainer" parent="Console/Panel/Margin" unique_id=111556945]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="TuningOverlay/Panel/Margin/Settings" unique_id=663121326]
+[node name="Output" type="RichTextLabel" parent="Console/Panel/Margin/Rows" unique_id=11287227]
 layout_mode = 2
-text = "Jump and fire tuning"
+autowrap_mode = 0
+shortcut_keys_enabled = false
 
-[node name="Values" type="GridContainer" parent="TuningOverlay/Panel/Margin/Settings" unique_id=926117917]
+[node name="Input" type="LineEdit" parent="Console/Panel/Margin/Rows" unique_id=523749669]
 layout_mode = 2
-columns = 4
-
-[node name="LayerTitle" type="Label" parent="TuningOverlay/Panel/Margin/Settings" unique_id=292911227]
-layout_mode = 2
-text = "Sprite layers"
-
-[node name="LayerControls" type="HBoxContainer" parent="TuningOverlay/Panel/Margin/Settings" unique_id=476794079]
-layout_mode = 2
-
-[node name="ZoomLabel" type="Label" parent="TuningOverlay/Panel/Margin/Settings" unique_id=692761980]
-layout_mode = 2
-text = "Camera zoom: 100%"
+keep_editing_on_text_submit = true
 
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
-position = Vector2(640, 360)
+position = Vector2(1400, 614)
+offset = Vector2(60, 0)
 
 [node name="StandingGoat" type="Node2D" parent="." unique_id=560716349]
-position = Vector2(840, 364)
+position = Vector2(1672, 752)
 script = ExtResource("8_goat_state")
 team_id = 2
 facing_direction = -1

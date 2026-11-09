@@ -2,7 +2,7 @@ extends MultiMeshInstance2D
 
 const CLOUD_TEXTURE := preload("res://sprites/clouds64x32.png")
 const CLOUD_SHADER := preload("res://goats_newtest/instanced_sprite_sheet.gdshader")
-const CLOUD_SIZE := Vector2(64, 32)
+const CLOUD_SIZE := Vector2(128, 64)
 const CLOUD_COUNT := 10
 
 @export_range(0.0, 1.0, 0.0025) var scroll_factor := 0.175

@@ -16,6 +16,7 @@ const GoatHurtbox := preload("res://goat_test/goat_hurtbox.gd")
 
 var shooter_hurtbox: Area2D
 var terrain: Terrain
+var terrain_pixel_size := Vector2.ONE
 var wind_acceleration := 0.0
 var lifetime := 4.0
 
@@ -40,7 +41,8 @@ func _physics_process(delta: float) -> void:
 		for step in range(steps + 1):
 			var fraction := float(step) / steps
 			hit_pixel = Vector2i((position + motion * fraction).floor())
-			if terrain.is_solid(hit_pixel.x, hit_pixel.y):
+			var bitmap_pixel := Vector2i((Vector2(hit_pixel) / terrain_pixel_size).floor())
+			if terrain.is_solid(bitmap_pixel.x, bitmap_pixel.y):
 				bitmap_hit = true
 				motion *= fraction
 				break
