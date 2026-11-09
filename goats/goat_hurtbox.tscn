@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://brr41rw5k0fap"]
 
-[ext_resource type="Script" uid="uid://c05vd1v7u6uxe" path="res://goat_test/goat_hurtbox.gd" id="1_hurtbox"]
+[ext_resource type="Script" uid="uid://c05vd1v7u6uxe" path="res://goats/goat_hurtbox.gd" id="1_hurtbox"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_hurtbox"]
 resource_local_to_scene = true

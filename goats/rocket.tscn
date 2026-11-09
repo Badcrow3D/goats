@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://goat_test/rocket.gd" id="1_rocket"]
+[ext_resource type="Script" path="res://goats/rocket.gd" id="1_rocket"]
 [ext_resource type="Texture2D" path="res://sprites/rocket16_40.png" id="2_sheet"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_rocket"]

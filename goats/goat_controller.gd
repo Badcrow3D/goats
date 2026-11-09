@@ -2,8 +2,8 @@ extends Node2D
 
 enum Equipment { GOAT_ONLY, BACKPACK, BACKPACK_AND_LAUNCHER }
 
-const ROCKET := preload("res://goat_test/rocket.tscn")
-const Rocket := preload("res://goat_test/rocket.gd")
+const ROCKET := preload("res://goats/rocket.tscn")
+const Rocket := preload("res://goats/rocket.gd")
 
 @onready var goat: CharacterBody2D = $Goat
 @onready var sprite: AnimatedSprite2D = $Goat/AnimatedSprite2D

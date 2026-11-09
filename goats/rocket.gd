@@ -4,7 +4,7 @@ signal impacted
 signal exploded_at(pixel: Vector2i)
 
 const ANGLE_FRAMES := 40
-const GoatHurtbox := preload("res://goat_test/goat_hurtbox.gd")
+const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 
 @export var speed := 220.0
 @export var gravity := 400.0

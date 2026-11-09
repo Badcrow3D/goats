@@ -1,6 +1,6 @@
-extends "res://goat_test/goat_test.gd"
+extends "res://goats/goat_controller.gd"
 
-const Goat := preload("res://goats_newtest/goat.gd")
+const Goat := preload("res://goats/goat.gd")
 
 class Team:
 	var id: int
@@ -23,6 +23,9 @@ const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
 const MAX_WIND_LEVEL := 5
 const WIND_ACCELERATION_PER_LEVEL := 20.0
+const DEFAULT_EXPLOSION_RADIUS := 18.0
+const MAX_STEP_UP := 2
+const MAX_STEP_DOWN := 2
 const TERRAIN_BURN_COLOR := Color("#4c4947")
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
@@ -63,7 +66,7 @@ const TUNING_FLOORS := {
 var fire_charge_time := 2.0
 var fire_min_amount := 0.25
 var fire_max_amount := 3.0
-var explosion_radius := float(Simulation.CRATER_RADIUS)
+var explosion_radius := DEFAULT_EXPLOSION_RADIUS
 var scorch_radius_modifier := 3.0
 var sprite_layers: Dictionary[String, bool] = {"goat": true, "backpack": true, "launcher": true}
 var showing_aim_pose := false
@@ -199,8 +202,8 @@ func _move_goat(delta: float) -> float:
 
 func _follow_slope(at: Vector2) -> Vector2:
 	# The step limits are in bitmap pixels, while the goat moves in world pixels.
-	var max_step_up := roundi(Simulation.MAX_STEP_UP * terrain_view.scale.y)
-	var max_step_down := roundi(Simulation.MAX_STEP_DOWN * terrain_view.scale.y)
+	var max_step_up := roundi(MAX_STEP_UP * terrain_view.scale.y)
+	var max_step_down := roundi(MAX_STEP_DOWN * terrain_view.scale.y)
 	for up in range(max_step_up + 1):
 		var candidate := at - Vector2(0, up)
 		if _body_is_free(candidate):
