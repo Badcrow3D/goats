@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://goat_test/rocket.gd" id="1_rocket"]
 [ext_resource type="Texture2D" path="res://sprites/rocket16_40.png" id="2_sheet"]
 
-[sub_resource type="CircleShape2D" id="Circle_rocket"]
-radius = 3.0
+[sub_resource type="RectangleShape2D" id="Rectangle_rocket"]
+size = Vector2(6, 10)
 
 [node name="Rocket" type="CharacterBody2D"]
 collision_layer = 0
@@ -16,4 +16,10 @@ hframes = 10
 vframes = 4
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("Circle_rocket")
+shape = SubResource("Rectangle_rocket")
+
+[node name="ImpactCast" type="ShapeCast2D" parent="."]
+enabled = false
+shape = SubResource("Rectangle_rocket")
+collision_mask = 5
+collide_with_areas = true

@@ -3,7 +3,6 @@ extends Node2D
 enum Equipment { GOAT_ONLY, BACKPACK, BACKPACK_AND_LAUNCHER }
 
 const ROCKET := preload("res://goat_test/rocket.tscn")
-const GOAT_GRAVITY_SCALE := 2.0
 
 @onready var goat: CharacterBody2D = $Goat
 @onready var sprite: AnimatedSprite2D = $Goat/AnimatedSprite2D
@@ -14,6 +13,7 @@ const GOAT_GRAVITY_SCALE := 2.0
 @onready var muzzle_tip: Marker2D = $Goat/MuzzleRight/MuzzleTip
 
 @export var walk_speed := 32.0
+@export var gravity_scale := 2.0
 @export var equipment := Equipment.BACKPACK_AND_LAUNCHER
 @export var jump_pause_duration := 0.0
 @export var landing_pause_duration := 0.0
@@ -59,7 +59,7 @@ func _physics_process(delta: float) -> void:
 		if not is_zero_approx(direction):
 			facing = signf(direction)
 
-	goat.velocity += goat.get_gravity() * GOAT_GRAVITY_SCALE * delta
+	goat.velocity += goat.get_gravity() * gravity_scale * delta
 	goat.move_and_slide()
 	if not was_on_floor and goat.is_on_floor() and landing_pause_duration > 0.0:
 		jump_pause_remaining = landing_pause_duration
@@ -126,4 +126,5 @@ func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> v
 	var rocket := ROCKET.instantiate()
 	rocket.position = to_local(muzzle.to_global(tip_offset))
 	rocket.velocity = direction * rocket.speed * power
+	rocket.shooter_hurtbox = goat.get_node("Hurtbox")
 	add_child(rocket)

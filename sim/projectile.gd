@@ -15,6 +15,9 @@ const MIN_BOUNCE_SPEED2 := 9268 * 9268  # (~0.14 px/tick)^2 in fixed-point; slow
 
 enum Event { NONE, BOUNCED, EXPLODED, LEFT_WORLD }
 
+var owner_id: int = -1          # shooter; ignored until the shell has left their body
+var owner_exited: bool = false
+
 var x: int   # fixed-point pixels
 var y: int
 var vx: int  # fixed-point pixels per tick
@@ -39,7 +42,7 @@ func pixel_y() -> int:
 
 ## Advance exactly one fixed tick.
 @warning_ignore("integer_division")
-func step(terrain: Terrain) -> Event:
+func step(terrain: Terrain, players: Array[PlayerData] = []) -> Event:
 	if not alive:
 		return Event.NONE
 	fuse -= 1
@@ -68,11 +71,32 @@ func step(terrain: Terrain) -> Event:
 		if px < 0 or px >= terrain.width or py >= terrain.height:
 			alive = false
 			return Event.LEFT_WORLD
+		if _hits_player(px, py, players):
+			alive = false
+			return Event.EXPLODED
 
 	if fuse <= 0 or bounces > max_bounces or (result == Event.BOUNCED and vx * vx + vy * vy < MIN_BOUNCE_SPEED2):
 		alive = false
 		return Event.EXPLODED
 	return result
+
+## True if pixel (px, py) is inside a living player's body rect.
+## The owner is skipped until the shell has been outside their rect once.
+func _hits_player(px: int, py: int, players: Array[PlayerData]) -> bool:
+	for p in players:
+		if p.health <= 0:
+			continue
+		var inside: bool = px >= p.location.x - PlayerData.BODY_HALF_W \
+			and px < p.location.x - PlayerData.BODY_HALF_W + PlayerData.BODY_W \
+			and py >= p.location.y - PlayerData.BODY_H \
+			and py < p.location.y
+		if p.id == owner_id and not owner_exited:
+			if not inside:
+				owner_exited = true
+			continue
+		if inside:
+			return true
+	return false
 
 ## Surface normal estimate by sampling: every AIR pixel in a disc around the hit
 ## pixel pushes the normal toward itself. Returns an UN-normalised integer

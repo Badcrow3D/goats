@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="goats"
-run/main_scene="res://goats_newtest/goats_newtest.tscn"
+run/main_scene="uid://dy30w6r71qf2w"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 boot_splash/show_image=false
 boot_splash/use_filter=false
@@ -21,15 +21,14 @@ config/icon="res://icon.svg"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
-window/size/resizable=false
-window/stretch/mode="viewport"
-window/stretch/aspect="expand"
-window/stretch/scale_mode="integer"
+
+[layer_names]
+
+2d_physics/layer_3="Goat Hurtboxes"
 
 [physics]
 
 3d/physics_engine="Jolt Physics"
-2d/default_gravity_vector=Vector2(0, 0.5)
 
 [rendering]
 

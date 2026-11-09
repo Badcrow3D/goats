@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bftqjsmblcn88"]
 
 [ext_resource type="Script" uid="uid://nmcbgfvfrun5" path="res://goat_test/goat_test.gd" id="1_test"]
+[ext_resource type="PackedScene" path="res://goat_test/goat_hurtbox.tscn" id="3_hurtbox"]
 [ext_resource type="Texture2D" uid="uid://ur3cigsq6isw" path="res://sprites/goat24_layers.png" id="2_layers"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_ground"]
@@ -166,6 +167,8 @@ position = Vector2(17, 0)
 
 [node name="MuzzleLeft" type="Marker2D" parent="Goat" unique_id=878330686]
 position = Vector2(2, -5)
+
+[node name="Hurtbox" parent="Goat" instance=ExtResource("3_hurtbox")]
 
 [node name="Controls" type="Label" parent="." unique_id=558322142]
 offset_left = 16.0

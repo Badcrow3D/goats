@@ -2,9 +2,13 @@
 
 [ext_resource type="PackedScene" uid="uid://bftqjsmblcn88" path="res://goat_test/goat_test.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats_newtest/goats_newtest.gd" id="2_test"]
-[ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_launcher"]
+[ext_resource type="Texture2D" uid="uid://jx6nefc3qvs4" path="res://sprites/launcher48_launcher.png" id="3_launcher"]
 [ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
-[ext_resource type="FontFile" path="res://assets/porto-buena.regular.otf" id="5_ui_font"]
+[ext_resource type="FontFile" uid="uid://c76u7lrkob2cb" path="res://assets/porto-buena.regular.otf" id="5_ui_font"]
+[ext_resource type="Texture2D" uid="uid://br4x31cnbtslo" path="res://sprites/launcher48_backpack.png" id="6_backpack"]
+[ext_resource type="Texture2D" uid="uid://eqf2u42j82wl" path="res://sprites/launcher48_goat.png" id="7_goat"]
+[ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats_newtest/goat.gd" id="8_goat_state"]
+[ext_resource type="PackedScene" uid="uid://brr41rw5k0fap" path="res://goat_test/goat_hurtbox.tscn" id="9_hurtbox"]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_arena_ground"]
 size = Vector2(1280, 120)
@@ -21,10 +25,12 @@ VBoxContainer/constants/separation = 3
 
 [node name="GoatsNewTest" unique_id=2051334170 instance=ExtResource("1_base")]
 script = ExtResource("2_test")
-jump_pause_duration = 0.16
-landing_pause_duration = 0.32
 aim_speed = 90.0
 cursor_distance = 40.0
+camera_max_zoom = 3
+gravity_scale = 0.5
+jump_pause_duration = 0.16
+landing_pause_duration = 0.32
 
 [node name="Sky" parent="." index="0" unique_id=401434795]
 polygon = PackedVector2Array(0, 0, 1280, 0, 1280, 720, 0, 720)
@@ -32,58 +38,105 @@ polygon = PackedVector2Array(0, 0, 1280, 0, 1280, 720, 0, 720)
 [node name="Ground" parent="." index="1" unique_id=1606866610]
 position = Vector2(640, 660)
 
-[node name="Surface" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="0" unique_id=1054111697]
+[node name="Surface" parent="Ground" index="0" unique_id=1054111697]
 polygon = PackedVector2Array(-640, -60, 640, -60, 640, 60, -640, 60)
 
-[node name="CollisionShape2D" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="1" unique_id=1899400447]
+[node name="CollisionShape2D" parent="Ground" index="1" unique_id=1899400447]
 shape = SubResource("Rectangle_arena_ground")
 
-[node name="LeftWall" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="2" unique_id=863796011]
+[node name="LeftWall" parent="Ground" index="2" unique_id=863796011]
 position = Vector2(-648, -300)
 shape = SubResource("Rectangle_arena_wall")
 
-[node name="RightWall" parent="Ground" parent_id_path=PackedInt32Array(1606866610) index="3" unique_id=284999796]
+[node name="RightWall" parent="Ground" index="3" unique_id=284999796]
 position = Vector2(648, -300)
 shape = SubResource("Rectangle_arena_wall")
 
 [node name="Goat" parent="." index="2" unique_id=163038628]
 position = Vector2(640, 576)
+script = ExtResource("8_goat_state")
+team_id = 1
+status = 0
 
-[node name="AnimatedSprite2D" parent="Goat" parent_id_path=PackedInt32Array(163038628) index="0" unique_id=2143000917]
+[node name="AnimatedSprite2D" parent="Goat" index="0" unique_id=2143000917]
 visible = false
 
-[node name="AimLauncher" type="Sprite2D" parent="Goat" parent_id_path=PackedInt32Array(163038628) index="4" unique_id=1377482768]
+[node name="AimBackpack" type="Sprite2D" parent="Goat" index="5" unique_id=1447323531]
+texture = ExtResource("6_backpack")
+hframes = 21
+vframes = 2
+frame = 10
+
+[node name="AimGoat" type="Sprite2D" parent="Goat" index="6" unique_id=961199365]
+texture = ExtResource("7_goat")
+hframes = 21
+vframes = 2
+frame = 10
+
+[node name="AimLauncher" type="Sprite2D" parent="Goat" index="7" unique_id=1377482768]
 texture = ExtResource("3_launcher")
 hframes = 21
 vframes = 2
 frame = 10
 
-[node name="AimCursor" type="Sprite2D" parent="Goat" parent_id_path=PackedInt32Array(163038628) index="5" unique_id=1092474658]
+[node name="AimCursor" type="Sprite2D" parent="Goat" index="8" unique_id=1092474658]
 position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
 [node name="Controls" parent="." index="3" unique_id=558322142]
 theme = SubResource("Theme_pixel_ui")
 theme_override_font_sizes/font_size = 14
-text = "A / D  Walk     LEFT / RIGHT  Face     UP / DOWN  Aim     ENTER  Charge jump     SPACE  Charge shot"
+text = "A / D  Walk (tap to turn)     W / S  Aim     ENTER  Charge jump     SPACE  Charge shot     WHEEL  Zoom     MOUSE  Pan     RIGHT CLICK  Toggle pointer     ESC  Quit"
 
-[node name="TuningOverlay" type="CanvasLayer" parent="." index="4"]
+[node name="TuningOverlay" type="CanvasLayer" parent="." index="4" unique_id=1101330]
 
-[node name="Panel" type="PanelContainer" parent="TuningOverlay"]
+[node name="Panel" type="PanelContainer" parent="TuningOverlay" index="0" unique_id=1224958721]
 offset_left = 16.0
 offset_top = 36.0
 theme = SubResource("Theme_pixel_ui")
 
-[node name="Margin" type="MarginContainer" parent="TuningOverlay/Panel"]
+[node name="Margin" type="MarginContainer" parent="TuningOverlay/Panel" index="0" unique_id=176321882]
+layout_mode = 2
 theme_override_constants/margin_left = 6
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 6
 theme_override_constants/margin_bottom = 4
 
-[node name="Settings" type="VBoxContainer" parent="TuningOverlay/Panel/Margin"]
+[node name="Settings" type="VBoxContainer" parent="TuningOverlay/Panel/Margin" index="0" unique_id=1753708592]
+layout_mode = 2
 
-[node name="Title" type="Label" parent="TuningOverlay/Panel/Margin/Settings"]
+[node name="Title" type="Label" parent="TuningOverlay/Panel/Margin/Settings" index="0" unique_id=663121326]
+layout_mode = 2
 text = "Jump and fire tuning"
 
-[node name="Values" type="GridContainer" parent="TuningOverlay/Panel/Margin/Settings"]
+[node name="Values" type="GridContainer" parent="TuningOverlay/Panel/Margin/Settings" index="1" unique_id=926117917]
+layout_mode = 2
 columns = 4
+
+[node name="LayerTitle" type="Label" parent="TuningOverlay/Panel/Margin/Settings" index="2" unique_id=292911227]
+layout_mode = 2
+text = "Sprite layers"
+
+[node name="LayerControls" type="HBoxContainer" parent="TuningOverlay/Panel/Margin/Settings" index="3" unique_id=476794079]
+layout_mode = 2
+
+[node name="ZoomLabel" type="Label" parent="TuningOverlay/Panel/Margin/Settings" index="4" unique_id=692761980]
+layout_mode = 2
+text = "Camera zoom: 100%"
+
+[node name="ArenaCamera" type="Camera2D" parent="." index="5" unique_id=845076425]
+position = Vector2(640, 360)
+
+[node name="StandingGoat" type="Node2D" parent="." index="6" unique_id=560716349]
+position = Vector2(920, 576)
+script = ExtResource("8_goat_state")
+team_id = 2
+facing_direction = -1
+
+[node name="Body" type="Sprite2D" parent="StandingGoat" index="0" unique_id=2052159522]
+texture = ExtResource("7_goat")
+hframes = 21
+vframes = 2
+frame = 31
+
+[node name="Hurtbox" parent="StandingGoat" index="1" unique_id=507752935 instance=ExtResource("9_hurtbox")]

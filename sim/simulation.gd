@@ -56,7 +56,8 @@ func fire_fixed(vx_fp: int, vy_fp: int) -> void:
 	if p.falling:
 		return
 	var muzzle := p.location + MUZZLE_OFFSET
-	projectile = Projectile.new(muzzle.x, muzzle.y, vx_fp, vy_fp)
+	projectile = Projectile.new(p.location.x, p.location.y - 6, vx_fp, vy_fp)
+	projectile.owner_id = p.id
 	state.mode = GameState.Mode.PROJECTILE_FLIGHT
 
 func tick() -> void:
@@ -75,7 +76,7 @@ func tick() -> void:
 
 func _tick_projectile() -> void:
 	var terrain := world.current_level.collision_map
-	var ev := projectile.step(terrain)
+	var ev := projectile.step(terrain, world.players)
 	if ev == Projectile.Event.EXPLODED:
 		_explode(projectile.pixel_x(), projectile.pixel_y())
 		state.mode = GameState.Mode.TURN_END

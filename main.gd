@@ -35,7 +35,7 @@ func _ready() -> void:
 
 	var world := WorldData.new()
 	world.current_level = level
-	var spawns := [[0, "Billy", terrain.width * 15 / 100], [1, "Nanny", terrain.width * 85 / 100]]
+	var spawns := [[0, "Billy", terrain.width * 50 / 100], [1, "Nanny", terrain.width * 60 / 100]]
 	for s in spawns:
 		var sy := terrain.surface_y(s[2])
 		world.players.append(PlayerData.new(s[0], s[1], Vector2i(s[2], sy), 100))

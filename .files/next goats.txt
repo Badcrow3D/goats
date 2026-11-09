@@ -1,0 +1,36 @@
+painted level
+
+arrow towards offscreen active goat
+
+charging feedback
+
+jump and landing animations
+possible climbing animations
+
+parachute backpack
+deploy launcher
+no jump during launcher deployed
+
+author idle loop
+
+explosion
+particle effects
+
+energy for movement and remaining shown
+turn time limit
+multiple goats per team
+
+mushrooms in mountain level
+flowers in forest level
+trees background
+
+desert level
+tropical level
+
+grass and trees
+snow and mountain
+cliffs and dessert sand, cactus, rocks
+tropical and beach, palm trees, rocks
+alien, swamp, jungle, city, castle ?
+
+
