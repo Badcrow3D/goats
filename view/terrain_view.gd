@@ -32,3 +32,18 @@ func scorch_circle(center: Vector2i, radius: int, color: Color) -> void:
 func carve(rect: Rect2i) -> void:
 	terrain.erase_image_region(image, rect)
 	(texture as ImageTexture).update(image)
+
+## Adds sprite pixels behind the current artwork and makes them solid.
+func deposit(grains: Dictionary[Vector2i, Color]) -> void:
+	var changed := false
+	for pixel: Vector2i in grains:
+		if not terrain.in_bounds(pixel.x, pixel.y):
+			continue
+		var existing := image.get_pixelv(pixel)
+		if existing.a == 1.0 and terrain.is_solid(pixel.x, pixel.y):
+			continue
+		image.set_pixelv(pixel, grains[pixel].blend(existing))
+		terrain.mask[pixel.y * terrain.width + pixel.x] = 1
+		changed = true
+	if changed:
+		(texture as ImageTexture).update(image)

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dy30w6r71qf2w"]
 
-[ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats/goats.gd" id="2_test"]
+[ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats/goatsgame.gd" id="2_test"]
 [ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_aim"]
 [ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
 [ext_resource type="FontFile" uid="uid://c76u7lrkob2cb" path="res://assets/porto-buena.regular.otf" id="5_ui_font"]
@@ -11,6 +11,10 @@
 [ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
 [ext_resource type="Texture2D" uid="uid://bntkxk571rqpq" path="res://levels/level1.png" id="12_level"]
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
+[ext_resource type="Material" uid="uid://b6n6i6icwps4x" path="res://assets/palette_cycle.tres" id="14_000da"]
+[ext_resource type="Texture2D" uid="uid://cg7vpw67vt7a5" path="res://sprites/chargejump26x8.png" id="14_jump_charge"]
+[ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
+[ext_resource type="Texture2D" uid="uid://isjvwcpo1mcs" path="res://sprites/explosion1.png" id="15_wdfnk"]
 
 [sub_resource type="AtlasTexture" id="Atlas_idle"]
 atlas = ExtResource("7_layers")
@@ -217,6 +221,18 @@ frame = 10
 position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
+[node name="JumpChargeMeter" type="Sprite2D" parent="Goat" unique_id=1366841805]
+position = Vector2(1, 32)
+texture = ExtResource("14_jump_charge")
+vframes = 26
+frame = 15
+
+[node name="ShotChargeMeter" type="Sprite2D" parent="Goat" unique_id=1417714816]
+position = Vector2(-18, 11)
+texture = ExtResource("15_shot_charge")
+hframes = 26
+frame = 10
+
 [node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
 visible = false
 
@@ -265,3 +281,9 @@ vframes = 3
 frame = 20
 
 [node name="Hurtbox" parent="StandingGoat" unique_id=507752935 instance=ExtResource("9_hurtbox")]
+
+[node name="Explosion1" type="Sprite2D" parent="." unique_id=1002464975]
+material = ExtResource("14_000da")
+position = Vector2(-77, 105)
+scale = Vector2(2, 2)
+texture = ExtResource("15_wdfnk")

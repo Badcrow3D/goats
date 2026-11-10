@@ -1,18 +1,24 @@
-jump and landing animations
++ paint and test level2.png
+
++ jump and landing animations
 author idle loop, play on inactive goat
 
-charging feedback
+camera follow on movement
 
-deployed launcher mode with no jumping, no launcher with no walking delay on facing
+deployed launcher mode with no jumping
+no walking delay on facing if launcher is not deployed
+
+sound and music
 
 bouncing weapon test
 bounce back on jumping into wall
 bounce goat by amount of damage, simple location no rotation
+bounced goat animation
+
+mini map or radar when zoomed in
 
 parachute backpack
 deploy launcher
-
-bounced goat animation
 
 arrow towards offscreen active goat
 possible climbing animations
@@ -20,9 +26,10 @@ possible climbing animations
 explosion
 particle effects
 
-energy for movement and remaining shown
 turn time limit
 multiple goats per team
+
+pixel shot path tracers
 
 mushrooms in mountain level
 flowers in forest level
@@ -37,3 +44,4 @@ snow and mountain
 cliffs and dessert sand, cactus, rocks
 tropical and beach, palm trees, rocks
 alien, swamp, jungle, city, castle ?
+

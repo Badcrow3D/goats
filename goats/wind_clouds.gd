@@ -35,11 +35,6 @@ func setup(arena_bounds: Rect2) -> void:
 		var x := randf_range(arena_bounds.position.x + half_size.x, arena_bounds.end.x - half_size.x)
 		var origin := to_local(Vector2(x, randf_range(top, bottom)).round())
 		multimesh.set_instance_transform_2d(index, Transform2D(0.0, origin))
-	set_wind(0.0)
-
-
-func set_wind(strength: float) -> void:
-	multimesh.visible_instance_count = roundi(absf(strength) * CLOUD_COUNT)
 
 
 func update_parallax(camera_offset: Vector2) -> void:

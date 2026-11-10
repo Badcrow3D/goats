@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://b6n6i6icwps4x"]
+
+[ext_resource type="Shader" uid="uid://3pvun88wxlve" path="res://assets/palette_cycle.gdshader" id="1_tmtva"]
+[ext_resource type="Texture2D" uid="uid://gpd3yq5uolp0" path="res://sprites/explosion-colors.png" id="2_evrki"]
+
+[resource]
+shader = ExtResource("1_tmtva")
+shader_parameter/palette = ExtResource("2_evrki")
+shader_parameter/step = 3
