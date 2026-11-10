@@ -4,6 +4,7 @@ const Goat := preload("res://goats/goat.gd")
 const CloudLayer := preload("res://goats/wind_clouds.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const DIRT_GRAVITY := 400.0
+const CAMERA_DRAG_THRESHOLD := 4.0
 
 class CameraControls extends Node:
 	signal input_received(event: InputEvent)
@@ -30,8 +31,10 @@ class DirtDrop extends Sprite2D:
 	var terrain_view: TerrainView
 	var gravity: float
 	var max_spread_time: float
+	var max_diagonal_steps: int
 	var fall_speed := 0.0
 	var grains: Dictionary[Vector2i, Color] = {}
+	var sideways_steps: Dictionary[Vector2i, int] = {}
 	var impact_x: int
 	var settle_elapsed := 0.0
 	var scan_left_to_right := true
@@ -42,18 +45,31 @@ class DirtDrop extends Sprite2D:
 	func _physics_process(delta: float) -> void:
 		fall_speed += gravity * delta
 		var next_y := position.y + fall_speed * delta
-		var terrain := terrain_view.terrain
-		var x := floori(position.x)
-		# Sweep the center through every crossed bitmap row so thin terrain can catch it.
-		var first_row := maxi(0, floori(position.y))
-		var last_row := mini(terrain.height - 1, floori(next_y))
-		for y in range(first_row, last_row + 1):
-			if terrain.is_solid(x, y):
-				_begin_settling(Vector2i(x, y))
-				return
+		var radius := minf(texture.get_width(), texture.get_height()) * 0.5
+		var contact_y := _first_circle_contact_y(next_y, radius)
+		if contact_y < INF:
+			_begin_settling(Vector2i(floori(position.x), floori(contact_y)))
+			return
 		position.y = next_y
-		if position.y - texture.get_height() * 0.5 >= terrain.height:
+		if position.y - texture.get_height() * 0.5 >= terrain_view.terrain.height:
 			queue_free()
+
+	func _first_circle_contact_y(next_y: float, radius: float) -> float:
+		var terrain := terrain_view.terrain
+		var first_contact := INF
+		var first_column := maxi(0, ceili(position.x - radius) - 1)
+		var last_column := mini(terrain.width - 1, floori(position.x + radius))
+		for x in range(first_column, last_column + 1):
+			# Find the circle's vertical reach at the nearest point in this column.
+			var dx := position.x - clampf(position.x, x, x + 1)
+			var reach := sqrt(maxf(0.0, radius * radius - dx * dx))
+			var first_row := maxi(0, ceili(position.y - reach) - 1)
+			var last_row := mini(terrain.height - 1, floori(minf(next_y, first_contact) + reach))
+			for y in range(first_row, last_row + 1):
+				if terrain.is_solid(x, y):
+					first_contact = minf(first_contact, maxf(position.y, y - reach))
+					break
+		return first_contact
 
 	func _begin_settling(center: Vector2i) -> void:
 		var stamp := texture.get_image()
@@ -83,23 +99,29 @@ class DirtDrop extends Sprite2D:
 		var pixels := grains.keys()
 		pixels.sort_custom(_settle_order)
 		var terrain := terrain_view.terrain
+		var blocked: Array[Vector2i] = []
 		var moved := false
 		for pixel: Vector2i in pixels:
 			if terrain.is_solid(pixel.x, pixel.y):
 				continue
 			var target := pixel + Vector2i.DOWN
+			if _cell_is_free(target):
+				_move_grain(pixel, target)
+				moved = true
+			elif can_spread and sideways_steps.get(pixel, 0) < max_diagonal_steps:
+				blocked.append(pixel)
+		# Falling grains get first claim on each cell before sideways spreading.
+		for pixel in blocked:
+			var target := pixel + Vector2i.DOWN
+			if _cell_is_free(target):
+				continue # The grain below moved diagonally. Fall on the next pass.
+			var outward := -1 if pixel.x < impact_x else 1
+			target.x += outward
 			if not _cell_is_free(target):
-				if not can_spread:
-					continue
-				var outward := -1 if pixel.x < impact_x else 1
-				target.x += outward
+				target.x -= 2 * outward
 				if not _cell_is_free(target):
-					target.x -= 2 * outward
-					if not _cell_is_free(target):
-						continue
-			if target.y < terrain.height:
-				grains[target] = grains[pixel]
-			grains.erase(pixel)
+					continue
+			_move_grain(pixel, target)
 			moved = true
 		scan_left_to_right = not scan_left_to_right
 		if not moved:
@@ -108,6 +130,13 @@ class DirtDrop extends Sprite2D:
 			queue_free()
 		elif moved:
 			queue_redraw()
+
+	func _move_grain(from: Vector2i, to: Vector2i) -> void:
+		if to.y < terrain_view.terrain.height:
+			grains[to] = grains[from]
+			sideways_steps[to] = sideways_steps.get(from, 0) + absi(to.x - from.x)
+		grains.erase(from)
+		sideways_steps.erase(from)
 
 	func _settle_order(a: Vector2i, b: Vector2i) -> bool:
 		if a.y != b.y:
@@ -155,6 +184,7 @@ const TUNING_FLOORS := {
 	"explosion_radius": 1.0,
 	"scorch_radius_modifier": 0.0,
 	"dirt_settle_time": 0.0,
+	"dirt_diagonal_steps": 0.0,
 	"gravity_scale": 0.05,
 	"cloud_count": 0.0,
 }
@@ -190,6 +220,7 @@ var fire_min_amount := 0.25
 var fire_max_amount := 3.0
 var explosion_radius := DEFAULT_EXPLOSION_RADIUS
 var dirt_settle_time := 1.0
+var dirt_diagonal_steps := 2
 var scorch_radius_modifier := 3.0
 var level_filename := DEFAULT_LEVEL
 var sprite_layers: Dictionary[String, bool] = {"goat": true, "backpack": true, "launcher": true}
@@ -200,6 +231,8 @@ var shot_charge := 0.0
 var is_charging_shot := false
 var shot_released := false
 var mouse_unlocked := false
+var left_press_position := Vector2.INF
+var camera_dragging := false
 var arena_bounds: Rect2
 var terrain: Terrain
 var goat_body: Rect2i
@@ -405,6 +438,9 @@ func _load_tuning() -> void:
 		if (saved is float or saved is int) and is_finite(float(saved)):
 			if field == "cloud_count":
 				cloud_count = roundi(clampf(float(saved), 0.0, max_cloud_count))
+			elif field == "dirt_diagonal_steps":
+				if saved is int:
+					dirt_diagonal_steps = maxi(saved, 0)
 			else:
 				set(field, maxf(float(saved), TUNING_FLOORS[field]))
 	var saved_level: Variant = config.get_value(TUNING_SECTION, "level_filename", DEFAULT_LEVEL)
@@ -512,6 +548,12 @@ func _set_console_variable(words: PackedStringArray) -> String:
 
 	if not TUNING_FLOORS.has(field):
 		return "Unknown variable: " + field
+	if field == "dirt_diagonal_steps":
+		if not value_text.is_valid_int() or value_text.to_int() < 0:
+			return "dirt_diagonal_steps expects a nonnegative whole number."
+		dirt_diagonal_steps = value_text.to_int()
+		_save_tuning()
+		return "dirt_diagonal_steps = %s" % dirt_diagonal_steps
 	if not value_text.is_valid_float() or not is_finite(value_text.to_float()):
 		return "%s expects a finite number." % field
 
@@ -655,10 +697,6 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed and not event.echo:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
-	if mouse_unlocked and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		var at: Vector2 = terrain_view.get_global_transform_with_canvas().affine_inverse() * event.position
-		_drop_dirt(at)
-		get_viewport().set_input_as_handled()
 
 
 func _handle_camera_input(event: InputEvent) -> void:
@@ -683,6 +721,7 @@ func _handle_camera_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if mouse_unlocked:
+		_handle_unlocked_pointer(event)
 		return
 	if event is InputEventMouseMotion:
 		camera_target += event.relative / arena_camera.zoom
@@ -701,6 +740,29 @@ func _handle_camera_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
+func _handle_unlocked_pointer(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			left_press_position = event.position
+			camera_dragging = false
+		else:
+			if not camera_dragging and event.position.distance_to(left_press_position) < CAMERA_DRAG_THRESHOLD \
+					and not get_tree().paused:
+				var at: Vector2 = terrain_view.get_global_transform_with_canvas().affine_inverse() * event.position
+				_drop_dirt(at)
+			left_press_position = Vector2.INF
+			camera_dragging = false
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 \
+			and left_press_position.is_finite():
+		var motion: Vector2 = event.relative if camera_dragging else event.position - left_press_position
+		if camera_dragging or motion.length() >= CAMERA_DRAG_THRESHOLD:
+			camera_dragging = true
+			camera_target -= motion / arena_camera.zoom
+			_clamp_camera_position()
+		get_viewport().set_input_as_handled()
+
+
 func _drop_dirt(at: Vector2) -> void:
 	var pixel := Vector2i(at.floor())
 	if terrain.is_solid(pixel.x, pixel.y):
@@ -711,6 +773,7 @@ func _drop_dirt(at: Vector2) -> void:
 	dirt.terrain_view = terrain_view
 	dirt.gravity = DIRT_GRAVITY / terrain_view.scale.y
 	dirt.max_spread_time = dirt_settle_time
+	dirt.max_diagonal_steps = dirt_diagonal_steps
 	dirt.deposited.connect(_lift_goat_after_deposit)
 	terrain_view.add_child(dirt)
 
@@ -766,6 +829,8 @@ func _zoom_camera(amount: int) -> void:
 
 
 func _update_mouse_mode() -> void:
+	left_press_position = Vector2.INF
+	camera_dragging = false
 	var cursor_visible := mouse_unlocked or (console.visible and not get_tree().paused)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if cursor_visible else Input.MOUSE_MODE_CAPTURED
 
