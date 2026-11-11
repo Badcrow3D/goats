@@ -152,6 +152,8 @@ const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
 const wind_max := 12
 const DEFAULT_EXPLOSION_RADIUS := 18.0
+const EXPLOSION_SHAKE_DURATION := 0.25
+const EXPLOSION_SHAKE_PIXELS := 5.0
 const MAX_STEP_UP := 2
 const MAX_STEP_DOWN := 2
 const TERRAIN_BURN_COLOR := Color("#4c4947")
@@ -199,6 +201,7 @@ const TUNING_FLOORS := {
 @onready var sky_layers := cloud_layers + leaf_layers
 @onready var max_cloud_count := cloud_layers.size() * CloudLayer.CLOUD_COUNT
 @onready var camera_target := arena_camera.position
+@onready var camera_rest_offset := arena_camera.offset
 @onready var console: CanvasLayer = $Console
 @onready var console_output: RichTextLabel = $Console/Panel/Margin/Rows/Output
 @onready var console_input: LineEdit = $Console/Panel/Margin/Rows/Input
@@ -225,6 +228,7 @@ var shot_released := false
 var mouse_unlocked := true
 var left_press_position := Vector2.INF
 var camera_dragging := false
+var camera_shake: Tween
 var arena_bounds: Rect2
 var terrain: Terrain
 var goat_body: Rect2i
@@ -947,6 +951,20 @@ func _clamp_camera_position() -> void:
 		layer.update_parallax(camera_offset)
 
 
+func _shake_camera() -> void:
+	if camera_shake and camera_shake.is_valid():
+		camera_shake.kill()
+	_apply_camera_shake(0.0)
+	camera_shake = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	camera_shake.tween_method(_apply_camera_shake, 0.0, 1.0, EXPLOSION_SHAKE_DURATION)
+
+
+func _apply_camera_shake(progress: float) -> void:
+	var strength := EXPLOSION_SHAKE_PIXELS * (1.0 - progress) ** 2
+	var motion := Vector2(cos(progress * TAU * 2.0), sin(progress * TAU * 1.0)) * strength
+	arena_camera.offset = camera_rest_offset + motion.round() / arena_camera.zoom
+
+
 func _update_shot_charge(delta: float) -> void:
 	if is_bouncing:
 		is_charging_shot = false
@@ -985,6 +1003,7 @@ func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> R
 func _apply_rocket_blast(
 	world_pixel: Vector2i, direct_hit: GoatHurtbox, hit_direction: Vector2, peak_damage: int
 ) -> void:
+	_shake_camera()
 	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
 	var radius := roundi(explosion_radius)
 	# Damage signals sample the surface synchronously, before the bitmap changes.
