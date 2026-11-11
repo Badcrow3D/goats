@@ -689,7 +689,6 @@ func _walk_direction() -> float:
 func _physics_process(delta: float) -> void:
 	super(delta)
 	_apply_idle_goat_gravity(delta)
-	player_goat.facing_direction = Goat.Facing.LEFT if facing < 0.0 else Goat.Facing.RIGHT
 
 	var can_aim := (
 		player_goat.mode == Goat.Mode.LAUNCHER

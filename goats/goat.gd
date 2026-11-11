@@ -12,7 +12,13 @@ enum Mode { GOAT_ONLY = 0, BACKPACK = 1, LAUNCHER = 2 }
 @export var goat_name := ""
 @export var health := 100
 @export var energy := 100
-@export var facing_direction := Facing.RIGHT
+@export var facing_direction := Facing.RIGHT:
+	set(value):
+		if facing_direction == value:
+			return
+		facing_direction = value
+		if is_node_ready() and not Engine.is_editor_hint():
+			_apply_idle_facing()
 @export var status := Status.ALIVE
 @export var mode := Mode.LAUNCHER:
 	set(value):
@@ -26,6 +32,18 @@ enum Mode { GOAT_ONLY = 0, BACKPACK = 1, LAUNCHER = 2 }
 
 func _ready() -> void:
 	_apply_mode_layers()
+	if not Engine.is_editor_hint():
+		_apply_idle_facing()
+
+
+func _apply_idle_facing() -> void:
+	var sprite: AnimatedSprite2D = $AnimatedSprite2D
+	if sprite.animation != &"idle":
+		return
+	var faces_left := facing_direction == Facing.LEFT
+	sprite.flip_h = faces_left
+	$AnimatedSprite2D/Backpack.flip_h = faces_left
+	$AnimatedSprite2D/Launcher.flip_h = faces_left
 
 
 func _apply_mode_layers() -> void:

@@ -8,7 +8,7 @@
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
 [ext_resource type="Material" uid="uid://b6n6i6icwps4x" path="res://assets/palette_cycle.tres" id="14_000da"]
 [ext_resource type="Texture2D" uid="uid://isjvwcpo1mcs" path="res://sprites/explosion1.png" id="15_wdfnk"]
-[ext_resource type="PackedScene" path="res://goats/goat.tscn" id="16_goat"]
+[ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 
 [sub_resource type="Theme" id="Theme_pixel_ui"]
 default_font = ExtResource("5_ui_font")
@@ -74,6 +74,8 @@ status = 0
 
 [node name="Goat2" parent="." unique_id=458998419 instance=ExtResource("16_goat")]
 position = Vector2(1520, 553)
+facing_direction = -1
+mode = 0
 
 [node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
 visible = false

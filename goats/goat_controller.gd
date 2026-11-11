@@ -24,7 +24,11 @@ var last_ground_position := Vector2.ZERO
 var has_ground_position := false
 var is_bouncing := false
 
-var facing := 1.0
+var facing: float:
+	get:
+		return float(goat.facing_direction)
+	set(value):
+		goat.facing_direction = GoatState.Facing.LEFT if value < 0.0 else GoatState.Facing.RIGHT
 var is_walking := false
 var is_charging_jump := false
 var jump_released := false
