@@ -28,11 +28,7 @@ class Team:
 		color = team_color
 
 
-const AIM_POSE_STEP := 9.0
-const AIM_CURSOR_STEP := AIM_POSE_STEP / 4.0
 const WALK_HOLD_MSEC := 80
-const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
-const LEFT_AIM_ORIGIN := Vector2(2, -6)
 const wind_max := 12
 const DEFAULT_EXPLOSION_RADIUS := 18.0
 const EXPLOSION_SHAKE_DURATION := 0.25
@@ -72,11 +68,6 @@ const TUNING_FLOORS := {
 
 @onready var player_goat: Goat = $Goat
 @onready var second_goat: Goat = $Goat2
-@onready var aim_pose: Sprite2D = $Goat/AimPose
-@onready var aim_cursor: Sprite2D = $Goat/AimCursor
-@onready var jump_charge_meter: Sprite2D = $Goat/JumpChargeMeter
-@onready var shot_charge_meter: Sprite2D = $Goat/ShotChargeMeter
-@onready var shot_charge_meter_distance := absf(shot_charge_meter.position.x)
 @onready var arena_camera: Camera2D = $ArenaCamera
 @onready var terrain_view: TerrainView = $Terrain
 @onready var cloud_layers := [$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear]
@@ -102,7 +93,6 @@ var dirt_diagonal_steps := 2
 var scorch_radius_modifier := 3.0
 var level_filename := DEFAULT_LEVEL
 var sprite_layers: Dictionary[String, bool] = {"goat": true, "backpack": true, "launcher": true}
-var showing_aim_pose := false
 var aim_degrees := 0.0
 var walk_start_msec := 0
 var shot_charge := 0.0
@@ -125,7 +115,6 @@ var second_goat_bouncing := false
 
 
 func _ready() -> void:
-	super()
 	_load_tuning()
 	_setup_level()
 	player_goat.damaged.connect(_knock_back_player)
@@ -150,7 +139,6 @@ func _ready() -> void:
 	var font_size := console_output.get_theme_font_size("normal_font_size")
 	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
 	console_input.text_submitted.connect(_run_console_command)
-	_update_aim_display(0.0)
 	_apply_sprite_layers()
 
 
@@ -176,9 +164,7 @@ func _setup_level() -> void:
 
 	terrain_view.setup(terrain, image)
 
-	var collider: CollisionShape2D = $Goat/CollisionShape2D
-	var body_size := Vector2i((collider.shape as RectangleShape2D).size)
-	goat_body = Rect2i(Vector2i(collider.position) - Vector2i(body_size / 2), body_size)
+	goat_body = goat.bitmap_body_rect()
 	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
 	_reset_fall_state()
 
@@ -586,44 +572,18 @@ func _physics_process(delta: float) -> void:
 		var elevation := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
 		aim_degrees = clampf(aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
-	# Let the layered sprite finish its short walk tail before switching poses.
-	showing_aim_pose = can_aim and sprite.animation == &"idle"
-	var snapped_aim := snappedf(aim_degrees, AIM_CURSOR_STEP) if showing_aim_pose else 0.0
-	muzzle_right.rotation = -deg_to_rad(snapped_aim)
-	muzzle_left.rotation = -muzzle_right.rotation
-	if showing_aim_pose:
-		_update_aim_display(snapped_aim)
-	_apply_sprite_layers()
+	goat.update_aim_pose(can_aim, aim_degrees, cursor_distance)
 	_update_shot_charge(delta)
 	_update_charge_meters()
 
 
 func _update_charge_meters() -> void:
-	jump_charge_meter.visible = is_charging_jump and not jump_released
-	if jump_charge_meter.visible:
-		var progress := clampf(jump_charge / jump_charge_time, 0.0, 1.0)
-		if is_equal_approx(progress, 1.0):
-			progress = 1.0
-		jump_charge_meter.frame = floori(progress * (jump_charge_meter.vframes - 1))
-
-	shot_charge_meter.visible = is_charging_shot
-	if shot_charge_meter.visible:
-		var progress := clampf(shot_charge / fire_charge_time, 0.0, 1.0)
-		shot_charge_meter.frame = floori(progress * (shot_charge_meter.hframes - 1))
-		shot_charge_meter.position.x = -facing * shot_charge_meter_distance
+	goat.update_jump_meter(is_charging_jump and not jump_released, jump_charge / jump_charge_time)
+	goat.update_shot_meter(is_charging_shot, shot_charge / fire_charge_time)
 
 
 func _apply_sprite_layers() -> void:
-	var show_backpack := player_goat.mode != Goat.Mode.GOAT_ONLY and sprite_layers["backpack"]
-	var show_launcher := player_goat.mode == Goat.Mode.LAUNCHER and sprite_layers["launcher"]
-	# The aiming atlas is composited. Use the layered idle pose for individual layer previews.
-	aim_pose.visible = showing_aim_pose and sprite_layers["goat"] and show_backpack and show_launcher
-	sprite.visible = not aim_pose.visible
-	# Hide only the body texture so its child equipment can still draw.
-	sprite.self_modulate.a = 1.0 if sprite_layers["goat"] else 0.0
-	backpack.visible = show_backpack
-	launcher.visible = show_launcher
-	aim_cursor.visible = showing_aim_pose and show_launcher
+	goat.set_layer_preview(sprite_layers["goat"], sprite_layers["backpack"], sprite_layers["launcher"])
 
 
 func _on_player_mode_changed() -> void:
@@ -634,7 +594,6 @@ func _on_player_mode_changed() -> void:
 		is_charging_jump = false
 		jump_released = false
 	else:
-		showing_aim_pose = false
 		is_charging_shot = false
 		shot_released = false
 	_apply_sprite_layers()
@@ -862,17 +821,15 @@ func _update_shot_charge(delta: float) -> void:
 		# Show the full meter for a physics tick before the automatic shot.
 		return
 
-	var muzzle := muzzle_left if facing < 0.0 else muzzle_right
-	var direction := Vector2(facing, 0).rotated(muzzle.global_rotation)
 	var charge_ratio := minf(shot_charge / fire_charge_time, 1.0)
 	var power := lerpf(fire_min_amount, fire_max_amount, charge_ratio)
-	_fire_rocket(muzzle, direction, power)
+	_fire_rocket(goat.aim_direction(), power)
 	is_charging_shot = false
 	shot_released = false
 
 
-func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
-	var rocket := super(muzzle, direction, power)
+func _fire_rocket(direction: Vector2, power: float = 1.0) -> Rocket:
+	var rocket := super(direction, power)
 	if rocket == null:
 		return null
 	rocket.terrain = terrain
@@ -921,14 +878,3 @@ func _apply_cloud_count() -> void:
 	var remainder := cloud_count % layer_count
 	for index in layer_count:
 		cloud_layers[index].multimesh.visible_instance_count = per_layer + int(index < remainder)
-
-
-func _update_aim_display(snapped_aim: float) -> void:
-	var column := roundi((90.0 - snapped_aim) / AIM_POSE_STEP)
-	var row := 1 if facing < 0.0 else 0
-	aim_pose.frame_coords = Vector2i(column, row)
-
-	var angle := deg_to_rad(snapped_aim)
-	var direction := Vector2(facing * cos(angle), -sin(angle))
-	var origin := LEFT_AIM_ORIGIN if facing < 0.0 else RIGHT_AIM_ORIGIN
-	aim_cursor.global_position = (aim_pose.to_global(origin) + direction * cursor_distance).round()

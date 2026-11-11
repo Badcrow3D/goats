@@ -5,12 +5,6 @@ const ROCKET := preload("res://goats/rocket.tscn")
 const Rocket := preload("res://goats/rocket.gd")
 
 @onready var goat: GoatState = $Goat
-@onready var sprite: AnimatedSprite2D = $Goat/AnimatedSprite2D
-@onready var backpack: Sprite2D = $Goat/AnimatedSprite2D/Backpack
-@onready var launcher: Sprite2D = $Goat/AnimatedSprite2D/Launcher
-@onready var muzzle_right: Marker2D = $Goat/MuzzleRight
-@onready var muzzle_left: Marker2D = $Goat/MuzzleLeft
-@onready var muzzle_tip: Marker2D = $Goat/MuzzleRight/MuzzleTip
 
 @export var walk_speed := 32.0
 @export var gravity_scale := 2.0
@@ -29,7 +23,6 @@ var facing: float:
 		return float(goat.facing_direction)
 	set(value):
 		goat.facing_direction = GoatState.Facing.LEFT if value < 0.0 else GoatState.Facing.RIGHT
-var is_walking := false
 var is_charging_jump := false
 var jump_released := false
 var landing_pause_pending := false
@@ -40,11 +33,6 @@ var jump_maximum_x := 28.0
 var jump_minimum := 200.0
 var jump_maximum := 460.0
 var jump_charge_time := 2.0
-
-
-func _ready() -> void:
-	sprite.frame_changed.connect(_sync_equipment_pose)
-	sprite.animation_looped.connect(_on_walk_cycle_finished)
 
 
 func _physics_process(delta: float) -> void:
@@ -87,18 +75,7 @@ func _physics_process(delta: float) -> void:
 			goat.velocity.x = 0.0
 		landing_pause_pending = false
 
-	is_walking = can_walk and _is_grounded() and not is_zero_approx(moved_x)
-	if is_walking:
-		sprite.flip_h = false
-		sprite.play(&"walk_left" if facing < 0.0 else &"walk_right")
-	elif sprite.animation == &"idle":
-		sprite.flip_h = facing < 0.0
-	else:
-		var frame_count := sprite.sprite_frames.get_frame_count(sprite.animation)
-		var finish_start := maxi(0, frame_count - 2)
-		if sprite.frame < finish_start:
-			sprite.set_frame_and_progress(finish_start, 0.0)
-	_sync_equipment_pose()
+	goat.update_walk_pose(can_walk and _is_grounded() and not is_zero_approx(moved_x))
 
 
 func _is_grounded() -> bool:
@@ -159,23 +136,6 @@ func _walk_direction() -> float:
 	return Input.get_axis("ui_left", "ui_right")
 
 
-func _on_walk_cycle_finished() -> void:
-	if not is_walking:
-		sprite.play(&"idle")
-		sprite.flip_h = facing < 0.0
-		_sync_equipment_pose()
-
-
-func _sync_equipment_pose() -> void:
-	var column := sprite.frame
-	if sprite.animation == &"walk_left":
-		column += 5
-	backpack.frame_coords = Vector2i(column, 0)
-	launcher.frame_coords = Vector2i(column, 1)
-	backpack.flip_h = sprite.flip_h
-	launcher.flip_h = sprite.flip_h
-
-
 func _unhandled_key_input(event: InputEvent) -> void:
 	if goat.mode == GoatState.Mode.LAUNCHER or event.physical_keycode != KEY_ENTER or event.echo:
 		return
@@ -192,20 +152,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	if is_bouncing or goat.mode != GoatState.Mode.LAUNCHER:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		var muzzle := muzzle_left if facing < 0.0 else muzzle_right
-		var direction := muzzle.global_position.direction_to(get_global_mouse_position())
+		var direction := goat.direction_to_target(get_global_mouse_position())
 		if direction == Vector2.ZERO:
 			direction = Vector2(facing, 0)
-		_fire_rocket(muzzle, direction)
+		_fire_rocket(direction)
 
 
-func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
+func _fire_rocket(direction: Vector2, power: float = 1.0) -> Rocket:
 	if goat.mode != GoatState.Mode.LAUNCHER:
 		return null
-	var tip_offset := Vector2(muzzle_tip.position.x * facing, muzzle_tip.position.y)
 	var rocket := ROCKET.instantiate() as Rocket
-	rocket.position = to_local(muzzle.to_global(tip_offset))
+	rocket.position = to_local(goat.rocket_spawn_position())
 	rocket.velocity = direction * rocket.speed * power
-	rocket.shooter_hurtbox = goat.get_node("Hurtbox")
+	rocket.shooter_hurtbox = goat.get_hurtbox()
 	add_child(rocket)
 	return rocket
