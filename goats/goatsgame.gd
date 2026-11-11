@@ -2,7 +2,6 @@ extends "res://goats/goat_controller.gd"
 
 const Goat := preload("res://goats/goat.gd")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
-const CloudLayer := preload("res://goats/wind_clouds.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const DIRT_GRAVITY := 400.0
@@ -40,7 +39,6 @@ const LEVELS_DIR := "res://levels/"
 const DEFAULT_LEVEL := "level1.png"
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
-const SPRITE_LAYERS_SECTION := "sprite_layers"
 const TUNING_FLOORS := {
 	"jump_minimum_x": 1.0,
 	"jump_minimum": 1.0,
@@ -52,13 +50,9 @@ const TUNING_FLOORS := {
 	"fire_max_amount": 0.1,
 	"explosion_radius": 1.0,
 	"knockback_speed_per_damage": 0.0,
-	"scorch_radius_modifier": 0.0,
-	"dirt_settle_time": 0.0,
-	"dirt_diagonal_steps": 0.0,
 	"gravity_scale": 0.05,
 	"fall_control_loss_distance": 1.0,
 	"wind_scale": 0.0,
-	"cloud_count": 0.0,
 }
 
 @export var aim_speed := 90.0
@@ -73,7 +67,6 @@ const TUNING_FLOORS := {
 @onready var cloud_layers := [$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear]
 @onready var leaf_layers := [$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear]
 @onready var sky_layers := cloud_layers + leaf_layers
-@onready var max_cloud_count := cloud_layers.size() * CloudLayer.CLOUD_COUNT
 @onready var camera_target := arena_camera.position
 @onready var camera_rest_offset := arena_camera.offset
 @onready var console: CanvasLayer = $Console
@@ -92,7 +85,6 @@ var dirt_settle_time := 1.0
 var dirt_diagonal_steps := 2
 var scorch_radius_modifier := 3.0
 var level_filename := DEFAULT_LEVEL
-var sprite_layers: Dictionary[String, bool] = {"goat": true, "backpack": true, "launcher": true}
 var aim_degrees := 0.0
 var walk_start_msec := 0
 var shot_charge := 0.0
@@ -139,7 +131,6 @@ func _ready() -> void:
 	var font_size := console_output.get_theme_font_size("normal_font_size")
 	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
 	console_input.text_submitted.connect(_run_console_command)
-	_apply_sprite_layers()
 
 
 func _setup_level() -> void:
@@ -380,13 +371,7 @@ func _load_tuning() -> void:
 	for field: String in TUNING_FLOORS:
 		var saved: Variant = config.get_value(TUNING_SECTION, field, get(field))
 		if (saved is float or saved is int) and is_finite(float(saved)):
-			if field == "cloud_count":
-				cloud_count = roundi(clampf(float(saved), 0.0, max_cloud_count))
-			elif field == "dirt_diagonal_steps":
-				if saved is int:
-					dirt_diagonal_steps = maxi(saved, 0)
-			else:
-				set(field, maxf(float(saved), TUNING_FLOORS[field]))
+			set(field, maxf(float(saved), TUNING_FLOORS[field]))
 	var saved_level: Variant = config.get_value(TUNING_SECTION, "level_filename", DEFAULT_LEVEL)
 	if saved_level is String:
 		level_filename = saved_level
@@ -398,10 +383,6 @@ func _load_tuning() -> void:
 		wind_random = saved_wind_random
 	jump_maximum = maxf(jump_minimum, jump_maximum)
 	fire_max_amount = maxf(fire_min_amount, fire_max_amount)
-	for layer: String in sprite_layers:
-		var saved: Variant = config.get_value(SPRITE_LAYERS_SECTION, layer, sprite_layers[layer])
-		if saved is bool:
-			sprite_layers[layer] = saved
 
 
 func _run_console_command(command: String) -> void:
@@ -422,8 +403,6 @@ func _run_console_command(command: String) -> void:
 					lines.append("%s = %s" % [field, get(field)])
 				lines.append("wind_speed = %s" % wind_speed)
 				lines.append("wind_random = %s" % wind_random)
-				for layer: String in sprite_layers:
-					lines.append("%s = %s" % [layer, sprite_layers[layer]])
 				lines.append("level_filename = " + level_filename)
 		"set":
 			lines.append(_set_console_variable(words))
@@ -482,22 +461,8 @@ func _set_console_variable(words: PackedStringArray) -> String:
 		wind_random = value_text == "true"
 		_save_tuning()
 		return "wind_random = %s" % wind_random
-	if sprite_layers.has(field):
-		if value_text != "true" and value_text != "false":
-			return "%s expects true or false." % field
-		sprite_layers[field] = value_text == "true"
-		_apply_sprite_layers()
-		_save_tuning()
-		return "%s = %s" % [field, sprite_layers[field]]
-
 	if not TUNING_FLOORS.has(field):
 		return "Unknown variable: " + field
-	if field == "dirt_diagonal_steps":
-		if not value_text.is_valid_int() or value_text.to_int() < 0:
-			return "dirt_diagonal_steps expects a nonnegative whole number."
-		dirt_diagonal_steps = value_text.to_int()
-		_save_tuning()
-		return "dirt_diagonal_steps = %s" % dirt_diagonal_steps
 	if not value_text.is_valid_float() or not is_finite(value_text.to_float()):
 		return "%s expects a finite number." % field
 
@@ -513,20 +478,12 @@ func _set_console_variable(words: PackedStringArray) -> String:
 			maximum = fire_max_amount
 		"fire_max_amount":
 			minimum = fire_min_amount
-		"cloud_count":
-			if value != floorf(value):
-				return "%s expects a whole number." % field
-			maximum = max_cloud_count
 	if value < minimum:
 		return "%s must be at least %s." % [field, minimum]
 	if value > maximum:
 		return "%s must be at most %s." % [field, maximum]
 
-	if field == "cloud_count":
-		cloud_count = int(value)
-		_apply_cloud_count()
-	else:
-		set(field, value)
+	set(field, value)
 	_save_tuning()
 	return "%s = %s" % [field, get(field)]
 
@@ -542,8 +499,6 @@ func _save_tuning() -> Error:
 	var config := ConfigFile.new()
 	for key: String in TUNING_FLOORS:
 		config.set_value(TUNING_SECTION, key, get(key))
-	for layer: String in sprite_layers:
-		config.set_value(SPRITE_LAYERS_SECTION, layer, sprite_layers[layer])
 	config.set_value(TUNING_SECTION, "level_filename", level_filename)
 	config.set_value(TUNING_SECTION, "wind_speed", wind_speed)
 	config.set_value(TUNING_SECTION, "wind_random", wind_random)
@@ -582,10 +537,6 @@ func _update_charge_meters() -> void:
 	goat.update_shot_meter(is_charging_shot, shot_charge / fire_charge_time)
 
 
-func _apply_sprite_layers() -> void:
-	goat.set_layer_preview(sprite_layers["goat"], sprite_layers["backpack"], sprite_layers["launcher"])
-
-
 func _on_player_mode_changed() -> void:
 	walk_start_msec = 0
 	if player_goat.mode == Goat.Mode.LAUNCHER:
@@ -596,7 +547,6 @@ func _on_player_mode_changed() -> void:
 	else:
 		is_charging_shot = false
 		shot_released = false
-	_apply_sprite_layers()
 	_update_charge_meters()
 
 

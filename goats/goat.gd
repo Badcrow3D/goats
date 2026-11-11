@@ -30,9 +30,6 @@ const LEFT_AIM_ORIGIN := Vector2(2, -6)
 
 var _walking := false
 var _showing_aim_pose := false
-var _preview_body := true
-var _preview_backpack := true
-var _preview_launcher := true
 
 @export var team_id := 0
 @export var goat_name := ""
@@ -121,21 +118,11 @@ func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) 
 	_apply_mode_layers()
 
 
-func set_layer_preview(show_body: bool, show_backpack: bool, show_launcher: bool) -> void:
-	_preview_body = show_body
-	_preview_backpack = show_backpack
-	_preview_launcher = show_launcher
-	_apply_mode_layers()
-
-
 func _apply_mode_layers() -> void:
-	var show_backpack := mode != Mode.GOAT_ONLY and _preview_backpack
-	var show_launcher := mode == Mode.LAUNCHER and _preview_launcher
-	# The composited aim atlas can only show the full set of layers.
-	_aim_pose.visible = _showing_aim_pose and _preview_body and show_backpack and show_launcher
+	var show_backpack := mode != Mode.GOAT_ONLY
+	var show_launcher := mode == Mode.LAUNCHER
+	_aim_pose.visible = _showing_aim_pose and show_launcher
 	_sprite.visible = not _aim_pose.visible
-	# Self-modulation hides only the body texture, leaving its child layers visible.
-	_sprite.self_modulate.a = 1.0 if _preview_body else 0.0
 	_backpack.visible = show_backpack
 	_launcher.visible = show_launcher
 	_aim_cursor.visible = _showing_aim_pose and show_launcher
