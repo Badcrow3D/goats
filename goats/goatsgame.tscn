@@ -68,9 +68,12 @@ centered = false
 script = ExtResource("13_terrain")
 
 [node name="Goat" parent="." unique_id=163038628 instance=ExtResource("16_goat")]
-position = Vector2(1371, 615)
+position = Vector2(1278, 573)
 team_id = 1
 status = 0
+
+[node name="Goat2" parent="." unique_id=458998419 instance=ExtResource("16_goat")]
+position = Vector2(1520, 581)
 
 [node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
 visible = false

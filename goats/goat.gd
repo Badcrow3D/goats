@@ -1,6 +1,6 @@
-extends Node2D
+extends CharacterBody2D
 
-signal damaged(amount: int)
+signal damaged(amount: int, hit_direction: Vector2)
 
 enum Facing { LEFT = -1, RIGHT = 1 }
 enum Status { ACTIVE, ALIVE, DEAD }
@@ -12,10 +12,10 @@ enum Status { ACTIVE, ALIVE, DEAD }
 @export var facing_direction := Facing.RIGHT
 @export var status := Status.ALIVE
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, hit_direction := Vector2.ZERO) -> void:
 	if amount <= 0:
 		return
 	health = maxi(health - amount, 0)
 	if health == 0:
 		status = Status.DEAD
-	damaged.emit(amount)
+	damaged.emit(amount, hit_direction)

@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
 [ext_resource type="Texture2D" uid="uid://ur3cigsq6isw" path="res://sprites/goat24_layers.png" id="7_layers"]
 [ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats/goat.gd" id="8_goat_state"]
-[ext_resource type="PackedScene" uid="uid://brr41rw5k0fap" path="res://goats/goat_hurtbox.tscn" id="9_hurtbox"]
+[ext_resource type="Script" uid="uid://c05vd1v7u6uxe" path="res://goats/goat_hurtbox.gd" id="9_hurtbox"]
 [ext_resource type="Texture2D" uid="uid://cg7vpw67vt7a5" path="res://sprites/chargejump26x8.png" id="14_jump_charge"]
 [ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
 
@@ -106,13 +106,16 @@ animations = [{
 [sub_resource type="RectangleShape2D" id="Rectangle_goat"]
 size = Vector2(8, 16)
 
+[sub_resource type="RectangleShape2D" id="Rectangle_hurtbox"]
+resource_local_to_scene = true
+size = Vector2(20, 18)
+
 [node name="Goat" type="CharacterBody2D" unique_id=163038628]
 texture_filter = 1
 collision_layer = 2
 script = ExtResource("8_goat_state")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2143000917]
-visible = false
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_goat")
 animation = &"idle"
@@ -142,25 +145,38 @@ position = Vector2(17, 0)
 [node name="MuzzleLeft" type="Marker2D" parent="." unique_id=878330686]
 position = Vector2(2, -5)
 
-[node name="Hurtbox" parent="." unique_id=886225771 instance=ExtResource("9_hurtbox")]
+[node name="Hurtbox" type="Area2D" parent="." unique_id=886225771 groups=["goat_hurtboxes"]]
+position = Vector2(0, 12)
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+script = ExtResource("9_hurtbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1123215417]
+position = Vector2(0, 3)
+shape = SubResource("Rectangle_hurtbox")
 
 [node name="AimPose" type="Sprite2D" parent="." unique_id=1377482768]
+visible = false
 texture = ExtResource("3_aim")
 hframes = 21
 vframes = 2
 frame = 10
 
 [node name="AimCursor" type="Sprite2D" parent="." unique_id=1092474658]
+visible = false
 position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
 [node name="JumpChargeMeter" type="Sprite2D" parent="." unique_id=1366841805]
+visible = false
 position = Vector2(1, 32)
 texture = ExtResource("14_jump_charge")
 vframes = 26
 frame = 15
 
 [node name="ShotChargeMeter" type="Sprite2D" parent="." unique_id=1417714816]
+visible = false
 position = Vector2(-18, 11)
 texture = ExtResource("15_shot_charge")
 hframes = 26

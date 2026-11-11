@@ -185,6 +185,7 @@ const TUNING_FLOORS := {
 @export_range(1, 8, 1) var camera_max_zoom := 2
 
 @onready var player_goat: Goat = $Goat
+@onready var second_goat: Goat = $Goat2
 @onready var aim_pose: Sprite2D = $Goat/AimPose
 @onready var aim_cursor: Sprite2D = $Goat/AimCursor
 @onready var jump_charge_meter: Sprite2D = $Goat/JumpChargeMeter
@@ -232,6 +233,7 @@ var wind_speed := 0
 var wind_random := true
 var cloud_count := 15
 var teams: Dictionary[int, Team] = {}
+var second_goat_bouncing := false
 
 
 func _ready() -> void:
@@ -239,6 +241,7 @@ func _ready() -> void:
 	_load_tuning()
 	_setup_level()
 	player_goat.damaged.connect(_knock_back_player)
+	second_goat.damaged.connect(_knock_back_second_goat)
 	var player_team := Team.new(player_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 	player_team.goats.append(player_goat)
 	teams[player_team.id] = player_team
@@ -288,7 +291,6 @@ func _setup_level() -> void:
 	var body_size := Vector2i((collider.shape as RectangleShape2D).size)
 	goat_body = Rect2i(Vector2i(collider.position) - Vector2i(body_size / 2), body_size)
 	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
-	goat.position = _spawn_at(player_spawn_x)
 	_reset_fall_state()
 
 
@@ -386,13 +388,32 @@ func _estimate_ground_normal(at: Vector2) -> Vector2:
 	return Vector2(slope, -1.0).normalized()
 
 
-func _knock_back_player(amount: int) -> void:
-	var launch_velocity := _estimate_ground_normal(goat.position) * (amount * knockback_speed_per_damage)
+func _knockback_velocity(at: Vector2, amount: int, hit_direction: Vector2) -> Vector2:
+	var direction := hit_direction
+	if direction.is_zero_approx():
+		direction = _estimate_ground_normal(at)
+	elif not _body_is_free(at + Vector2.DOWN):
+		# Give grounded goats enough lift to move sideways on a level hit.
+		direction.y = minf(direction.y, -0.35)
+		direction = direction.normalized()
+	return direction * (amount * knockback_speed_per_damage)
+
+
+func _knock_back_player(amount: int, hit_direction: Vector2) -> void:
+	if knockback_speed_per_damage == 0.0:
+		return
 	_reset_fall_state()
-	goat.velocity = launch_velocity
+	goat.velocity = _knockback_velocity(goat.position, amount, hit_direction)
 	is_bouncing = true
 	is_charging_shot = false
 	shot_released = false
+
+
+func _knock_back_second_goat(amount: int, hit_direction: Vector2) -> void:
+	if knockback_speed_per_damage == 0.0:
+		return
+	second_goat.velocity = _knockback_velocity(second_goat.position, amount, hit_direction)
+	second_goat_bouncing = true
 
 
 func _nearby_surface_y(x: int, feet: int) -> int:
@@ -443,6 +464,34 @@ func _sweep_vertical(at: Vector2, distance: float) -> float:
 			break
 		moved += step_y
 	return moved
+
+
+func _apply_idle_goat_gravity(delta: float) -> void:
+	var grounded := second_goat.velocity.y >= 0.0 and not _body_is_free(second_goat.position + Vector2.DOWN)
+	if grounded and not second_goat_bouncing:
+		second_goat.position.y = roundf(second_goat.position.y)
+		second_goat.velocity.y = 0.0
+		return
+	second_goat.velocity.y += second_goat.get_gravity().y * gravity_scale * delta
+	var distance := second_goat.velocity.y * delta
+	var moved := 0.0 if grounded else _sweep_vertical(second_goat.position, distance)
+	second_goat.position.y += moved
+	var hit_ground := distance > 0.0 and not _body_is_free(second_goat.position + Vector2.DOWN)
+	if hit_ground or not is_equal_approx(moved, distance):
+		second_goat.position.y = roundf(second_goat.position.y)
+		var impact_velocity: Vector2 = second_goat.velocity
+		second_goat.velocity.y = 0.0
+		if distance > 0.0 and second_goat_bouncing:
+			var rebound := _ground_rebound(impact_velocity, _estimate_ground_normal(second_goat.position))
+			if rebound.y < -bounce_stop_speed:
+				second_goat.velocity = rebound
+			else:
+				second_goat.velocity = Vector2.ZERO
+				second_goat_bouncing = false
+	var target := second_goat.position + Vector2(second_goat.velocity.x * delta, 0.0)
+	second_goat.position = _sweep_horizontal(second_goat.position, target.x, false)
+	if second_goat.position.x != target.x:
+		second_goat.velocity.x *= -bounce_restitution
 
 
 func _load_tuning() -> void:
@@ -637,6 +686,7 @@ func _walk_direction() -> float:
 
 func _physics_process(delta: float) -> void:
 	super(delta)
+	_apply_idle_goat_gravity(delta)
 	player_goat.facing_direction = Goat.Facing.LEFT if facing < 0.0 else Goat.Facing.RIGHT
 
 	var can_aim := (
@@ -904,12 +954,16 @@ func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> R
 	return rocket
 
 
-func _apply_rocket_blast(world_pixel: Vector2i, peak_damage: int) -> void:
+func _apply_rocket_blast(
+	world_pixel: Vector2i, direct_hit: GoatHurtbox, hit_direction: Vector2, peak_damage: int
+) -> void:
 	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
 	var radius := roundi(explosion_radius)
 	# Damage signals sample the surface synchronously, before the bitmap changes.
 	var center := terrain_view.to_global(Vector2(pixel))
-	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage)
+	if direct_hit:
+		direct_hit.apply_damage(peak_damage, hit_direction)
+	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage, direct_hit)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
 	if scorch_width > 0:

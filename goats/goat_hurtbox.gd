@@ -4,13 +4,15 @@ const COLLISION_MASK := 1 << 2
 
 @onready var collider: CollisionShape2D = $CollisionShape2D
 
-func apply_damage(amount: int) -> void:
+func apply_damage(amount: int, hit_direction := Vector2.ZERO) -> void:
 	var goat := get_parent()
 	if amount > 0 and goat.has_method("take_damage"):
-		goat.take_damage(amount)
+		goat.take_damage(amount, hit_direction)
 
 ## Call from a physics tick with a world-space radius and peak damage.
-static func apply_area_damage(context: Node2D, center: Vector2, radius: float, peak_damage: int) -> void:
+static func apply_area_damage(
+	context: Node2D, center: Vector2, radius: float, peak_damage: int, direct_hit: Area2D = null
+) -> void:
 	var hurtbox_count := context.get_tree().get_node_count_in_group(&"goat_hurtboxes")
 	if radius <= 0.0 or peak_damage <= 0 or hurtbox_count == 0:
 		return
@@ -25,6 +27,8 @@ static func apply_area_damage(context: Node2D, center: Vector2, radius: float, p
 	var hits := context.get_world_2d().direct_space_state.intersect_shape(query, hurtbox_count)
 	for hit in hits:
 		var hurtbox: Area2D = hit.collider
+		if hurtbox == direct_hit:
+			continue
 		var shape_node: CollisionShape2D = hurtbox.collider
 		# Measure to the nearest point of the goat's hurtbox, so contact deals full damage.
 		var bounds := shape_node.shape.get_rect()
