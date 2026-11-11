@@ -32,6 +32,7 @@ var facing: float:
 var is_walking := false
 var is_charging_jump := false
 var jump_released := false
+var landing_pause_pending := false
 var jump_pause_remaining := 0.0
 var jump_charge := 0.0
 var jump_minimum_x := 160.0
@@ -69,6 +70,7 @@ func _physics_process(delta: float) -> void:
 				-lerpf(jump_minimum, jump_maximum, charge_ratio)
 			)
 			is_charging_jump = false
+			landing_pause_pending = true
 	elif can_walk:
 		goat.velocity.x = direction * walk_speed
 		if not is_zero_approx(direction):
@@ -80,9 +82,10 @@ func _physics_process(delta: float) -> void:
 	if _is_grounded() and not is_bouncing:
 		last_ground_position = goat.position
 		has_ground_position = true
-	if not was_on_floor and _is_grounded() and not is_bouncing and landing_pause_duration > 0.0:
-		jump_pause_remaining = landing_pause_duration
-		goat.velocity.x = 0.0
+		if not was_on_floor and landing_pause_pending and landing_pause_duration > 0.0:
+			jump_pause_remaining = landing_pause_duration
+			goat.velocity.x = 0.0
+		landing_pause_pending = false
 
 	is_walking = can_walk and _is_grounded() and not is_zero_approx(moved_x)
 	if is_walking:
@@ -123,6 +126,7 @@ func _handle_ground_impact(impact_velocity: Vector2, normal := Vector2.UP) -> vo
 	_check_fall_distance()
 	if not is_bouncing:
 		return
+	landing_pause_pending = true
 	var rebound := _ground_rebound(impact_velocity, normal)
 	if rebound.y < -bounce_stop_speed:
 		goat.velocity = rebound
@@ -145,6 +149,7 @@ func _reset_fall_state() -> void:
 	is_bouncing = false
 	is_charging_jump = false
 	jump_released = false
+	landing_pause_pending = false
 	jump_pause_remaining = 0.0
 	last_ground_position = goat.position
 	has_ground_position = true
