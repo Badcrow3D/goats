@@ -1,11 +1,10 @@
 extends Node2D
 
-enum Equipment { GOAT_ONLY, BACKPACK, BACKPACK_AND_LAUNCHER }
-
+const GoatState := preload("res://goats/goat.gd")
 const ROCKET := preload("res://goats/rocket.tscn")
 const Rocket := preload("res://goats/rocket.gd")
 
-@onready var goat: CharacterBody2D = $Goat
+@onready var goat: GoatState = $Goat
 @onready var sprite: AnimatedSprite2D = $Goat/AnimatedSprite2D
 @onready var backpack: Sprite2D = $Goat/AnimatedSprite2D/Backpack
 @onready var launcher: Sprite2D = $Goat/AnimatedSprite2D/Launcher
@@ -15,7 +14,6 @@ const Rocket := preload("res://goats/rocket.gd")
 
 @export var walk_speed := 32.0
 @export var gravity_scale := 2.0
-@export var equipment := Equipment.BACKPACK_AND_LAUNCHER
 @export var jump_pause_duration := 0.0
 @export var landing_pause_duration := 0.0
 @export var fall_control_loss_distance := 48.0
@@ -40,8 +38,6 @@ var jump_charge_time := 2.0
 
 
 func _ready() -> void:
-	backpack.visible = equipment != Equipment.GOAT_ONLY
-	launcher.visible = equipment == Equipment.BACKPACK_AND_LAUNCHER
 	sprite.frame_changed.connect(_sync_equipment_pose)
 	sprite.animation_looped.connect(_on_walk_cycle_finished)
 
@@ -172,7 +168,7 @@ func _sync_equipment_pose() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event.physical_keycode != KEY_ENTER or event.echo:
+	if goat.mode == GoatState.Mode.LAUNCHER or event.physical_keycode != KEY_ENTER or event.echo:
 		return
 	if event.pressed and _can_control_movement() and not is_charging_jump:
 		is_charging_jump = true
@@ -184,7 +180,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_bouncing:
+	if is_bouncing or goat.mode != GoatState.Mode.LAUNCHER:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var muzzle := muzzle_left if facing < 0.0 else muzzle_right
@@ -195,6 +191,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
+	if goat.mode != GoatState.Mode.LAUNCHER:
+		return null
 	var tip_offset := Vector2(muzzle_tip.position.x * facing, muzzle_tip.position.y)
 	var rocket := ROCKET.instantiate() as Rocket
 	rocket.position = to_local(muzzle.to_global(tip_offset))

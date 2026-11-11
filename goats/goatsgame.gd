@@ -242,6 +242,7 @@ func _ready() -> void:
 	_load_tuning()
 	_setup_level()
 	player_goat.damaged.connect(_knock_back_player)
+	player_goat.mode_changed.connect(_on_player_mode_changed)
 	second_goat.damaged.connect(_knock_back_second_goat)
 	var player_team := Team.new(player_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 	player_team.goats.append(player_goat)
@@ -691,8 +692,8 @@ func _physics_process(delta: float) -> void:
 	player_goat.facing_direction = Goat.Facing.LEFT if facing < 0.0 else Goat.Facing.RIGHT
 
 	var can_aim := (
-		_can_control_movement()
-		and not is_charging_jump
+		player_goat.mode == Goat.Mode.LAUNCHER
+		and _can_control_movement()
 		and is_zero_approx(_walk_direction())
 	)
 	if can_aim and not console.visible:
@@ -727,14 +728,31 @@ func _update_charge_meters() -> void:
 
 
 func _apply_sprite_layers() -> void:
+	var show_backpack := player_goat.mode != Goat.Mode.GOAT_ONLY and sprite_layers["backpack"]
+	var show_launcher := player_goat.mode == Goat.Mode.LAUNCHER and sprite_layers["launcher"]
 	# The aiming atlas is composited. Use the layered idle pose for individual layer previews.
-	aim_pose.visible = showing_aim_pose and sprite_layers["goat"] and sprite_layers["backpack"] and sprite_layers["launcher"]
+	aim_pose.visible = showing_aim_pose and sprite_layers["goat"] and show_backpack and show_launcher
 	sprite.visible = not aim_pose.visible
 	# Hide only the body texture so its child equipment can still draw.
 	sprite.self_modulate.a = 1.0 if sprite_layers["goat"] else 0.0
-	backpack.visible = sprite_layers["backpack"]
-	launcher.visible = sprite_layers["launcher"]
-	aim_cursor.visible = showing_aim_pose and sprite_layers["launcher"]
+	backpack.visible = show_backpack
+	launcher.visible = show_launcher
+	aim_cursor.visible = showing_aim_pose and show_launcher
+
+
+func _on_player_mode_changed() -> void:
+	walk_start_msec = 0
+	if player_goat.mode == Goat.Mode.LAUNCHER:
+		if is_charging_jump:
+			jump_pause_remaining = 0.0
+		is_charging_jump = false
+		jump_released = false
+	else:
+		showing_aim_pose = false
+		is_charging_shot = false
+		shot_released = false
+	_apply_sprite_layers()
+	_update_charge_meters()
 
 
 func _input(event: InputEvent) -> void:
@@ -763,10 +781,17 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_SHIFT and event.location == KEY_LOCATION_LEFT:
+			player_goat.mode = ((player_goat.mode + 1) % Goat.Mode.size()) as Goat.Mode
+			get_viewport().set_input_as_handled()
+			return
 		if (event.physical_keycode == KEY_A or event.physical_keycode == KEY_D) \
 				and _can_control_movement() and not is_charging_jump:
 			var direction := -1.0 if event.physical_keycode == KEY_A else 1.0
-			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC if direction != facing else 0
+			if player_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
+				walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
+			else:
+				walk_start_msec = 0
 			facing = direction
 	if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed and not event.echo:
 		get_viewport().set_input_as_handled()
@@ -886,7 +911,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if console.visible or is_bouncing:
+	if console.visible or is_bouncing or player_goat.mode != Goat.Mode.LAUNCHER:
 		return
 	if event is InputEventKey and event.physical_keycode == KEY_SPACE and not event.echo:
 		if event.pressed and not is_charging_shot:
@@ -948,6 +973,8 @@ func _update_shot_charge(delta: float) -> void:
 
 func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> Rocket:
 	var rocket := super(muzzle, direction, power)
+	if rocket == null:
+		return null
 	rocket.terrain = terrain
 	rocket.terrain_pixel_size = terrain_view.scale
 	rocket.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
