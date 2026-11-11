@@ -6,6 +6,7 @@ const CloudLayer := preload("res://goats/wind_clouds.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const DIRT_GRAVITY := 400.0
 const CAMERA_DRAG_THRESHOLD := 4.0
+const CAPTURED_MOUSE_SENSITIVITY := 2.0
 
 class CameraControls extends Node:
 	signal input_received(event: InputEvent)
@@ -808,7 +809,7 @@ func _handle_camera_input(event: InputEvent) -> void:
 		_handle_unlocked_pointer(event)
 		return
 	if event is InputEventMouseMotion:
-		camera_target += event.relative / arena_camera.zoom
+		camera_target += event.relative * CAPTURED_MOUSE_SENSITIVITY / arena_camera.zoom
 		_clamp_camera_position()
 		get_viewport().set_input_as_handled()
 
@@ -847,20 +848,21 @@ func _drop_dirt(at: Vector2) -> void:
 	dirt.gravity = DIRT_GRAVITY / terrain_view.scale.y
 	dirt.max_spread_time = dirt_settle_time
 	dirt.max_diagonal_steps = dirt_diagonal_steps
-	dirt.deposited.connect(_lift_goat_after_deposit)
+	dirt.deposited.connect(_lift_goats_after_deposit)
 	terrain_view.add_child(dirt)
 
 
-func _lift_goat_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
-	var body := _bitmap_body_rect(goat.position)
-	for pixel: Vector2i in grains:
-		if body.has_point(pixel) and terrain.is_solid(pixel.x, pixel.y):
-			var clear_position := goat.position + Vector2.UP
-			while not _body_is_free(clear_position):
-				clear_position.y -= 1.0
-			goat.position = clear_position
-			goat.velocity.y = minf(goat.velocity.y, 0.0)
-			return
+func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
+	for target: CharacterBody2D in [goat, second_goat]:
+		var body := _bitmap_body_rect(target.position)
+		for pixel: Vector2i in grains:
+			if body.has_point(pixel) and terrain.is_solid(pixel.x, pixel.y):
+				var clear_position := target.position + Vector2.UP
+				while not _body_is_free(clear_position):
+					clear_position.y -= 1.0
+				target.position = clear_position
+				target.velocity.y = minf(target.velocity.y, 0.0)
+				break
 
 
 func _toggle_console() -> void:

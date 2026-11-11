@@ -19,7 +19,7 @@ const Rocket := preload("res://goats/rocket.gd")
 @export var jump_pause_duration := 0.0
 @export var landing_pause_duration := 0.0
 @export var fall_control_loss_distance := 48.0
-@export_range(0.0, 0.9) var bounce_restitution := 0.4
+@export_range(0.0, 0.9) var bounce_restitution := 0.35
 @export var bounce_stop_speed := 45.0
 
 var last_ground_position := Vector2.ZERO
