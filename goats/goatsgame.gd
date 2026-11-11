@@ -1,6 +1,7 @@
 extends "res://goats/goat_controller.gd"
 
 const Goat := preload("res://goats/goat.gd")
+const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const CloudLayer := preload("res://goats/wind_clouds.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const DIRT_GRAVITY := 400.0
@@ -45,31 +46,18 @@ class DirtDrop extends Sprite2D:
 	func _physics_process(delta: float) -> void:
 		fall_speed += gravity * delta
 		var next_y := position.y + fall_speed * delta
-		var radius := minf(texture.get_width(), texture.get_height()) * 0.5
-		var contact_y := _first_circle_contact_y(next_y, radius)
-		if contact_y < INF:
-			_begin_settling(Vector2i(floori(position.x), floori(contact_y)))
-			return
-		position.y = next_y
-		if position.y - texture.get_height() * 0.5 >= terrain_view.terrain.height:
-			queue_free()
-
-	func _first_circle_contact_y(next_y: float, radius: float) -> float:
 		var terrain := terrain_view.terrain
-		var first_contact := INF
-		var first_column := maxi(0, ceili(position.x - radius) - 1)
-		var last_column := mini(terrain.width - 1, floori(position.x + radius))
-		for x in range(first_column, last_column + 1):
-			# Find the circle's vertical reach at the nearest point in this column.
-			var dx := position.x - clampf(position.x, x, x + 1)
-			var reach := sqrt(maxf(0.0, radius * radius - dx * dx))
-			var first_row := maxi(0, ceili(position.y - reach) - 1)
-			var last_row := mini(terrain.height - 1, floori(minf(next_y, first_contact) + reach))
-			for y in range(first_row, last_row + 1):
-				if terrain.is_solid(x, y):
-					first_contact = minf(first_contact, maxf(position.y, y - reach))
-					break
-		return first_contact
+		var x := floori(position.x)
+		# Sweep only the center through each crossed row to catch thin terrain.
+		var first_row := maxi(0, floori(position.y))
+		var last_row := mini(terrain.height - 1, floori(next_y))
+		for y in range(first_row, last_row + 1):
+			if terrain.is_solid(x, y):
+				_begin_settling(Vector2i(x, y))
+				return
+		position.y = next_y
+		if position.y - texture.get_height() * 0.5 >= terrain.height:
+			queue_free()
 
 	func _begin_settling(center: Vector2i) -> void:
 		var stamp := texture.get_image()
@@ -161,8 +149,7 @@ const AIM_CURSOR_STEP := AIM_POSE_STEP / 4.0
 const WALK_HOLD_MSEC := 80
 const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
-const MAX_WIND_LEVEL := 12
-const WIND_ACCELERATION_PER_LEVEL := 20.0
+const wind_max := 12
 const DEFAULT_EXPLOSION_RADIUS := 18.0
 const MAX_STEP_UP := 2
 const MAX_STEP_DOWN := 2
@@ -182,19 +169,22 @@ const TUNING_FLOORS := {
 	"fire_min_amount": 0.1,
 	"fire_max_amount": 0.1,
 	"explosion_radius": 1.0,
+	"knockback_speed_per_damage": 0.0,
 	"scorch_radius_modifier": 0.0,
 	"dirt_settle_time": 0.0,
 	"dirt_diagonal_steps": 0.0,
 	"gravity_scale": 0.05,
+	"fall_control_loss_distance": 1.0,
+	"wind_scale": 0.0,
 	"cloud_count": 0.0,
 }
 
 @export var aim_speed := 90.0
 @export var cursor_distance := 40.0
+@export var knockback_speed_per_damage := 4.0
 @export_range(1, 8, 1) var camera_max_zoom := 2
 
 @onready var player_goat: Goat = $Goat
-@onready var standing_goat: Goat = $StandingGoat
 @onready var aim_pose: Sprite2D = $Goat/AimPose
 @onready var aim_cursor: Sprite2D = $Goat/AimCursor
 @onready var jump_charge_meter: Sprite2D = $Goat/JumpChargeMeter
@@ -230,15 +220,14 @@ var walk_start_msec := 0
 var shot_charge := 0.0
 var is_charging_shot := false
 var shot_released := false
-var mouse_unlocked := false
+var mouse_unlocked := true
 var left_press_position := Vector2.INF
 var camera_dragging := false
 var arena_bounds: Rect2
 var terrain: Terrain
 var goat_body: Rect2i
 var player_spawn_x: int
-var standing_spawn_x: int
-var standing_fall_speed := 0.0
+var wind_scale := 4.0
 var wind_speed := 0
 var wind_random := true
 var cloud_count := 15
@@ -249,16 +238,14 @@ func _ready() -> void:
 	super()
 	_load_tuning()
 	_setup_level()
+	player_goat.damaged.connect(_knock_back_player)
 	var player_team := Team.new(player_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 	player_team.goats.append(player_goat)
 	teams[player_team.id] = player_team
-	var opposing_team := Team.new(standing_goat.team_id, "Orange", Color.DARK_ORANGE)
-	opposing_team.goats.append(standing_goat)
-	teams[opposing_team.id] = opposing_team
 	for layer in sky_layers:
 		layer.setup(arena_bounds)
 	_apply_cloud_count()
-	_set_wind(randi_range(-MAX_WIND_LEVEL, MAX_WIND_LEVEL) if wind_random else wind_speed)
+	_set_wind(randi_range(-wind_max, wind_max) if wind_random else wind_speed)
 	arena_camera.process_mode = Node.PROCESS_MODE_ALWAYS
 	var camera_controls := CameraControls.new()
 	camera_controls.input_received.connect(_handle_camera_input)
@@ -301,9 +288,8 @@ func _setup_level() -> void:
 	var body_size := Vector2i((collider.shape as RectangleShape2D).size)
 	goat_body = Rect2i(Vector2i(collider.position) - Vector2i(body_size / 2), body_size)
 	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
-	standing_spawn_x = roundi(arena_bounds.size.x * 0.6)
 	goat.position = _spawn_at(player_spawn_x)
-	standing_goat.position = _spawn_at(standing_spawn_x)
+	_reset_fall_state()
 
 
 func _read_level_image(filename: String) -> Image:
@@ -359,28 +345,78 @@ func _is_grounded() -> bool:
 func _move_goat(delta: float) -> float:
 	var start := goat.position
 	var grounded := _is_grounded()
-	var motion := goat.velocity * delta
+	var impact_velocity := goat.velocity
+	var motion := impact_velocity * delta
 	var dy := 0.0 if grounded else _sweep_vertical(goat.position, motion.y)
 	goat.position.y += dy
 	if not is_equal_approx(dy, motion.y) or _is_grounded():
 		goat.position.y = roundf(goat.position.y)
 		goat.velocity.y = 0.0
+		if motion.y > 0.0 and (not grounded or is_bouncing):
+			_handle_ground_impact(impact_velocity, _estimate_ground_normal(goat.position))
 
-	var steps := maxi(1, ceili(absf(motion.x)))
-	var step_x := Vector2(motion.x / steps, 0.0)
-	for i in steps:
-		var next := goat.position + step_x
-		if grounded:
-			next = _follow_slope(next)
-		if not _body_is_free(next):
-			break
-		goat.position = next
+	var target := goat.position + Vector2(goat.velocity.x * delta, 0.0)
+	goat.position = _sweep_horizontal(goat.position, target.x, grounded and not is_bouncing)
+	if goat.position.x != target.x:
+		goat.velocity.x = -goat.velocity.x * bounce_restitution if is_bouncing else 0.0
 
 	if goat.position.y > arena_bounds.end.y or goat.position.x < -goat_body.size.x \
 			or goat.position.x > arena_bounds.end.x + goat_body.size.x:
 		goat.position = _spawn_at(player_spawn_x)
 		goat.velocity = Vector2.ZERO
+		_reset_fall_state()
 	return goat.position.x - start.x
+
+
+func _estimate_ground_normal(at: Vector2) -> Vector2:
+	var footprint := _bitmap_body_rect(at)
+	var left := footprint.position.x
+	var right := footprint.end.x - 1
+	var feet := footprint.end.y
+	var left_y := _nearby_surface_y(left, feet)
+	var right_y := _nearby_surface_y(right, feet)
+	if left_y == -1 or right_y == -1 or left == right:
+		return Vector2.UP
+
+	var run := (right - left) * terrain_view.scale.x
+	var rise := (right_y - left_y) * terrain_view.scale.y
+	if absf(rise) > run:
+		return Vector2.UP
+	var slope := clampf(rise / run, -0.65, 0.65)
+	return Vector2(slope, -1.0).normalized()
+
+
+func _knock_back_player(amount: int) -> void:
+	var launch_velocity := _estimate_ground_normal(goat.position) * (amount * knockback_speed_per_damage)
+	_reset_fall_state()
+	goat.velocity = launch_velocity
+	is_bouncing = true
+	is_charging_shot = false
+	shot_released = false
+
+
+func _nearby_surface_y(x: int, feet: int) -> int:
+	# Search around the feet so an overhang far above doesn't affect the rebound.
+	for y in range(maxi(0, feet - 1), mini(terrain.height, feet + 9)):
+		if terrain.is_solid(x, y) and not terrain.is_solid(x, y - 1):
+			return y
+	return -1
+
+
+func _sweep_horizontal(at: Vector2, target_x: float, follow_slope: bool) -> Vector2:
+	if at.x == target_x and not follow_slope:
+		return at
+	var start_x := at.x
+	var steps := maxi(1, ceili(absf(target_x - start_x)))
+	for i in range(1, steps + 1):
+		# Reach the exact target on a clear path so rounding cannot look like a wall hit.
+		var next := Vector2(lerpf(start_x, target_x, float(i) / steps), at.y)
+		if follow_slope:
+			next = _follow_slope(next)
+		if not _body_is_free(next):
+			break
+		at = next
+	return at
 
 
 func _follow_slope(at: Vector2) -> Vector2:
@@ -409,22 +445,6 @@ func _sweep_vertical(at: Vector2, distance: float) -> float:
 	return moved
 
 
-func _settle_standing_goat(delta: float) -> void:
-	if not _body_is_free(standing_goat.position + Vector2.DOWN):
-		standing_goat.position.y = roundf(standing_goat.position.y)
-		standing_fall_speed = 0.0
-		return
-	standing_fall_speed += goat.get_gravity().y * gravity_scale * delta
-	var distance := standing_fall_speed * delta
-	var moved := _sweep_vertical(standing_goat.position, distance)
-	standing_goat.position.y += moved
-	if not is_equal_approx(moved, distance):
-		standing_fall_speed = 0.0
-	if standing_goat.position.y > arena_bounds.end.y:
-		standing_goat.position = _spawn_at(standing_spawn_x)
-		standing_fall_speed = 0.0
-
-
 func _load_tuning() -> void:
 	var config := ConfigFile.new()
 	var error := config.load(TUNING_PATH)
@@ -448,7 +468,7 @@ func _load_tuning() -> void:
 		level_filename = saved_level
 	var saved_wind_speed: Variant = config.get_value(TUNING_SECTION, "wind_speed", wind_speed)
 	if saved_wind_speed is int:
-		wind_speed = clampi(saved_wind_speed, -MAX_WIND_LEVEL, MAX_WIND_LEVEL)
+		wind_speed = clampi(saved_wind_speed, -wind_max, wind_max)
 	var saved_wind_random: Variant = config.get_value(TUNING_SECTION, "wind_random", wind_random)
 	if saved_wind_random is bool:
 		wind_random = saved_wind_random
@@ -527,8 +547,8 @@ func _set_console_variable(words: PackedStringArray) -> String:
 		if not value_text.is_valid_int():
 			return "wind_speed expects a whole number."
 		var speed := value_text.to_int()
-		if speed < -MAX_WIND_LEVEL or speed > MAX_WIND_LEVEL:
-			return "wind_speed must be between %s and %s." % [-MAX_WIND_LEVEL, MAX_WIND_LEVEL]
+		if speed < -wind_max or speed > wind_max:
+			return "wind_speed must be between %s and %s." % [-wind_max, wind_max]
 		_set_wind(speed)
 		_save_tuning()
 		return "wind_speed = %s" % wind_speed
@@ -617,13 +637,11 @@ func _walk_direction() -> float:
 
 func _physics_process(delta: float) -> void:
 	super(delta)
-	_settle_standing_goat(delta)
 	player_goat.facing_direction = Goat.Facing.LEFT if facing < 0.0 else Goat.Facing.RIGHT
 
 	var can_aim := (
-		_is_grounded()
+		_can_control_movement()
 		and not is_charging_jump
-		and jump_pause_remaining == 0.0
 		and is_zero_approx(_walk_direction())
 	)
 	if can_aim and not console.visible:
@@ -669,6 +687,11 @@ func _apply_sprite_layers() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.physical_keycode == KEY_F2:
+		if event.pressed and not event.echo:
+			_reload_level.call_deferred()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.physical_keycode == KEY_QUOTELEFT:
 		if event.pressed and not event.echo:
 			_toggle_console()
@@ -689,11 +712,11 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_A or event.physical_keycode == KEY_D:
+		if (event.physical_keycode == KEY_A or event.physical_keycode == KEY_D) \
+				and _can_control_movement() and not is_charging_jump:
 			var direction := -1.0 if event.physical_keycode == KEY_A else 1.0
 			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC if direction != facing else 0
-			if _is_grounded() and not is_charging_jump and jump_pause_remaining == 0.0:
-				facing = direction
+			facing = direction
 	if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed and not event.echo:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
@@ -720,6 +743,17 @@ func _handle_camera_input(event: InputEvent) -> void:
 		_update_mouse_mode()
 		get_viewport().set_input_as_handled()
 		return
+	# Handle zoom in both cursor modes before routing pointer input.
+	if event is InputEventMouseButton and event.pressed:
+		match event.button_index:
+			MOUSE_BUTTON_WHEEL_UP:
+				_zoom_camera(1)
+				get_viewport().set_input_as_handled()
+				return
+			MOUSE_BUTTON_WHEEL_DOWN:
+				_zoom_camera(-1)
+				get_viewport().set_input_as_handled()
+				return
 	if mouse_unlocked:
 		_handle_unlocked_pointer(event)
 		return
@@ -727,17 +761,6 @@ func _handle_camera_input(event: InputEvent) -> void:
 		camera_target += event.relative / arena_camera.zoom
 		_clamp_camera_position()
 		get_viewport().set_input_as_handled()
-		return
-
-	# Captured wheel events arrive at the window center, which may overlap UI.
-	if event is InputEventMouseButton and event.pressed:
-		match event.button_index:
-			MOUSE_BUTTON_WHEEL_UP:
-				_zoom_camera(1)
-				get_viewport().set_input_as_handled()
-			MOUSE_BUTTON_WHEEL_DOWN:
-				_zoom_camera(-1)
-				get_viewport().set_input_as_handled()
 
 
 func _handle_unlocked_pointer(event: InputEvent) -> void:
@@ -811,7 +834,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if console.visible:
+	if console.visible or is_bouncing:
 		return
 	if event is InputEventKey and event.physical_keycode == KEY_SPACE and not event.echo:
 		if event.pressed and not is_charging_shot:
@@ -849,6 +872,10 @@ func _clamp_camera_position() -> void:
 
 
 func _update_shot_charge(delta: float) -> void:
+	if is_bouncing:
+		is_charging_shot = false
+		shot_released = false
+		return
 	if not is_charging_shot:
 		return
 	if not shot_released and shot_charge < fire_charge_time:
@@ -871,15 +898,18 @@ func _fire_rocket(muzzle: Marker2D, direction: Vector2, power: float = 1.0) -> R
 	var rocket := super(muzzle, direction, power)
 	rocket.terrain = terrain
 	rocket.terrain_pixel_size = terrain_view.scale
-	rocket.wind_acceleration = wind_speed * WIND_ACCELERATION_PER_LEVEL
-	rocket.exploded_at.connect(_carve_terrain)
+	rocket.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
+	rocket.exploded_at.connect(_apply_rocket_blast.bind(rocket.blast_damage))
 	rocket.impacted.connect(_roll_wind)
 	return rocket
 
 
-func _carve_terrain(world_pixel: Vector2i) -> void:
+func _apply_rocket_blast(world_pixel: Vector2i, peak_damage: int) -> void:
 	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
 	var radius := roundi(explosion_radius)
+	# Damage signals sample the surface synchronously, before the bitmap changes.
+	var center := terrain_view.to_global(Vector2(pixel))
+	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
 	if scorch_width > 0:
@@ -890,13 +920,13 @@ func _carve_terrain(world_pixel: Vector2i) -> void:
 func _roll_wind() -> void:
 	if not wind_random:
 		return
-	var offset := randi_range(1, 2 * MAX_WIND_LEVEL)
-	_set_wind(wrapi(wind_speed + offset, -MAX_WIND_LEVEL, MAX_WIND_LEVEL + 1))
+	var offset := randi_range(1, 2 * wind_max)
+	_set_wind(wrapi(wind_speed + offset, -wind_max, wind_max + 1))
 
 
 func _set_wind(speed: int) -> void:
 	wind_speed = speed
-	var strength := float(speed) / MAX_WIND_LEVEL
+	var strength := float(speed) / wind_max
 	for layer in leaf_layers:
 		layer.set_wind(strength)
 

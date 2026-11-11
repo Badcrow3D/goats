@@ -18,6 +18,13 @@ const Rocket := preload("res://goats/rocket.gd")
 @export var equipment := Equipment.BACKPACK_AND_LAUNCHER
 @export var jump_pause_duration := 0.0
 @export var landing_pause_duration := 0.0
+@export var fall_control_loss_distance := 48.0
+@export_range(0.0, 0.9) var bounce_restitution := 0.4
+@export var bounce_stop_speed := 45.0
+
+var last_ground_position := Vector2.ZERO
+var has_ground_position := false
+var is_bouncing := false
 
 var facing := 1.0
 var is_walking := false
@@ -42,8 +49,15 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	jump_pause_remaining = maxf(jump_pause_remaining - delta, 0.0)
 	var was_on_floor := _is_grounded()
+	if was_on_floor and not is_bouncing:
+		last_ground_position = goat.position
+		has_ground_position = true
+	if not was_on_floor and is_charging_jump:
+		is_charging_jump = false
+		jump_released = false
+	_check_fall_distance()
 	var direction := _walk_direction()
-	var can_walk := was_on_floor and not is_charging_jump and jump_pause_remaining == 0.0
+	var can_walk := _can_control_movement() and not is_charging_jump
 	if is_charging_jump:
 		goat.velocity.x = 0.0
 		if not jump_released:
@@ -62,7 +76,11 @@ func _physics_process(delta: float) -> void:
 
 	goat.velocity += goat.get_gravity() * gravity_scale * delta
 	var moved_x := _move_goat(delta)
-	if not was_on_floor and _is_grounded() and landing_pause_duration > 0.0:
+	_check_fall_distance()
+	if _is_grounded() and not is_bouncing:
+		last_ground_position = goat.position
+		has_ground_position = true
+	if not was_on_floor and _is_grounded() and not is_bouncing and landing_pause_duration > 0.0:
 		jump_pause_remaining = landing_pause_duration
 		goat.velocity.x = 0.0
 
@@ -85,8 +103,51 @@ func _is_grounded() -> bool:
 
 
 func _move_goat(_delta: float) -> float:
+	var impact_velocity := goat.velocity
 	goat.move_and_slide()
+	if goat.is_on_floor() and impact_velocity.y > 0.0:
+		_handle_ground_impact(impact_velocity)
 	return goat.get_real_velocity().x
+
+
+func _can_control_movement() -> bool:
+	return _is_grounded() and not is_bouncing and jump_pause_remaining == 0.0
+
+
+func _check_fall_distance() -> void:
+	if has_ground_position and goat.position.y - last_ground_position.y >= fall_control_loss_distance:
+		is_bouncing = true
+
+
+func _handle_ground_impact(impact_velocity: Vector2, normal := Vector2.UP) -> void:
+	_check_fall_distance()
+	if not is_bouncing:
+		return
+	var rebound := _ground_rebound(impact_velocity, normal)
+	if rebound.y < -bounce_stop_speed:
+		goat.velocity = rebound
+	else:
+		goat.velocity = Vector2.ZERO
+		is_bouncing = false
+		last_ground_position = goat.position
+		has_ground_position = true
+
+
+func _ground_rebound(impact_velocity: Vector2, normal: Vector2) -> Vector2:
+	var reflected := impact_velocity.bounce(normal)
+	# A ground hit must send the goat clear of the floor, even at a grazing angle.
+	if impact_velocity.dot(normal) >= 0.0 or reflected.y >= 0.0:
+		reflected = impact_velocity.bounce(Vector2.UP)
+	return reflected * bounce_restitution
+
+
+func _reset_fall_state() -> void:
+	is_bouncing = false
+	is_charging_jump = false
+	jump_released = false
+	jump_pause_remaining = 0.0
+	last_ground_position = goat.position
+	has_ground_position = true
 
 
 func _walk_direction() -> float:
@@ -113,7 +174,7 @@ func _sync_equipment_pose() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.physical_keycode != KEY_ENTER or event.echo:
 		return
-	if event.pressed and _is_grounded() and not is_charging_jump and jump_pause_remaining == 0.0:
+	if event.pressed and _can_control_movement() and not is_charging_jump:
 		is_charging_jump = true
 		jump_released = false
 		jump_charge = 0.0
@@ -123,6 +184,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_bouncing:
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		var muzzle := muzzle_left if facing < 0.0 else muzzle_right
 		var direction := muzzle.global_position.direction_to(get_global_mouse_position())

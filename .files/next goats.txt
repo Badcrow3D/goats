@@ -1,7 +1,8 @@
 + paint and test level2.png
 
 + jump and landing animations
-author idle loop, play on inactive goat
++ bounced goat animation
++ author idle loop, play on inactive goat
 
 camera follow on movement
 
@@ -11,17 +12,12 @@ no walking delay on facing if launcher is not deployed
 sound and music
 
 bouncing weapon test
-bounce back on jumping into wall
-bounce goat by amount of damage, simple location no rotation
-bounced goat animation
-
-mini map or radar when zoomed in
 
 parachute backpack
 deploy launcher
 
+mini map or radar when zoomed in
 arrow towards offscreen active goat
-possible climbing animations
 
 explosion
 particle effects

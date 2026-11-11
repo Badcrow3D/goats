@@ -8,13 +8,13 @@ const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 
 @export var speed := 220.0
 @export var gravity := 400.0
-@export var direct_damage := 10
+@export var blast_damage := 50
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collider: CollisionShape2D = $CollisionShape2D
 @onready var impact_cast: ShapeCast2D = $ImpactCast
 
-var shooter_hurtbox: Area2D
+var shooter_hurtbox: GoatHurtbox
 var terrain: Terrain
 var terrain_pixel_size := Vector2.ONE
 var wind_acceleration := 0.0
@@ -32,6 +32,12 @@ func _physics_process(delta: float) -> void:
 	velocity.x += wind_acceleration * delta
 	velocity.y += gravity * delta
 	_update_sprite_angle()
+	# Ignore the shooter only until the rocket has cleared its hurtbox.
+	if is_instance_valid(shooter_hurtbox) and not impact_cast.shape.collide(
+		impact_cast.global_transform, shooter_hurtbox.collider.shape, shooter_hurtbox.collider.global_transform
+	):
+		impact_cast.remove_exception(shooter_hurtbox)
+		shooter_hurtbox = null
 	var motion := velocity * delta
 	var bitmap_hit := false
 	var hit_pixel := Vector2i.ZERO
@@ -53,7 +59,6 @@ func _physics_process(delta: float) -> void:
 			var hurtbox := impact_cast.get_collider(index) as GoatHurtbox
 			if hurtbox:
 				var contact := impact_cast.get_collision_point(index)
-				hurtbox.apply_damage(direct_damage)
 				exploded_at.emit(Vector2i(get_parent().to_local(contact).floor()))
 				break
 		impacted.emit()

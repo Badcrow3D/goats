@@ -1,5 +1,7 @@
 extends Node2D
 
+signal damaged(amount: int)
+
 enum Facing { LEFT = -1, RIGHT = 1 }
 enum Status { ACTIVE, ALIVE, DEAD }
 
@@ -11,6 +13,9 @@ enum Status { ACTIVE, ALIVE, DEAD }
 @export var status := Status.ALIVE
 
 func take_damage(amount: int) -> void:
+	if amount <= 0:
+		return
 	health = maxi(health - amount, 0)
 	if health == 0:
 		status = Status.DEAD
+	damaged.emit(amount)

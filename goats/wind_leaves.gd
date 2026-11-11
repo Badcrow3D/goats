@@ -4,7 +4,7 @@ const LEAF_TEXTURE := preload("res://sprites/leaf16.png")
 const LEAF_SHADER := preload("res://goats/instanced_sprite_sheet.gdshader")
 const LEAF_SIZE := 32
 const MAX_LEAVES := 20
-const MAX_DRIFT_SPEED := 60.0
+const MAX_DRIFT_SPEED := 160.0
 const FALL_SPEED := 16.0
 
 @export_range(0.0, 1.0, 0.00125) var scroll_factor := 0.2275

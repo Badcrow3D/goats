@@ -1,0 +1,112 @@
+[gd_scene format=3 uid="uid://dy30w6r71qf2w"]
+
+[ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats/goatsgame.gd" id="2_test"]
+[ext_resource type="FontFile" uid="uid://c76u7lrkob2cb" path="res://assets/porto-buena.regular.otf" id="5_ui_font"]
+[ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats/wind_leaves.gd" id="10_wind_leaves"]
+[ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
+[ext_resource type="Texture2D" uid="uid://bntkxk571rqpq" path="res://levels/level1.png" id="12_level"]
+[ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
+[ext_resource type="Material" uid="uid://b6n6i6icwps4x" path="res://assets/palette_cycle.tres" id="14_000da"]
+[ext_resource type="Texture2D" uid="uid://isjvwcpo1mcs" path="res://sprites/explosion1.png" id="15_wdfnk"]
+[ext_resource type="PackedScene" path="res://goats/goat.tscn" id="16_goat"]
+
+[sub_resource type="Theme" id="Theme_pixel_ui"]
+default_font = ExtResource("5_ui_font")
+default_font_size = 16
+RichTextLabel/constants/line_separation = 0
+VBoxContainer/constants/separation = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_console"]
+bg_color = Color(0.10588235, 0.10588235, 0.10588235, 1)
+
+[node name="GoatsNewTest" type="Node2D" unique_id=2051334170]
+texture_filter = 1
+script = ExtResource("2_test")
+camera_max_zoom = 3
+gravity_scale = 0.5
+jump_pause_duration = 0.16
+landing_pause_duration = 0.32
+
+[node name="Sky" type="Polygon2D" parent="." unique_id=401434795]
+z_index = -2
+color = Color(0.35686275, 0.69803923, 0.9882353, 1)
+polygon = PackedVector2Array(0, 0, 2800, 0, 2800, 1600, 0, 1600)
+
+[node name="CloudsFar" type="MultiMeshInstance2D" parent="Sky" unique_id=1774499158]
+self_modulate = Color(1, 1, 1, 0.35)
+script = ExtResource("11_wind_clouds")
+scroll_factor = 0.05
+
+[node name="CloudsMiddle" type="MultiMeshInstance2D" parent="Sky" unique_id=1614416720]
+self_modulate = Color(1, 1, 1, 0.5)
+script = ExtResource("11_wind_clouds")
+scroll_factor = 0.1125
+
+[node name="CloudsNear" type="MultiMeshInstance2D" parent="Sky" unique_id=1874248682]
+self_modulate = Color(1, 1, 1, 0.7)
+script = ExtResource("11_wind_clouds")
+
+[node name="LeavesFar" type="MultiMeshInstance2D" parent="Sky" unique_id=1446700875]
+self_modulate = Color(1, 1, 1, 0.25)
+script = ExtResource("10_wind_leaves")
+scroll_factor = 0.065
+
+[node name="LeavesMiddle" type="MultiMeshInstance2D" parent="Sky" unique_id=1878754141]
+self_modulate = Color(1, 1, 1, 0.35)
+script = ExtResource("10_wind_leaves")
+scroll_factor = 0.14625
+
+[node name="LeavesNear" type="MultiMeshInstance2D" parent="Sky" unique_id=660560211]
+self_modulate = Color(1, 1, 1, 0.45)
+script = ExtResource("10_wind_leaves")
+
+[node name="Terrain" type="Sprite2D" parent="." unique_id=1167225093]
+z_index = -1
+scale = Vector2(2, 2)
+texture = ExtResource("12_level")
+centered = false
+script = ExtResource("13_terrain")
+
+[node name="Goat" parent="." unique_id=163038628 instance=ExtResource("16_goat")]
+position = Vector2(1371, 615)
+team_id = 1
+status = 0
+
+[node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="Console" unique_id=384858294]
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+theme = SubResource("Theme_pixel_ui")
+theme_override_styles/panel = SubResource("StyleBox_console")
+
+[node name="Margin" type="MarginContainer" parent="Console/Panel" unique_id=1816086556]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Rows" type="VBoxContainer" parent="Console/Panel/Margin" unique_id=111556945]
+layout_mode = 2
+
+[node name="Output" type="RichTextLabel" parent="Console/Panel/Margin/Rows" unique_id=11287227]
+layout_mode = 2
+autowrap_mode = 0
+shortcut_keys_enabled = false
+
+[node name="Input" type="LineEdit" parent="Console/Panel/Margin/Rows" unique_id=523749669]
+layout_mode = 2
+keep_editing_on_text_submit = true
+
+[node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
+position = Vector2(1400, 614)
+offset = Vector2(60, 0)
+
+[node name="Explosion1" type="Sprite2D" parent="." unique_id=1002464975]
+material = ExtResource("14_000da")
+position = Vector2(-77, 105)
+scale = Vector2(2, 2)
+texture = ExtResource("15_wdfnk")
