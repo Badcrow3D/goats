@@ -157,7 +157,7 @@ func direction_to_target(target: Vector2) -> Vector2:
 	return _active_muzzle().global_position.direction_to(target)
 
 
-func rocket_spawn_position() -> Vector2:
+func missile_spawn_position() -> Vector2:
 	var tip_offset := Vector2(_muzzle_tip.position.x * float(facing_direction), _muzzle_tip.position.y)
 	return _active_muzzle().to_global(tip_offset)
 

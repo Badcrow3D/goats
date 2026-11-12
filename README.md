@@ -1,6 +1,6 @@
 # Goats
 
-Goats is a 2D arena prototype with bitmap terrain. Rockets carve holes, and falling dirt adds solid ground.
+Goats is a 2D arena prototype with bitmap terrain. Missiles carve holes, and falling dirt adds solid ground.
 
 ## Run locally
 
@@ -28,6 +28,6 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 
 ## Project layout
 
-- [`goats/`](goats/) contains the arena, goat controller, rocket, dirt drop, and wind effects.
+- [`goats/`](goats/) contains the arena, goat controller, missile, dirt drop, and wind effects.
 - [`sim/terrain.gd`](sim/terrain.gd) stores and queries the terrain collision mask. [`view/terrain_view.gd`](view/terrain_view.gd) keeps the terrain artwork in sync with it.
 - `levels/`, `sprites/`, and `assets/` contain runtime assets. `.files/` holds source artwork and development files.

@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://bcckj7pj1c17n"]
+
+[ext_resource type="Script" uid="uid://bftmcw5hfqlxy" path="res://goats/missile.gd" id="1_missile"]
+[ext_resource type="Texture2D" uid="uid://c8d1yimtiffk5" path="res://sprites/missile-16x16.png" id="2_sheet"]
+
+[sub_resource type="RectangleShape2D" id="Rectangle_missile"]
+size = Vector2(6, 6)
+
+[node name="Missile" type="CharacterBody2D" unique_id=1148106868]
+collision_layer = 0
+script = ExtResource("1_missile")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=857078343]
+texture = ExtResource("2_sheet")
+hframes = 10
+vframes = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=110195779]
+shape = SubResource("Rectangle_missile")
+
+[node name="ImpactCast" type="ShapeCast2D" parent="." unique_id=397365247]
+enabled = false
+shape = SubResource("Rectangle_missile")
+collision_mask = 5
+collide_with_areas = true

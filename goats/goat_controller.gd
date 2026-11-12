@@ -1,8 +1,8 @@
 extends Node2D
 
 const GoatState := preload("res://goats/goat.gd")
-const ROCKET := preload("res://goats/rocket.tscn")
-const Rocket := preload("res://goats/rocket.gd")
+const MISSILE := preload("res://goats/missile.tscn")
+const Missile := preload("res://goats/missile.gd")
 
 @onready var goat: GoatState = $Goat
 
@@ -155,15 +155,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		var direction := goat.direction_to_target(get_global_mouse_position())
 		if direction == Vector2.ZERO:
 			direction = Vector2(facing, 0)
-		_fire_rocket(direction)
+		_fire_missile(direction)
 
 
-func _fire_rocket(direction: Vector2, power: float = 1.0) -> Rocket:
+func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
 	if goat.mode != GoatState.Mode.LAUNCHER:
 		return null
-	var rocket := ROCKET.instantiate() as Rocket
-	rocket.position = to_local(goat.rocket_spawn_position())
-	rocket.velocity = direction * rocket.speed * power
-	rocket.shooter_hurtbox = goat.get_hurtbox()
-	add_child(rocket)
-	return rocket
+	var missile := MISSILE.instantiate() as Missile
+	missile.position = to_local(goat.missile_spawn_position())
+	missile.velocity = direction * missile.speed * power
+	missile.shooter_hurtbox = goat.get_hurtbox()
+	add_child(missile)
+	return missile

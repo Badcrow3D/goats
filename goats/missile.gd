@@ -32,7 +32,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x += wind_acceleration * delta
 	velocity.y += gravity * delta
 	_update_sprite_angle()
-	# Ignore the shooter only until the rocket has cleared its hurtbox.
+	# Ignore the shooter only until the missile has cleared its hurtbox.
 	if is_instance_valid(shooter_hurtbox) and not impact_cast.shape.collide(
 		impact_cast.global_transform, shooter_hurtbox.collider.shape, shooter_hurtbox.collider.global_transform
 	):
@@ -42,7 +42,7 @@ func _physics_process(delta: float) -> void:
 	var bitmap_hit := false
 	var hit_pixel := Vector2i.ZERO
 	if terrain:
-		# Sample the rocket center at most one pixel apart, like the bitmap demo.
+		# Sample the missile center at most one pixel apart, like the bitmap demo.
 		var steps := maxi(1, ceili(motion.length()))
 		for step in range(steps + 1):
 			var fraction := float(step) / steps

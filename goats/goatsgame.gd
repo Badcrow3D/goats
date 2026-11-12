@@ -4,6 +4,8 @@ const Goat := preload("res://goats/goat.gd")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
+const EXPLOSION_TEXTURE := preload("res://sprites/explosion-40x40.png")
+const EXPLOSION_FRAME_SECONDS := 0.05
 const DIRT_GRAVITY := 400.0
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
@@ -773,26 +775,27 @@ func _update_shot_charge(delta: float) -> void:
 
 	var charge_ratio := minf(shot_charge / fire_charge_time, 1.0)
 	var power := lerpf(fire_min_amount, fire_max_amount, charge_ratio)
-	_fire_rocket(goat.aim_direction(), power)
+	_fire_missile(goat.aim_direction(), power)
 	is_charging_shot = false
 	shot_released = false
 
 
-func _fire_rocket(direction: Vector2, power: float = 1.0) -> Rocket:
-	var rocket := super(direction, power)
-	if rocket == null:
+func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
+	var missile := super(direction, power)
+	if missile == null:
 		return null
-	rocket.terrain = terrain
-	rocket.terrain_pixel_size = terrain_view.scale
-	rocket.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
-	rocket.exploded_at.connect(_apply_rocket_blast.bind(rocket.blast_damage))
-	rocket.impacted.connect(_roll_wind)
-	return rocket
+	missile.terrain = terrain
+	missile.terrain_pixel_size = terrain_view.scale
+	missile.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
+	missile.exploded_at.connect(_apply_missile_blast.bind(missile.blast_damage))
+	missile.impacted.connect(_roll_wind)
+	return missile
 
 
-func _apply_rocket_blast(
+func _apply_missile_blast(
 	world_pixel: Vector2i, direct_hit: GoatHurtbox, hit_direction: Vector2, peak_damage: int
 ) -> void:
+	_play_missile_explosion(Vector2(world_pixel))
 	_shake_camera()
 	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
 	var radius := roundi(explosion_radius)
@@ -806,6 +809,23 @@ func _apply_rocket_blast(
 	if scorch_width > 0:
 		terrain_view.scorch_circle(pixel, radius + scorch_width, TERRAIN_BURN_COLOR)
 	terrain_view.carve(crater)
+
+
+func _play_missile_explosion(hit_position: Vector2) -> void:
+	var explosion := Sprite2D.new()
+	explosion.texture = EXPLOSION_TEXTURE
+	explosion.hframes = roundi(EXPLOSION_TEXTURE.get_width() / float(EXPLOSION_TEXTURE.get_height()))
+	explosion.position = hit_position
+	explosion.scale = terrain_view.scale
+	explosion.z_index = 1
+	add_child(explosion)
+
+	var animation := explosion.create_tween()
+	for frame in range(1, explosion.hframes):
+		animation.tween_interval(EXPLOSION_FRAME_SECONDS)
+		animation.tween_property(explosion, "frame", frame, 0.0)
+	animation.tween_interval(EXPLOSION_FRAME_SECONDS)
+	animation.tween_callback(explosion.queue_free)
 
 
 func _roll_wind() -> void:
