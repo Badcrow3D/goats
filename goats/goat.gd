@@ -17,7 +17,7 @@ const LEFT_AIM_ORIGIN := Vector2(2, -6)
 
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var _grapple: Sprite2D = $AnimatedSprite2D/Grapple
-@onready var _grapple_aim_pose: Sprite2D = $AnimatedSprite2D/GrappleAimPose
+@onready var _grapple_aim_pose: Sprite2D = $GrappleAimPose
 @onready var _launcher: Sprite2D = $AnimatedSprite2D/Launcher
 @onready var _muzzle_right: Marker2D = $MuzzleRight
 @onready var _muzzle_left: Marker2D = $MuzzleLeft
@@ -116,8 +116,7 @@ func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) 
 		if mode == Mode.GRAPPLE:
 			var column := roundi((90.0 - aim_degrees) / GRAPPLE_AIM_POSE_STEP)
 			_grapple_aim_pose.frame_coords = Vector2i(column, row)
-			_grapple_aim_pose.position.x = -float(facing_direction)
-			origin = _grapple_aim_pose.global_position
+			origin = _grapple_aim_pose.to_global(Vector2(-2.0 * facing_direction, 0.0))
 		else:
 			var column := roundi((90.0 - snapped_aim) / AIM_POSE_STEP)
 			_aim_pose.frame_coords = Vector2i(column, row)
@@ -131,11 +130,12 @@ func _apply_mode_layers() -> void:
 	var show_grapple := mode == Mode.GRAPPLE
 	var show_launcher := mode == Mode.LAUNCHER
 	_aim_pose.visible = _showing_aim_pose and show_launcher
-	_sprite.visible = not _aim_pose.visible
 	_grapple.visible = show_grapple and not _showing_aim_pose
 	_grapple_aim_pose.visible = show_grapple and _showing_aim_pose
 	_launcher.visible = show_launcher
-	_aim_cursor.visible = _aim_pose.visible or _grapple_aim_pose.visible
+	var show_aim_pose := _aim_pose.visible or _grapple_aim_pose.visible
+	_sprite.visible = not show_aim_pose
+	_aim_cursor.visible = show_aim_pose
 
 
 func update_jump_meter(show_meter: bool, charge_ratio: float) -> void:
