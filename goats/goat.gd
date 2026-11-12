@@ -105,7 +105,7 @@ func _sync_equipment_pose() -> void:
 func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) -> void:
 	# Let the layered sprite finish its walk tail before switching poses.
 	_showing_aim_pose = can_aim and _sprite.animation == &"idle"
-	var snapped_aim := snappedf(aim_degrees, AIM_CURSOR_STEP) if _showing_aim_pose else 0.0
+	var snapped_aim := snappedf(aim_degrees, AIM_CURSOR_STEP) if _showing_aim_pose or mode == Mode.GRAPPLE else 0.0
 	var angle := deg_to_rad(snapped_aim)
 	_muzzle_right.rotation = -angle
 	_muzzle_left.rotation = angle
@@ -116,7 +116,7 @@ func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) 
 		if mode == Mode.GRAPPLE:
 			var column := roundi((90.0 - aim_degrees) / GRAPPLE_AIM_POSE_STEP)
 			_grapple_aim_pose.frame_coords = Vector2i(column, row)
-			origin = _grapple_aim_pose.to_global(Vector2(-2.0 * facing_direction, 0.0))
+			origin = grapple_pivot_position()
 		else:
 			var column := roundi((90.0 - snapped_aim) / AIM_POSE_STEP)
 			_aim_pose.frame_coords = Vector2i(column, row)
@@ -161,6 +161,10 @@ func _active_muzzle() -> Marker2D:
 
 func aim_direction() -> Vector2:
 	return Vector2(float(facing_direction), 0.0).rotated(_active_muzzle().global_rotation)
+
+
+func grapple_pivot_position() -> Vector2:
+	return _grapple_aim_pose.to_global(Vector2(-2.0 * facing_direction, 0.0))
 
 
 func direction_to_target(target: Vector2) -> Vector2:

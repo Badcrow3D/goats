@@ -13,6 +13,7 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 - **Enter** to charge a jump in mode 0 or 1, then release to jump.
 - Goats keep their momentum in the air. A drop of 48 world pixels below the last grounded position causes a bounce, and controls return once the goat settles. Adjust the drop distance in the console with `set fall_control_loss_distance 48`.
 - In Grapple or Launcher mode, use **W / S** to aim while idle.
+- In Grapple mode, press **Space** to shoot a line up to 500 world pixels. It stays on a terrain hit and disappears after 0.2 seconds on a miss.
 - In Launcher mode, use **Space** to charge a shot, then release to fire.
 - The cursor starts visible. **Right-click** to capture the mouse so it pans the camera, and **right-click again** to release it. **Scroll wheel** zooms in either mode.
 - With the cursor visible, **left-click** in open air to drop dirt or **left-drag** to pan. Dirt drops are disabled while paused.

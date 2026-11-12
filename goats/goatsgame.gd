@@ -7,6 +7,8 @@ const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const EXPLOSION_TEXTURE := preload("res://sprites/explosion-40x40.png")
 const EXPLOSION_FRAME_SECONDS := 0.05
 const DIRT_GRAVITY := 400.0
+const GRAPPLE_RANGE := 500.0
+const GRAPPLE_MISS_SECONDS := 0.2
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
 
@@ -98,6 +100,10 @@ var camera_dragging := false
 var camera_shake: Tween
 var arena_bounds: Rect2
 var terrain: Terrain
+var grapple_line := Node2D.new()
+var grapple_start_pixel := Vector2i.ZERO
+var grapple_end_pixel := Vector2i.ZERO
+var grapple_miss_time := 0.0
 var goat_body: Rect2i
 var player_spawn_x: int
 var wind_scale := 4.0
@@ -111,6 +117,9 @@ var second_goat_bouncing := false
 func _ready() -> void:
 	_load_tuning()
 	_setup_level()
+	grapple_line.draw.connect(_draw_grapple_line)
+	grapple_line.hide()
+	add_child(grapple_line)
 	player_goat.damaged.connect(_knock_back_player)
 	player_goat.mode_changed.connect(_on_player_mode_changed)
 	second_goat.damaged.connect(_knock_back_second_goat)
@@ -519,6 +528,16 @@ func _walk_direction() -> float:
 func _physics_process(delta: float) -> void:
 	super(delta)
 	_apply_idle_goat_gravity(delta)
+	if grapple_line.visible:
+		if grapple_miss_time > 0.0:
+			grapple_miss_time = maxf(0.0, grapple_miss_time - delta)
+			if grapple_miss_time == 0.0:
+				grapple_line.hide()
+		else:
+			var start_pixel := Vector2i(to_local(goat.grapple_pivot_position()).floor())
+			if start_pixel != grapple_start_pixel:
+				grapple_start_pixel = start_pixel
+				grapple_line.queue_redraw()
 
 	var can_aim := (
 		player_goat.mode != Goat.Mode.GOAT_ONLY
@@ -708,15 +727,77 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if console.visible or is_bouncing or player_goat.mode != Goat.Mode.LAUNCHER:
+	if console.visible or is_bouncing:
 		return
 	if event is InputEventKey and event.physical_keycode == KEY_SPACE and not event.echo:
+		if player_goat.mode == Goat.Mode.GRAPPLE:
+			if event.pressed:
+				_fire_grapple()
+			get_viewport().set_input_as_handled()
+			return
+		if player_goat.mode != Goat.Mode.LAUNCHER:
+			return
 		if event.pressed and not is_charging_shot:
 			is_charging_shot = true
 			shot_charge = 0.0
 		elif not event.pressed and is_charging_shot:
 			shot_released = true
 		get_viewport().set_input_as_handled()
+
+
+func _fire_grapple() -> void:
+	var origin := goat.grapple_pivot_position()
+	var end := origin + goat.aim_direction() * GRAPPLE_RANGE
+	var terrain_origin := terrain_view.to_local(origin)
+	var terrain_end := terrain_view.to_local(end)
+	var hit_fraction := _grapple_hit_fraction(terrain_origin, terrain_end - terrain_origin)
+	grapple_miss_time = GRAPPLE_MISS_SECONDS if hit_fraction < 0.0 else 0.0
+	if hit_fraction >= 0.0:
+		end = origin.lerp(end, hit_fraction)
+	grapple_start_pixel = Vector2i(to_local(origin).floor())
+	grapple_end_pixel = Vector2i(to_local(end).floor())
+	grapple_line.show()
+	grapple_line.queue_redraw()
+
+
+func _draw_grapple_line() -> void:
+	# Rasterize onto the world pixel grid before the camera scales it.
+	var pixel := grapple_start_pixel
+	var distance := (grapple_end_pixel - pixel).abs()
+	var step := (grapple_end_pixel - pixel).sign()
+	var error := distance.x - distance.y
+	while true:
+		grapple_line.draw_rect(Rect2(Vector2(pixel), Vector2.ONE), Color.WHITE)
+		if pixel == grapple_end_pixel:
+			break
+		var doubled_error := 2 * error
+		if doubled_error > -distance.y:
+			error -= distance.y
+			pixel.x += step.x
+		if doubled_error < distance.x:
+			error += distance.x
+			pixel.y += step.y
+
+
+func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
+	# Visit each bitmap cell in the order the shot enters it.
+	var cell := Vector2i(origin.floor())
+	var step := Vector2i(motion.sign())
+	var edge_offset := Vector2i(maxi(step.x, 0), maxi(step.y, 0))
+
+	var fraction := 0.0
+	while fraction <= 1.0:
+		if terrain.is_solid(cell.x, cell.y):
+			return fraction
+		var edge := cell + edge_offset
+		var crossing_x := (edge.x - origin.x) / motion.x if step.x != 0 else INF
+		var crossing_y := (edge.y - origin.y) / motion.y if step.y != 0 else INF
+		fraction = minf(crossing_x, crossing_y)
+		if crossing_x == fraction:
+			cell.x += step.x
+		if crossing_y == fraction:
+			cell.y += step.y
+	return -1.0
 
 
 func _zoom_camera(amount: int) -> void:
