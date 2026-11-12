@@ -2,11 +2,12 @@
 
 [ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_aim"]
 [ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
-[ext_resource type="Texture2D" uid="uid://ur3cigsq6isw" path="res://sprites/goat24_layers.png" id="7_layers"]
+[ext_resource type="Texture2D" uid="uid://dnq7vkaobym62" path="res://sprites/goat-24x24.png" id="7_layers"]
 [ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats/goat.gd" id="8_goat_state"]
 [ext_resource type="Script" uid="uid://c05vd1v7u6uxe" path="res://goats/goat_hurtbox.gd" id="9_hurtbox"]
 [ext_resource type="Texture2D" uid="uid://cg7vpw67vt7a5" path="res://sprites/chargejump26x8.png" id="14_jump_charge"]
 [ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
+[ext_resource type="Texture2D" uid="uid://cigq67nir8c1l" path="res://sprites/grapple-32x32.png" id="16_grapple_aim"]
 
 [sub_resource type="AtlasTexture" id="Atlas_idle"]
 atlas = ExtResource("7_layers")
@@ -120,7 +121,7 @@ scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_goat")
 animation = &"idle"
 
-[node name="Backpack" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
+[node name="Grapple" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
 visible = false
 show_behind_parent = true
 texture = ExtResource("7_layers")
@@ -129,10 +130,19 @@ vframes = 3
 
 [node name="Launcher" type="Sprite2D" parent="AnimatedSprite2D" unique_id=151829350]
 visible = false
+show_behind_parent = true
 texture = ExtResource("7_layers")
 hframes = 10
 vframes = 3
 frame = 10
+
+[node name="GrappleAimPose" type="Sprite2D" parent="AnimatedSprite2D"]
+visible = false
+show_behind_parent = true
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("16_grapple_aim")
+hframes = 5
+vframes = 3
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1763410790]
 position = Vector2(0, 16)

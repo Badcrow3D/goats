@@ -521,7 +521,7 @@ func _physics_process(delta: float) -> void:
 	_apply_idle_goat_gravity(delta)
 
 	var can_aim := (
-		player_goat.mode == Goat.Mode.LAUNCHER
+		player_goat.mode != Goat.Mode.GOAT_ONLY
 		and _can_control_movement()
 		and is_zero_approx(_walk_direction())
 	)

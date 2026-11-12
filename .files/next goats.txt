@@ -13,7 +13,7 @@ sound and music
 
 bouncing weapon test
 
-parachute backpack
+parachute grapple
 deploy launcher
 
 mini map or radar when zoomed in

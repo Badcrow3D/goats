@@ -6,16 +6,18 @@ signal mode_changed
 
 enum Facing { LEFT = -1, RIGHT = 1 }
 enum Status { ACTIVE, ALIVE, DEAD }
-enum Mode { GOAT_ONLY = 0, BACKPACK = 1, LAUNCHER = 2 }
+enum Mode { GOAT_ONLY = 0, GRAPPLE = 1, LAUNCHER = 2 }
 
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const AIM_POSE_STEP := 9.0
 const AIM_CURSOR_STEP := AIM_POSE_STEP / 4.0
+const GRAPPLE_AIM_POSE_STEP := 45.0
 const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
 
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
-@onready var _backpack: Sprite2D = $AnimatedSprite2D/Backpack
+@onready var _grapple: Sprite2D = $AnimatedSprite2D/Grapple
+@onready var _grapple_aim_pose: Sprite2D = $AnimatedSprite2D/GrappleAimPose
 @onready var _launcher: Sprite2D = $AnimatedSprite2D/Launcher
 @onready var _muzzle_right: Marker2D = $MuzzleRight
 @onready var _muzzle_left: Marker2D = $MuzzleLeft
@@ -48,8 +50,7 @@ var _showing_aim_pose := false
 		if mode == value:
 			return
 		mode = value
-		if mode != Mode.LAUNCHER:
-			_showing_aim_pose = false
+		_showing_aim_pose = false
 		if is_node_ready():
 			_apply_mode_layers()
 		mode_changed.emit()
@@ -95,9 +96,9 @@ func _sync_equipment_pose() -> void:
 	var column := _sprite.frame
 	if _sprite.animation == &"walk_left":
 		column += 5
-	_backpack.frame_coords = Vector2i(column, 0)
+	_grapple.frame_coords = Vector2i(column, 0)
 	_launcher.frame_coords = Vector2i(column, 1)
-	_backpack.flip_h = _sprite.flip_h
+	_grapple.flip_h = _sprite.flip_h
 	_launcher.flip_h = _sprite.flip_h
 
 
@@ -110,22 +111,31 @@ func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) 
 	_muzzle_left.rotation = angle
 	if _showing_aim_pose:
 		var faces_left := facing_direction == Facing.LEFT
-		var column := roundi((90.0 - snapped_aim) / AIM_POSE_STEP)
-		_aim_pose.frame_coords = Vector2i(column, 1 if faces_left else 0)
+		var row := 1 if faces_left else 0
+		var origin: Vector2
+		if mode == Mode.GRAPPLE:
+			var column := roundi((90.0 - aim_degrees) / GRAPPLE_AIM_POSE_STEP)
+			_grapple_aim_pose.frame_coords = Vector2i(column, row)
+			_grapple_aim_pose.position.x = -float(facing_direction)
+			origin = _grapple_aim_pose.global_position
+		else:
+			var column := roundi((90.0 - snapped_aim) / AIM_POSE_STEP)
+			_aim_pose.frame_coords = Vector2i(column, row)
+			origin = _aim_pose.to_global(LEFT_AIM_ORIGIN if faces_left else RIGHT_AIM_ORIGIN)
 		var direction := Vector2(float(facing_direction) * cos(angle), -sin(angle))
-		var origin := LEFT_AIM_ORIGIN if faces_left else RIGHT_AIM_ORIGIN
-		_aim_cursor.global_position = (_aim_pose.to_global(origin) + direction * cursor_distance).round()
+		_aim_cursor.global_position = (origin + direction * cursor_distance).round()
 	_apply_mode_layers()
 
 
 func _apply_mode_layers() -> void:
-	var show_backpack := mode != Mode.GOAT_ONLY
+	var show_grapple := mode == Mode.GRAPPLE
 	var show_launcher := mode == Mode.LAUNCHER
 	_aim_pose.visible = _showing_aim_pose and show_launcher
 	_sprite.visible = not _aim_pose.visible
-	_backpack.visible = show_backpack
+	_grapple.visible = show_grapple and not _showing_aim_pose
+	_grapple_aim_pose.visible = show_grapple and _showing_aim_pose
 	_launcher.visible = show_launcher
-	_aim_cursor.visible = _showing_aim_pose and show_launcher
+	_aim_cursor.visible = _aim_pose.visible or _grapple_aim_pose.visible
 
 
 func update_jump_meter(show_meter: bool, charge_ratio: float) -> void:
