@@ -573,12 +573,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_charge_meters() -> void:
-	var show_blocked_jump := (
-		not console.visible and not _mode_allows_jump() and Input.is_physical_key_pressed(KEY_ENTER)
-	)
-	goat.update_jump_meter(
-		is_charging_jump and not jump_released, jump_charge / jump_charge_time, show_blocked_jump
-	)
+	goat.update_jump_meter(is_charging_jump and not jump_released, jump_charge / jump_charge_time)
 	goat.update_shot_meter(is_charging_shot, shot_charge / fire_charge_time)
 
 
@@ -643,11 +638,11 @@ func _handle_camera_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.physical_keycode == KEY_F1:
 		if event.pressed and not event.echo:
 			tree.paused = not tree.paused
-			if not tree.paused:
+			if not tree.paused and not Input.is_physical_key_pressed(ACTION_KEY):
 				# A release during pause should cancel the charge instead of firing it.
-				if not jump_released and not Input.is_physical_key_pressed(KEY_ENTER):
+				if not jump_released:
 					is_charging_jump = false
-				if not shot_released and not Input.is_physical_key_pressed(KEY_SPACE):
+				if not shot_released:
 					is_charging_shot = false
 			_update_mouse_mode()
 		get_viewport().set_input_as_handled()
@@ -746,20 +741,16 @@ func _toggle_console() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not console.visible:
-		super(event)
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if console.visible or is_bouncing:
+	if console.visible or is_bouncing or event.echo:
 		return
-	if event is InputEventKey and event.physical_keycode == KEY_SPACE and not event.echo:
-		if player_goat.mode == Goat.Mode.GRAPPLE:
-			if event.pressed:
-				_fire_grapple()
+	if event.physical_keycode == KEY_E and player_goat.mode == Goat.Mode.GRAPPLE:
+		if event.pressed:
+			_fire_grapple()
+		get_viewport().set_input_as_handled()
+	elif event.physical_keycode == ACTION_KEY:
+		if _mode_allows_jump():
+			super(event)
 			get_viewport().set_input_as_handled()
-			return
-		if player_goat.mode != Goat.Mode.LAUNCHER:
 			return
 		if event.pressed and not is_charging_shot:
 			is_charging_shot = true
@@ -767,6 +758,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif not event.pressed and is_charging_shot:
 			shot_released = true
 		get_viewport().set_input_as_handled()
+
+
+func _unhandled_input(_event: InputEvent) -> void:
+	pass
 
 
 func _fire_grapple() -> void:

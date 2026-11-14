@@ -1,27 +1,19 @@
-+ fix up composite goat + grapple frames
-
 + paint and test level2.png
 
 + jump and landing animations
 + bounced goat animation
 + author idle loop, play on inactive goat
 
-camera follow on movement
++ camera follow on movement
 
-deployed launcher mode with no jumping
-no walking delay on facing if launcher is not deployed
+digging ?
 
+arrow towards offscreen active goat
+parachute and deploy launcher
+mini map or radar when zoomed in
 sound and music
-
 bouncing weapon test
 
-parachute grapple
-deploy launcher
-
-mini map or radar when zoomed in
-arrow towards offscreen active goat
-
-explosion
 particle effects
 
 turn time limit

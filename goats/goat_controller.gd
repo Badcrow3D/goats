@@ -3,6 +3,7 @@ extends Node2D
 const GoatState := preload("res://goats/goat.gd")
 const MISSILE := preload("res://goats/missile.tscn")
 const Missile := preload("res://goats/missile.gd")
+const ACTION_KEY := KEY_SPACE
 
 @onready var goat: GoatState = $Goat
 
@@ -141,7 +142,7 @@ func _mode_allows_jump() -> bool:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not _mode_allows_jump() or event.physical_keycode != KEY_ENTER or event.echo:
+	if not _mode_allows_jump() or event.physical_keycode != ACTION_KEY or event.echo:
 		return
 	if event.pressed and _can_control_movement() and not is_charging_jump:
 		is_charging_jump = true
