@@ -9,7 +9,7 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 ## Controls
 
 - **A / D** to walk.
-- **Left Shift** cycles the active goat through goat only (0), grapple (1), and launcher (2).
+- **Left Shift** switches the active goat between goat only (0) and launcher (2).
 - **Enter** to charge a jump in mode 0 or 1, then release to jump.
 - Goats keep their momentum in the air. A drop of 48 world pixels below the last grounded position causes a bounce, and controls return once the goat settles. Adjust the drop distance in the console with `set fall_control_loss_distance 48`.
 - In Grapple or Launcher mode, use **W / S** to aim while idle.
