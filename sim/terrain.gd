@@ -7,6 +7,10 @@ var width: int
 var height: int
 var mask: PackedByteArray
 
+class Crater:
+	var bounds: Rect2i
+	var erased_pixels := 0
+
 func _init(p_width: int, p_height: int) -> void:
 	width = p_width
 	height = p_height
@@ -49,20 +53,24 @@ func surface_y(x: int) -> int:
 			return y
 	return height
 
-## Removes a filled circle. Returns the affected rect (for partial redraws).
-func carve_circle(cx: int, cy: int, r: int, center_between_pixels := false) -> Rect2i:
+## Removes a filled circle and reports its bounds and the number of solid pixels erased.
+func carve_circle(cx: int, cy: int, r: int, center_between_pixels := false) -> Crater:
 	# Use doubled coordinates to sample half-pixel offsets with integer math.
 	var offset := 1 if center_between_pixels else 0
 	var r2 := 4 * r * r
 	var diameter := 2 * r + 1 - offset
 	var rect := Rect2i(cx - r, cy - r, diameter, diameter).intersection(Rect2i(0, 0, width, height))
+	var crater := Crater.new()
+	crater.bounds = rect
 	for y in range(rect.position.y, rect.end.y):
 		var dy := 2 * (y - cy) + offset
 		for x in range(rect.position.x, rect.end.x):
 			var dx := 2 * (x - cx) + offset
-			if dx * dx + dy * dy <= r2:
-				mask[y * width + x] = 0
-	return rect
+			var index := y * width + x
+			if dx * dx + dy * dy <= r2 and mask[index] != 0:
+				mask[index] = 0
+				crater.erased_pixels += 1
+	return crater
 
 ## Rendering helpers (not part of the simulation).
 func make_image(terrain_color: Color, background_color: Color) -> Image:

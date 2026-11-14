@@ -6,7 +6,7 @@ var terrain_view: TerrainView
 var gravity: float
 var max_spread_time: float
 var max_diagonal_steps: int
-var fall_speed := 0.0
+var velocity := Vector2.ZERO
 var grains: Dictionary[Vector2i, Color] = {}
 var sideways_steps: Dictionary[Vector2i, int] = {}
 var impact_x: int
@@ -17,19 +17,23 @@ func _ready() -> void:
 	set_process(false)
 
 func _physics_process(delta: float) -> void:
-	fall_speed += gravity * delta
-	var next_y := position.y + fall_speed * delta
+	velocity.y += gravity * delta
+	var motion := velocity * delta
 	var terrain := terrain_view.terrain
-	var x := floori(position.x)
-	# Sweep only the center through each crossed row to catch thin terrain.
-	var first_row := maxi(0, floori(position.y))
-	var last_row := mini(terrain.height - 1, floori(next_y))
-	for y in range(first_row, last_row + 1):
-		if terrain.is_solid(x, y):
-			_begin_settling(Vector2i(x, y))
+	# Sample the center at most one terrain pixel apart, as with missiles.
+	var steps := maxi(1, ceili(motion.length()))
+	for step in range(steps + 1):
+		var pixel := Vector2i((position + motion * (float(step) / steps)).floor())
+		if terrain.is_solid(pixel.x, pixel.y):
+			_begin_settling(pixel)
 			return
-	position.y = next_y
-	if position.y - texture.get_height() * 0.5 >= terrain.height:
+	position += motion
+	var half_width := texture.get_width() * 0.5
+	if (
+		position.y - texture.get_height() * 0.5 >= terrain.height
+		or (velocity.x < 0.0 and position.x + half_width <= 0.0)
+		or (velocity.x > 0.0 and position.x - half_width >= terrain.width)
+	):
 		queue_free()
 
 func _begin_settling(center: Vector2i) -> void:

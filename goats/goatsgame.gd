@@ -5,6 +5,10 @@ const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
 const WindLeaves := preload("res://goats/wind_leaves.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
+const BLAST_DIRT_TEXTURE := preload("res://sprites/dirt-16x16.png")
+const BLAST_DIRT_FRAME_SIZE := 16
+# Opaque pixel counts in the sheet's seven frames, largest to smallest.
+const BLAST_DIRT_PIXELS := [148, 112, 76, 52, 24, 12, 4]
 const EXPLOSION_TEXTURE := preload("res://sprites/explosion-40x40.png")
 const EXPLOSION_FRAME_SECONDS := 0.05
 const DIRT_GRAVITY := 400.0
@@ -701,9 +705,14 @@ func _drop_dirt(at: Vector2) -> void:
 	var pixel := Vector2i(at.floor())
 	if terrain.is_solid(pixel.x, pixel.y):
 		return
+	_spawn_dirt(at, DIRT_TEXTURE)
+
+
+func _spawn_dirt(at: Vector2, stamp: Texture2D, launch_velocity := Vector2.ZERO) -> void:
 	var dirt := DirtDrop.new()
-	dirt.texture = DIRT_TEXTURE
+	dirt.texture = stamp
 	dirt.position = at
+	dirt.velocity = launch_velocity / terrain_view.scale
 	dirt.terrain_view = terrain_view
 	dirt.gravity = DIRT_GRAVITY / terrain_view.scale.y
 	dirt.max_spread_time = dirt_settle_time
@@ -904,11 +913,64 @@ func _apply_missile_blast(
 	if direct_hit:
 		direct_hit.apply_damage(peak_damage, hit_direction)
 	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage, direct_hit)
+	var surface_normal := _estimate_impact_normal(pixel)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
 	if scorch_width > 0:
 		terrain_view.scorch_circle(pixel, radius + scorch_width, TERRAIN_BURN_COLOR)
-	terrain_view.carve(crater)
+	terrain_view.carve(crater.bounds)
+	_throw_blast_dirt(pixel, crater.erased_pixels, surface_normal)
+
+
+func _estimate_impact_normal(center: Vector2i) -> Vector2:
+	# Nearby solid pixels pull inward. Reverse that direction to point toward open air.
+	var inward := Vector2.ZERO
+	for y in range(-4, 5):
+		for x in range(-4, 5):
+			if terrain.is_solid(center.x + x, center.y + y):
+				inward += Vector2(x, y)
+	if inward.is_zero_approx():
+		return Vector2.UP
+	return (-inward / terrain_view.scale).normalized()
+
+
+func _throw_blast_dirt(center: Vector2i, erased_pixels: int, surface_normal: Vector2) -> void:
+	var budget := erased_pixels / 8.0
+	var smallest: int = BLAST_DIRT_PIXELS.back()
+	if budget < smallest * 0.5:
+		return
+	var largest: int = BLAST_DIRT_PIXELS.front()
+	var max_chunks := clampi(floori(budget / smallest), 3, 5)
+	var min_chunks := clampi(ceili(budget / largest), 3, max_chunks)
+	var chunk_count := randi_range(min_chunks, max_chunks)
+
+	# Keep one frame combination for each reachable pixel total.
+	var combinations: Dictionary[int, PackedInt32Array] = {0: PackedInt32Array()}
+	for chunk in chunk_count:
+		var next: Dictionary[int, PackedInt32Array] = {}
+		for total in combinations:
+			for frame in BLAST_DIRT_PIXELS.size():
+				var new_total: int = total + BLAST_DIRT_PIXELS[frame]
+				if not next.has(new_total):
+					var frames := combinations[total].duplicate()
+					frames.append(frame)
+					next[new_total] = frames
+		combinations = next
+	var best_total := 0
+	for total in combinations:
+		if absf(total - budget) < absf(best_total - budget) or best_total == 0:
+			best_total = total
+
+	var sheet := BLAST_DIRT_TEXTURE.get_image()
+	var size := Vector2i.ONE * BLAST_DIRT_FRAME_SIZE
+	var frames := combinations[best_total]
+	for index in frames.size():
+		var region := Rect2i(Vector2i(frames[index] * size.x, 0), size)
+		var stamp := ImageTexture.create_from_image(sheet.get_region(region))
+		var spread := (index + randf()) / frames.size()
+		var angle := lerpf(-PI * 0.42, PI * 0.42, spread)
+		var launch_velocity := surface_normal.rotated(angle) * randf_range(140.0, 220.0)
+		_spawn_dirt(Vector2(center), stamp, launch_velocity)
 
 
 func _play_missile_explosion(hit_position: Vector2) -> void:
