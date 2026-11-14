@@ -2,8 +2,12 @@ extends CharacterBody2D
 
 signal impacted
 signal exploded_at(pixel: Vector2i, direct_hit: GoatHurtbox, travel_direction: Vector2)
+signal trail_sampled(at: Vector2)
 
 const ANGLE_FRAMES := 40
+const TRAIL_SPACING := 16.0
+const FIRST_TRAIL_SAMPLE_DISTANCE := 8.0
+const TRAIL_LAG_SAMPLES := 1
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 
 @export var speed := 220.0
@@ -19,6 +23,8 @@ var terrain: Terrain
 var terrain_pixel_size := Vector2.ONE
 var wind_acceleration := 0.0
 var lifetime := 4.0
+var distance_to_next_trail := FIRST_TRAIL_SAMPLE_DISTANCE
+var trail_positions: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -67,11 +73,25 @@ func _physics_process(delta: float) -> void:
 		exploded_at.emit(hit_pixel, null, velocity.normalized())
 		impacted.emit()
 		queue_free()
-	elif move_and_collide(motion):
-		impacted.emit()
-		queue_free()
-	elif lifetime <= 0.0:
-		queue_free()
+	else:
+		var start := position
+		var collision := move_and_collide(motion)
+		_sample_trail(start, position - start)
+		if collision:
+			impacted.emit()
+			queue_free()
+		elif lifetime <= 0.0:
+			queue_free()
+
+
+func _sample_trail(start: Vector2, motion: Vector2) -> void:
+	var distance := motion.length()
+	while distance_to_next_trail <= distance:
+		trail_positions.append(start + motion * (distance_to_next_trail / distance))
+		if trail_positions.size() > TRAIL_LAG_SAMPLES:
+			trail_sampled.emit(trail_positions.pop_front())
+		distance_to_next_trail += TRAIL_SPACING
+	distance_to_next_trail -= distance
 
 
 func _update_sprite_angle() -> void:

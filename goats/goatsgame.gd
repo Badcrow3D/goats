@@ -15,6 +15,12 @@ const SMOKE_TEXTURE := preload("res://sprites/smoke-16x16.png")
 const SMOKE_FRAME_COUNT := 7
 const SMOKE_FRAME_SECONDS := 0.04
 const SMOKE_SPAWN_RADIUS := 16.0
+const TRAIL_SMOKE_MIN_START_FRAME := 3
+const TRAIL_SMOKE_MAX_START_FRAME := 4
+const TRAIL_SMOKE_FRAME_SECONDS := 0.16
+const TRAIL_SMOKE_JITTER := 4.0
+const TRAIL_SMOKE_RISE_SPEED := 20.0
+const TRAIL_SMOKE_WIND_SPEED := 20.0
 const DIRT_GRAVITY := 400.0
 const GRAPPLE_RANGE := 500.0
 const GRAPPLE_MISS_SECONDS := 0.2
@@ -902,6 +908,7 @@ func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
 	missile.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
 	missile.exploded_at.connect(_apply_missile_blast.bind(missile.blast_damage))
 	missile.impacted.connect(_roll_wind)
+	missile.trail_sampled.connect(_spawn_trail_smoke)
 	return missile
 
 
@@ -993,28 +1000,46 @@ func _play_missile_explosion(hit_position: Vector2) -> void:
 	animation.tween_callback(explosion.queue_free)
 	_spawn_explosion_smoke(hit_position)
 
+
 func _spawn_explosion_smoke(center: Vector2) -> void:
 	for particle in range(randi_range(6, 10)):
 		var direction := Vector2.from_angle(randf() * TAU)
-		var smoke := Sprite2D.new()
-		smoke.texture = SMOKE_TEXTURE
-		smoke.hframes = SMOKE_FRAME_COUNT
-		smoke.frame = randi_range(0, SMOKE_FRAME_COUNT - 1)
-		smoke.position = center + direction * (sqrt(randf()) * SMOKE_SPAWN_RADIUS)
-		smoke.scale = terrain_view.scale
-		smoke.z_index = 1
-		add_child(smoke)
-
-		var lifetime := (SMOKE_FRAME_COUNT - smoke.frame) * SMOKE_FRAME_SECONDS
+		var spawn_position := center + direction * (sqrt(randf()) * SMOKE_SPAWN_RADIUS)
+		var first_frame := randi_range(0, SMOKE_FRAME_COUNT - 1)
 		var velocity := direction * randf_range(40.0, 100.0)
-		smoke.create_tween().tween_property(smoke, "position", smoke.position + velocity * lifetime, lifetime)
+		_spawn_smoke(spawn_position, first_frame, SMOKE_FRAME_SECONDS, velocity)
 
-		var animation := smoke.create_tween()
-		for frame in range(smoke.frame + 1, SMOKE_FRAME_COUNT):
-			animation.tween_interval(SMOKE_FRAME_SECONDS)
-			animation.tween_callback(smoke.set_frame.bind(frame))
-		animation.tween_interval(SMOKE_FRAME_SECONDS)
-		animation.tween_callback(smoke.queue_free)
+
+func _spawn_trail_smoke(at: Vector2) -> void:
+	var offset := Vector2(
+		randf_range(-TRAIL_SMOKE_JITTER, TRAIL_SMOKE_JITTER),
+		randf_range(-TRAIL_SMOKE_JITTER, TRAIL_SMOKE_JITTER)
+	)
+	var first_frame := randi_range(TRAIL_SMOKE_MIN_START_FRAME, TRAIL_SMOKE_MAX_START_FRAME)
+	var wind_drift := (float(wind_speed) / wind_max) * TRAIL_SMOKE_WIND_SPEED
+	var velocity := Vector2(wind_drift, -TRAIL_SMOKE_RISE_SPEED)
+	_spawn_smoke(at + offset, first_frame, TRAIL_SMOKE_FRAME_SECONDS, velocity)
+
+
+func _spawn_smoke(at: Vector2, first_frame: int, frame_seconds: float, velocity: Vector2) -> void:
+	var smoke := Sprite2D.new()
+	smoke.texture = SMOKE_TEXTURE
+	smoke.hframes = SMOKE_FRAME_COUNT
+	smoke.frame = first_frame
+	smoke.position = at
+	smoke.scale = terrain_view.scale
+	smoke.z_index = 1
+	add_child(smoke)
+
+	var lifetime := (SMOKE_FRAME_COUNT - first_frame) * frame_seconds
+	smoke.create_tween().tween_property(smoke, "position", at + velocity * lifetime, lifetime)
+
+	var animation := smoke.create_tween()
+	for frame in range(first_frame + 1, SMOKE_FRAME_COUNT):
+		animation.tween_interval(frame_seconds)
+		animation.tween_callback(smoke.set_frame.bind(frame))
+	animation.tween_interval(frame_seconds)
+	animation.tween_callback(smoke.queue_free)
 
 
 func _roll_wind() -> void:
