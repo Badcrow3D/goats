@@ -11,6 +11,10 @@ const BLAST_DIRT_FRAME_SIZE := 16
 const BLAST_DIRT_PIXELS := [148, 112, 76, 52, 24, 12, 4]
 const EXPLOSION_TEXTURE := preload("res://sprites/explosion-40x40.png")
 const EXPLOSION_FRAME_SECONDS := 0.05
+const SMOKE_TEXTURE := preload("res://sprites/smoke-16x16.png")
+const SMOKE_FRAME_COUNT := 7
+const SMOKE_FRAME_SECONDS := 0.04
+const SMOKE_SPAWN_RADIUS := 16.0
 const DIRT_GRAVITY := 400.0
 const GRAPPLE_RANGE := 500.0
 const GRAPPLE_MISS_SECONDS := 0.2
@@ -964,11 +968,10 @@ func _throw_blast_dirt(center: Vector2i, erased_pixels: int, surface_normal: Vec
 	var sheet := BLAST_DIRT_TEXTURE.get_image()
 	var size := Vector2i.ONE * BLAST_DIRT_FRAME_SIZE
 	var frames := combinations[best_total]
-	for index in frames.size():
-		var region := Rect2i(Vector2i(frames[index] * size.x, 0), size)
+	for frame in frames:
+		var region := Rect2i(Vector2i(frame * size.x, 0), size)
 		var stamp := ImageTexture.create_from_image(sheet.get_region(region))
-		var spread := (index + randf()) / frames.size()
-		var angle := lerpf(-PI * 0.42, PI * 0.42, spread)
+		var angle := randf_range(-PI * 0.42, PI * 0.42)
 		var launch_velocity := surface_normal.rotated(angle) * randf_range(140.0, 220.0)
 		_spawn_dirt(Vector2(center), stamp, launch_velocity)
 
@@ -988,6 +991,30 @@ func _play_missile_explosion(hit_position: Vector2) -> void:
 		animation.tween_property(explosion, "frame", frame, 0.0)
 	animation.tween_interval(EXPLOSION_FRAME_SECONDS)
 	animation.tween_callback(explosion.queue_free)
+	_spawn_explosion_smoke(hit_position)
+
+func _spawn_explosion_smoke(center: Vector2) -> void:
+	for particle in range(randi_range(6, 10)):
+		var direction := Vector2.from_angle(randf() * TAU)
+		var smoke := Sprite2D.new()
+		smoke.texture = SMOKE_TEXTURE
+		smoke.hframes = SMOKE_FRAME_COUNT
+		smoke.frame = randi_range(0, SMOKE_FRAME_COUNT - 1)
+		smoke.position = center + direction * (sqrt(randf()) * SMOKE_SPAWN_RADIUS)
+		smoke.scale = terrain_view.scale
+		smoke.z_index = 1
+		add_child(smoke)
+
+		var lifetime := (SMOKE_FRAME_COUNT - smoke.frame) * SMOKE_FRAME_SECONDS
+		var velocity := direction * randf_range(40.0, 100.0)
+		smoke.create_tween().tween_property(smoke, "position", smoke.position + velocity * lifetime, lifetime)
+
+		var animation := smoke.create_tween()
+		for frame in range(smoke.frame + 1, SMOKE_FRAME_COUNT):
+			animation.tween_interval(SMOKE_FRAME_SECONDS)
+			animation.tween_callback(smoke.set_frame.bind(frame))
+		animation.tween_interval(SMOKE_FRAME_SECONDS)
+		animation.tween_callback(smoke.queue_free)
 
 
 func _roll_wind() -> void:
