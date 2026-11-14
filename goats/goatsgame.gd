@@ -902,7 +902,7 @@ func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
 
 
 func _apply_missile_blast(
-	world_pixel: Vector2i, direct_hit: GoatHurtbox, hit_direction: Vector2, peak_damage: int
+	world_pixel: Vector2i, direct_hit: GoatHurtbox, travel_direction: Vector2, peak_damage: int
 ) -> void:
 	_play_missile_explosion(Vector2(world_pixel))
 	_shake_camera()
@@ -911,9 +911,9 @@ func _apply_missile_blast(
 	# Damage signals sample the surface synchronously, before the bitmap changes.
 	var center := terrain_view.to_global(Vector2(pixel))
 	if direct_hit:
-		direct_hit.apply_damage(peak_damage, hit_direction)
+		direct_hit.apply_damage(peak_damage, travel_direction)
 	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage, direct_hit)
-	var surface_normal := _estimate_impact_normal(pixel)
+	var surface_normal := _estimate_impact_normal(pixel, travel_direction)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
 	if scorch_width > 0:
@@ -922,7 +922,7 @@ func _apply_missile_blast(
 	_throw_blast_dirt(pixel, crater.erased_pixels, surface_normal)
 
 
-func _estimate_impact_normal(center: Vector2i) -> Vector2:
+func _estimate_impact_normal(center: Vector2i, travel_direction: Vector2) -> Vector2:
 	# Nearby solid pixels pull inward. Reverse that direction to point toward open air.
 	var inward := Vector2.ZERO
 	for y in range(-4, 5):
@@ -930,7 +930,7 @@ func _estimate_impact_normal(center: Vector2i) -> Vector2:
 			if terrain.is_solid(center.x + x, center.y + y):
 				inward += Vector2(x, y)
 	if inward.is_zero_approx():
-		return Vector2.UP
+		return Vector2.UP if travel_direction.is_zero_approx() else -travel_direction
 	return (-inward / terrain_view.scale).normalized()
 
 

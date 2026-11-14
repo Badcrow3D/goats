@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 signal impacted
-signal exploded_at(pixel: Vector2i, direct_hit: GoatHurtbox, hit_direction: Vector2)
+signal exploded_at(pixel: Vector2i, direct_hit: GoatHurtbox, travel_direction: Vector2)
 
 const ANGLE_FRAMES := 40
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
@@ -64,7 +64,7 @@ func _physics_process(delta: float) -> void:
 		impacted.emit()
 		queue_free()
 	elif bitmap_hit:
-		exploded_at.emit(hit_pixel, null, Vector2.ZERO)
+		exploded_at.emit(hit_pixel, null, velocity.normalized())
 		impacted.emit()
 		queue_free()
 	elif move_and_collide(motion):
