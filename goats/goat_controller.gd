@@ -41,7 +41,7 @@ func _physics_process(delta: float) -> void:
 	if was_on_floor and not is_bouncing:
 		last_ground_position = goat.position
 		has_ground_position = true
-	if not was_on_floor and is_charging_jump:
+	if is_charging_jump and (not was_on_floor or not _mode_allows_jump()):
 		is_charging_jump = false
 		jump_released = false
 	_check_fall_distance()
@@ -136,8 +136,12 @@ func _walk_direction() -> float:
 	return Input.get_axis("ui_left", "ui_right")
 
 
+func _mode_allows_jump() -> bool:
+	return goat.mode != GoatState.Mode.LAUNCHER
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
-	if goat.mode == GoatState.Mode.LAUNCHER or event.physical_keycode != KEY_ENTER or event.echo:
+	if not _mode_allows_jump() or event.physical_keycode != KEY_ENTER or event.echo:
 		return
 	if event.pressed and _can_control_movement() and not is_charging_jump:
 		is_charging_jump = true

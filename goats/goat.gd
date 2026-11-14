@@ -138,13 +138,15 @@ func _apply_mode_layers() -> void:
 	_aim_cursor.visible = show_aim_pose
 
 
-func update_jump_meter(show_meter: bool, charge_ratio: float) -> void:
-	_jump_meter.visible = show_meter
-	if show_meter:
+func update_jump_meter(show_charge: bool, charge_ratio: float, show_blocked: bool) -> void:
+	_jump_meter.visible = show_charge or show_blocked
+	if show_blocked:
+		_jump_meter.frame = _jump_meter.vframes - 1
+	elif show_charge:
 		var progress := clampf(charge_ratio, 0.0, 1.0)
 		if is_equal_approx(progress, 1.0):
 			progress = 1.0
-		_jump_meter.frame = floori(progress * (_jump_meter.vframes - 1))
+		_jump_meter.frame = floori(progress * (_jump_meter.vframes - 2))
 
 
 func update_shot_meter(show_meter: bool, charge_ratio: float) -> void:

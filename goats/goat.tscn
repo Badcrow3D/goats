@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://8cps383vrqb8"]
 
 [ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_aim"]
-[ext_resource type="Texture2D" uid="uid://chmb10cap1g7a" path="res://sprites/cursor.png" id="4_cursor"]
+[ext_resource type="Texture2D" uid="uid://dtk8305fl0qa7" path="res://sprites/cursor2.png" id="4_cursor"]
 [ext_resource type="Texture2D" uid="uid://dnq7vkaobym62" path="res://sprites/goat-24x24.png" id="7_layers"]
 [ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats/goat.gd" id="8_goat_state"]
 [ext_resource type="Script" uid="uid://c05vd1v7u6uxe" path="res://goats/goat_hurtbox.gd" id="9_hurtbox"]
@@ -183,7 +183,7 @@ texture = ExtResource("4_cursor")
 visible = false
 position = Vector2(1, 32)
 texture = ExtResource("14_jump_charge")
-vframes = 26
+vframes = 28
 frame = 15
 
 [node name="ShotChargeMeter" type="Sprite2D" parent="." unique_id=1417714816]

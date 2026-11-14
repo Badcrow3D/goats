@@ -573,7 +573,12 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_charge_meters() -> void:
-	goat.update_jump_meter(is_charging_jump and not jump_released, jump_charge / jump_charge_time)
+	var show_blocked_jump := (
+		not console.visible and not _mode_allows_jump() and Input.is_physical_key_pressed(KEY_ENTER)
+	)
+	goat.update_jump_meter(
+		is_charging_jump and not jump_released, jump_charge / jump_charge_time, show_blocked_jump
+	)
 	goat.update_shot_meter(is_charging_shot, shot_charge / fire_charge_time)
 
 

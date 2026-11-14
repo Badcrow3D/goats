@@ -61,7 +61,7 @@ func _process(delta: float) -> void:
 	elapsed += delta
 	for index in multimesh.visible_instance_count:
 		var phase := index * 2.4
-		var flutter := Vector2(sin(elapsed * 2.3 + phase) * 8.0, cos(elapsed * 1.7 + phase) * 5.0)
+		var flutter := Vector2(sin(elapsed * 2.3 + phase) * 17.0, cos(elapsed * 1.7 + phase) * 12.0)
 		var position_next := leaf_positions[index] + (Vector2(drift_speed, FALL_SPEED) + flutter) * delta
 		leaf_positions[index] = Vector2(
 			wrapf(position_next.x, bounds.position.x, bounds.end.x),
