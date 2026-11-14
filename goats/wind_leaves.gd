@@ -3,7 +3,7 @@ extends MultiMeshInstance2D
 const LEAF_TEXTURE := preload("res://sprites/leaf16.png")
 const LEAF_SHADER := preload("res://goats/instanced_sprite_sheet.gdshader")
 const LEAF_SIZE := 32
-const MAX_LEAVES := 20
+const MAX_LEAVES := 100
 const MAX_DRIFT_SPEED := 160.0
 const FALL_SPEED := 16.0
 
@@ -41,13 +41,16 @@ func setup(arena_bounds: Rect2) -> void:
 			randf_range(bounds.position.y, bounds.end.y)
 		)
 		_update_instance_transform(index)
-	set_wind(0.0)
+	set_leaf_count(int(MAX_LEAVES * 0.5))
+
+
+func set_leaf_count(count: int) -> void:
+	multimesh.visible_instance_count = count
+	set_process(count > 0)
 
 
 func set_wind(strength: float) -> void:
 	drift_speed = strength * MAX_DRIFT_SPEED
-	multimesh.visible_instance_count = roundi(absf(strength) * MAX_LEAVES)
-	set_process(multimesh.visible_instance_count > 0)
 
 
 func update_parallax(camera_offset: Vector2) -> void:

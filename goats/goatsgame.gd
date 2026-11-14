@@ -3,6 +3,7 @@ extends "res://goats/goat_controller.gd"
 const Goat := preload("res://goats/goat.gd")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
+const WindLeaves := preload("res://goats/wind_leaves.gd")
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const EXPLOSION_TEXTURE := preload("res://sprites/explosion-40x40.png")
 const EXPLOSION_FRAME_SECONDS := 0.05
@@ -70,6 +71,7 @@ const TUNING_FLOORS := {
 @onready var terrain_view: TerrainView = $Terrain
 @onready var cloud_layers := [$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear]
 @onready var leaf_layers := [$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear]
+@onready var max_leaf_count := leaf_layers.size() * WindLeaves.MAX_LEAVES
 @onready var sky_layers := cloud_layers + leaf_layers
 @onready var camera_target := arena_camera.position
 @onready var camera_rest_offset := arena_camera.offset
@@ -110,6 +112,7 @@ var wind_scale := 4.0
 var wind_speed := 0
 var wind_random := true
 var cloud_count := 15
+var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
 var second_goat_bouncing := false
 
@@ -129,6 +132,7 @@ func _ready() -> void:
 	for layer in sky_layers:
 		layer.setup(arena_bounds)
 	_apply_cloud_count()
+	_apply_leaf_count()
 	_set_wind(randi_range(-wind_max, wind_max) if wind_random else wind_speed)
 	arena_camera.process_mode = Node.PROCESS_MODE_ALWAYS
 	var camera_controls := CameraControls.new()
@@ -392,6 +396,9 @@ func _load_tuning() -> void:
 	var saved_wind_random: Variant = config.get_value(TUNING_SECTION, "wind_random", wind_random)
 	if saved_wind_random is bool:
 		wind_random = saved_wind_random
+	var saved_leaf_count: Variant = config.get_value(TUNING_SECTION, "leaf_count", leaf_count)
+	if saved_leaf_count is int:
+		leaf_count = clampi(saved_leaf_count, 0, max_leaf_count)
 	jump_maximum = maxf(jump_minimum, jump_maximum)
 	fire_max_amount = maxf(fire_min_amount, fire_max_amount)
 
@@ -414,6 +421,7 @@ func _run_console_command(command: String) -> void:
 					lines.append("%s = %s" % [field, get(field)])
 				lines.append("wind_speed = %s" % wind_speed)
 				lines.append("wind_random = %s" % wind_random)
+				lines.append("leaf_count = %s" % leaf_count)
 				lines.append("level_filename = " + level_filename)
 		"set":
 			lines.append(_set_console_variable(words))
@@ -472,6 +480,16 @@ func _set_console_variable(words: PackedStringArray) -> String:
 		wind_random = value_text == "true"
 		_save_tuning()
 		return "wind_random = %s" % wind_random
+	if field == "leaf_count":
+		if not value_text.is_valid_int():
+			return "leaf_count expects a whole number."
+		var count := value_text.to_int()
+		if count < 0 or count > max_leaf_count:
+			return "leaf_count must be between 0 and %s." % max_leaf_count
+		leaf_count = count
+		_apply_leaf_count()
+		_save_tuning()
+		return "leaf_count = %s" % leaf_count
 	if not TUNING_FLOORS.has(field):
 		return "Unknown variable: " + field
 	if not value_text.is_valid_float() or not is_finite(value_text.to_float()):
@@ -513,6 +531,7 @@ func _save_tuning() -> Error:
 	config.set_value(TUNING_SECTION, "level_filename", level_filename)
 	config.set_value(TUNING_SECTION, "wind_speed", wind_speed)
 	config.set_value(TUNING_SECTION, "wind_random", wind_random)
+	config.set_value(TUNING_SECTION, "leaf_count", leaf_count)
 	var error := config.save(TUNING_PATH)
 	if error != OK:
 		push_warning("Could not save tuning settings: %s" % error_string(error))
@@ -929,3 +948,11 @@ func _apply_cloud_count() -> void:
 	var remainder := cloud_count % layer_count
 	for index in layer_count:
 		cloud_layers[index].multimesh.visible_instance_count = per_layer + int(index < remainder)
+
+
+func _apply_leaf_count() -> void:
+	var layer_count := leaf_layers.size()
+	var per_layer := floori(float(leaf_count) / layer_count)
+	var remainder := leaf_count % layer_count
+	for index in layer_count:
+		leaf_layers[index].set_leaf_count(per_layer + int(index < remainder))
