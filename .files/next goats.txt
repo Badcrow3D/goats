@@ -6,7 +6,7 @@
 
 + camera follow on movement
 
-digging ?
+laser digging
 
 arrow towards offscreen active goat
 parachute and deploy launcher

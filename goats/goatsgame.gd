@@ -156,7 +156,7 @@ func _ready() -> void:
 	_update_mouse_mode()
 	get_viewport().size_changed.connect(_clamp_camera_position)
 	camera_target = active_goat.global_position
-	_zoom_camera(1)
+	_zoom_camera(0)
 	var font := console_output.get_theme_font("normal_font")
 	var font_size := console_output.get_theme_font_size("normal_font_size")
 	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
@@ -686,7 +686,10 @@ func _handle_camera_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
-				_zoom_camera(1)
+				var anchor_offset := Vector2.ZERO
+				if mouse_unlocked:
+					anchor_offset = event.position - get_viewport_rect().get_center()
+				_zoom_camera(1, anchor_offset)
 				get_viewport().set_input_as_handled()
 				return
 			MOUSE_BUTTON_WHEEL_DOWN:
@@ -849,8 +852,11 @@ func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
 	return -1.0
 
 
-func _zoom_camera(amount: int) -> void:
-	var zoom_level := clampi(int(arena_camera.zoom.x) + amount, 1, camera_max_zoom)
+func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
+	var previous_zoom := arena_camera.zoom.x
+	var zoom_level := clampi(int(previous_zoom) + amount, 1, camera_max_zoom)
+	# Keep the same world point under the screen anchor across the zoom step.
+	camera_target += anchor_offset / previous_zoom - anchor_offset / float(zoom_level)
 	arena_camera.zoom = Vector2.ONE * float(zoom_level)
 	_clamp_camera_position()
 
