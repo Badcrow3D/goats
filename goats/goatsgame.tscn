@@ -11,6 +11,11 @@
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_zoom_pixelation"]
+resource_local_to_scene = true
+shader = ExtResource("17_zoom_pixelation")
+shader_parameter/block_size = 1.0
+
 [sub_resource type="Theme" id="Theme_pixel_ui"]
 default_font = ExtResource("5_ui_font")
 default_font_size = 16
@@ -20,14 +25,10 @@ VBoxContainer/constants/separation = 4
 [sub_resource type="StyleBoxFlat" id="StyleBox_console"]
 bg_color = Color(0.10588235, 0.10588235, 0.10588235, 1)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_zoom_pixelation"]
-resource_local_to_scene = true
-shader = ExtResource("17_zoom_pixelation")
-shader_parameter/block_size = 1.0
-
 [node name="GoatsNewTest" type="Node2D" unique_id=2051334170]
 texture_filter = 1
 script = ExtResource("2_test")
+camera_max_zoom = 3
 gravity_scale = 0.5
 jump_pause_duration = 0.16
 landing_pause_duration = 0.32
@@ -82,9 +83,9 @@ position = Vector2(1520, 553)
 facing_direction = -1
 mode = 0
 
-[node name="ZoomEffect" type="CanvasLayer" parent="."]
+[node name="ZoomEffect" type="CanvasLayer" parent="." unique_id=2089918821]
 
-[node name="Pixelation" type="ColorRect" parent="ZoomEffect"]
+[node name="Pixelation" type="ColorRect" parent="ZoomEffect" unique_id=683993268]
 visible = false
 material = SubResource("ShaderMaterial_zoom_pixelation")
 anchors_preset = 15
