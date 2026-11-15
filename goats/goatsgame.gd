@@ -527,7 +527,7 @@ func _save_tuning() -> Error:
 
 
 func _walk_direction() -> float:
-	if console.visible or Time.get_ticks_msec() < walk_start_msec:
+	if not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
 	return float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 
@@ -621,6 +621,9 @@ func _on_goat_mode_changed(target: Goat) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and not _can_use_ground_controls():
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.physical_keycode == KEY_F2:
 		if event.pressed and not event.echo:
 			_reload_level.call_deferred()
@@ -668,6 +671,13 @@ func _input(event: InputEvent) -> void:
 
 
 func _handle_camera_input(event: InputEvent) -> void:
+	if not _can_use_ground_controls() and not (
+			event is InputEventMouseMotion
+			or (event is InputEventMouseButton
+				and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT])
+	):
+		get_viewport().set_input_as_handled()
+		return
 	var tree := get_tree()
 	if event is InputEventKey and event.physical_keycode == KEY_F1:
 		if event.pressed and not event.echo:
@@ -777,7 +787,7 @@ func _toggle_console() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if console.visible or active_goat.is_bouncing or event.echo:
+	if console.visible or not _can_use_ground_controls() or event.echo:
 		return
 	if event.physical_keycode == KEY_E and active_goat.mode == Goat.Mode.GRAPPLE:
 		if event.pressed:
@@ -924,7 +934,7 @@ func _apply_camera_shake(progress: float) -> void:
 
 
 func _update_shot_charge(delta: float) -> void:
-	if active_goat.is_bouncing:
+	if not _can_use_ground_controls():
 		is_charging_shot = false
 		shot_released = false
 		return

@@ -6,8 +6,6 @@
 [ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
 [ext_resource type="Texture2D" uid="uid://bntkxk571rqpq" path="res://levels/level1.png" id="12_level"]
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
-[ext_resource type="Material" uid="uid://b6n6i6icwps4x" path="res://assets/palette_cycle.tres" id="14_000da"]
-[ext_resource type="Texture2D" uid="uid://isjvwcpo1mcs" path="res://sprites/explosion1.png" id="15_wdfnk"]
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
 
@@ -128,9 +126,3 @@ keep_editing_on_text_submit = true
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
 position = Vector2(1400, 614)
 offset = Vector2(60, 0)
-
-[node name="Explosion1" type="Sprite2D" parent="." unique_id=1002464975]
-material = ExtResource("14_000da")
-position = Vector2(-77, 105)
-scale = Vector2(2, 2)
-texture = ExtResource("15_wdfnk")

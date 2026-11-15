@@ -36,7 +36,7 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 		target.last_ground_position = target.position
 		target.has_ground_position = true
 	var takes_input := target == active_goat
-	if takes_input and is_charging_jump and (not was_on_floor or not _mode_allows_jump()):
+	if takes_input and is_charging_jump and (not was_on_floor or target.is_bouncing or not _mode_allows_jump()):
 		_cancel_jump()
 	_check_fall_distance(target)
 	var can_walk := was_on_floor and not target.is_bouncing and target.jump_pause_remaining == 0.0
@@ -84,8 +84,12 @@ func _move_goat(target: GoatState, _delta: float) -> float:
 	return target.get_real_velocity().x
 
 
+func _can_use_ground_controls() -> bool:
+	return _is_grounded(active_goat) and not active_goat.is_bouncing
+
+
 func _can_control_movement() -> bool:
-	return _is_grounded(active_goat) and not active_goat.is_bouncing and active_goat.jump_pause_remaining == 0.0
+	return _can_use_ground_controls() and active_goat.jump_pause_remaining == 0.0
 
 
 func _check_fall_distance(target: GoatState) -> void:
