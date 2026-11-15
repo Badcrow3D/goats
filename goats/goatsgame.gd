@@ -28,6 +28,8 @@ const ACTIVE_GOAT_ARROW_TEXTURE := preload("res://sprites/arrow-16x16.png")
 const ACTIVE_GOAT_ARROW_FRAME_SECONDS := 0.08
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
+const ZOOM_TRANSITION_SECONDS := 0.24
+const ZOOM_PEAK_BLOCK_SIZE := 10.0
 
 class CameraControls extends Node:
 	signal input_received(event: InputEvent)
@@ -83,6 +85,9 @@ const TUNING_FLOORS := {
 
 @onready var goats: Array[Goat] = [$Goat, $Goat2]
 @onready var arena_camera: Camera2D = $ArenaCamera
+@onready var zoom_pixelation: ColorRect = $ZoomEffect/Pixelation
+@onready var zoom_material: ShaderMaterial = zoom_pixelation.material
+@onready var camera_zoom_level := roundi(arena_camera.zoom.x)
 @onready var terrain_view: TerrainView = $Terrain
 @onready var cloud_layers := [$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear]
 @onready var leaf_layers := [$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear]
@@ -114,6 +119,7 @@ var mouse_unlocked := true
 var left_press_position := Vector2.INF
 var camera_dragging := false
 var camera_shake: Tween
+var camera_zoom_transition: Tween
 var active_goat_arrow: Sprite2D
 var arena_bounds: Rect2
 var terrain: Terrain
@@ -156,7 +162,7 @@ func _ready() -> void:
 	_update_mouse_mode()
 	get_viewport().size_changed.connect(_clamp_camera_position)
 	camera_target = active_goat.global_position
-	_zoom_camera(0)
+	_clamp_camera_position()
 	var font := console_output.get_theme_font("normal_font")
 	var font_size := console_output.get_theme_font_size("normal_font_size")
 	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
@@ -853,12 +859,37 @@ func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
 
 
 func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
+	var next_level := clampi(camera_zoom_level + amount, 1, camera_max_zoom)
+	if next_level == camera_zoom_level:
+		return
+	camera_zoom_level = next_level
+	if camera_zoom_transition and camera_zoom_transition.is_valid():
+		camera_zoom_transition.kill()
+
+	var block_size: float = zoom_material.get_shader_parameter("block_size")
+	zoom_pixelation.show()
+	camera_zoom_transition = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	camera_zoom_transition.tween_method(_apply_camera_zoom.bind(anchor_offset),
+			arena_camera.zoom.x, float(camera_zoom_level), ZOOM_TRANSITION_SECONDS) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	camera_zoom_transition.parallel().tween_method(_set_zoom_block_size,
+			block_size, ZOOM_PEAK_BLOCK_SIZE, ZOOM_TRANSITION_SECONDS * 0.5)
+	camera_zoom_transition.parallel().tween_method(_set_zoom_block_size,
+			ZOOM_PEAK_BLOCK_SIZE, 1.0, ZOOM_TRANSITION_SECONDS * 0.5) \
+			.set_delay(ZOOM_TRANSITION_SECONDS * 0.5)
+	camera_zoom_transition.tween_callback(zoom_pixelation.hide)
+
+
+func _apply_camera_zoom(zoom_level: float, anchor_offset: Vector2) -> void:
 	var previous_zoom := arena_camera.zoom.x
-	var zoom_level := clampi(int(previous_zoom) + amount, 1, camera_max_zoom)
 	# Keep the same world point under the screen anchor across the zoom step.
-	camera_target += anchor_offset / previous_zoom - anchor_offset / float(zoom_level)
-	arena_camera.zoom = Vector2.ONE * float(zoom_level)
+	camera_target += anchor_offset / previous_zoom - anchor_offset / zoom_level
+	arena_camera.zoom = Vector2.ONE * zoom_level
 	_clamp_camera_position()
+
+
+func _set_zoom_block_size(block_size: float) -> void:
+	zoom_material.set_shader_parameter("block_size", block_size)
 
 
 func _update_mouse_mode() -> void:
