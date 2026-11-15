@@ -25,6 +25,7 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 
 - `vars` lists the current tuning values and level filename.
 - `set <name> <value>` changes a tuning value.
+- `set enable_tracer false` stops rockets from drawing new traces. Use `set enable_tracer true` to resume. Traces already drawn stay visible until the level resets or reloads.
 - `set leaf_count <count>` sets the total number of leaves across all three layers. Use a whole number from 0 to 60. The default is 30.
 - `load <filename>.png` loads a PNG from `levels/` and restarts the arena.
 - `reset` reloads the current level.

@@ -62,6 +62,7 @@ const LEVELS_DIR := "res://levels/"
 const DEFAULT_LEVEL := "level1.png"
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
+const TUNING_FLAGS := ["wind_random", "enable_tracer"]
 const TUNING_FLOORS := {
 	"jump_minimum_x": 1.0,
 	"jump_minimum": 1.0,
@@ -132,6 +133,7 @@ var player_spawn_x: int
 var wind_scale := 4.0
 var wind_speed := 0
 var wind_random := true
+var enable_tracer := true
 var cloud_count := 15
 var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
@@ -381,9 +383,10 @@ func _load_tuning() -> void:
 	var saved_wind_speed: Variant = config.get_value(TUNING_SECTION, "wind_speed", wind_speed)
 	if saved_wind_speed is int:
 		wind_speed = clampi(saved_wind_speed, -wind_max, wind_max)
-	var saved_wind_random: Variant = config.get_value(TUNING_SECTION, "wind_random", wind_random)
-	if saved_wind_random is bool:
-		wind_random = saved_wind_random
+	for field: String in TUNING_FLAGS:
+		var saved: Variant = config.get_value(TUNING_SECTION, field, get(field))
+		if saved is bool:
+			set(field, saved)
 	var saved_leaf_count: Variant = config.get_value(TUNING_SECTION, "leaf_count", leaf_count)
 	if saved_leaf_count is int:
 		leaf_count = clampi(saved_leaf_count, 0, max_leaf_count)
@@ -408,7 +411,8 @@ func _run_console_command(command: String) -> void:
 				for field: String in TUNING_FLOORS:
 					lines.append("%s = %s" % [field, get(field)])
 				lines.append("wind_speed = %s" % wind_speed)
-				lines.append("wind_random = %s" % wind_random)
+				for field: String in TUNING_FLAGS:
+					lines.append("%s = %s" % [field, get(field)])
 				lines.append("leaf_count = %s" % leaf_count)
 				lines.append("level_filename = " + level_filename)
 		"set":
@@ -462,12 +466,12 @@ func _set_console_variable(words: PackedStringArray) -> String:
 		_set_wind(speed)
 		_save_tuning()
 		return "wind_speed = %s" % wind_speed
-	if field == "wind_random":
+	if field in TUNING_FLAGS:
 		if value_text != "true" and value_text != "false":
-			return "wind_random expects true or false."
-		wind_random = value_text == "true"
+			return "%s expects true or false." % field
+		set(field, value_text == "true")
 		_save_tuning()
-		return "wind_random = %s" % wind_random
+		return "%s = %s" % [field, get(field)]
 	if field == "leaf_count":
 		if not value_text.is_valid_int():
 			return "leaf_count expects a whole number."
@@ -518,7 +522,8 @@ func _save_tuning() -> Error:
 		config.set_value(TUNING_SECTION, key, get(key))
 	config.set_value(TUNING_SECTION, "level_filename", level_filename)
 	config.set_value(TUNING_SECTION, "wind_speed", wind_speed)
-	config.set_value(TUNING_SECTION, "wind_random", wind_random)
+	for key: String in TUNING_FLAGS:
+		config.set_value(TUNING_SECTION, key, get(key))
 	config.set_value(TUNING_SECTION, "leaf_count", leaf_count)
 	var error := config.save(TUNING_PATH)
 	if error != OK:
@@ -928,7 +933,7 @@ func _shake_camera() -> void:
 
 
 func _apply_camera_shake(progress: float) -> void:
-	var strength := EXPLOSION_SHAKE_PIXELS * (1.0 - progress) ** 2
+	var strength := EXPLOSION_SHAKE_PIXELS * camera_zoom_level * (1.0 - progress) ** 2
 	var motion := Vector2(cos(progress * TAU * 2.0), sin(progress * TAU * 1.0)) * strength
 	arena_camera.offset = camera_rest_offset + motion.round() / arena_camera.zoom
 
@@ -964,7 +969,13 @@ func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
 	missile.exploded_at.connect(_apply_missile_blast.bind(missile.blast_damage))
 	missile.impacted.connect(_roll_wind)
 	missile.trail_sampled.connect(_spawn_trail_smoke)
+	missile.flight_segment_traveled.connect(_draw_missile_trace)
 	return missile
+
+
+func _draw_missile_trace(from: Vector2, to: Vector2) -> void:
+	if enable_tracer:
+		terrain_view.draw_flight_trace(from, to)
 
 
 func _apply_missile_blast(

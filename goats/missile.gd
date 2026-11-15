@@ -3,6 +3,7 @@ extends CharacterBody2D
 signal impacted
 signal exploded_at(pixel: Vector2i, direct_hit: GoatHurtbox, travel_direction: Vector2)
 signal trail_sampled(at: Vector2)
+signal flight_segment_traveled(from: Vector2, to: Vector2)
 
 const ANGLE_FRAMES := 40
 const TRAIL_SPACING := 16.0
@@ -61,6 +62,12 @@ func _physics_process(delta: float) -> void:
 	impact_cast.target_position = impact_cast.global_transform.basis_xform_inv(motion)
 	impact_cast.force_shapecast_update()
 	if impact_cast.is_colliding():
+		flight_segment_traveled.emit(
+			global_position,
+			get_parent().to_global(
+				position + motion * impact_cast.get_closest_collision_safe_fraction()
+			)
+		)
 		for index in impact_cast.get_collision_count():
 			var hurtbox := impact_cast.get_collider(index) as GoatHurtbox
 			if hurtbox:
@@ -70,12 +77,15 @@ func _physics_process(delta: float) -> void:
 		impacted.emit()
 		queue_free()
 	elif bitmap_hit:
+		flight_segment_traveled.emit(global_position, get_parent().to_global(position + motion))
 		exploded_at.emit(hit_pixel, null, velocity.normalized())
 		impacted.emit()
 		queue_free()
 	else:
 		var start := position
+		var global_start := global_position
 		var collision := move_and_collide(motion)
+		flight_segment_traveled.emit(global_start, global_position)
 		_sample_trail(start, position - start)
 		if collision:
 			impacted.emit()
