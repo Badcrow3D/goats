@@ -9,6 +9,7 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 ## Controls
 
 - **A / D** to walk.
+- **Tab** selects the next goat and centers the camera on it.
 - **Left Shift** switches the active goat between goat only (0) and launcher (2).
 - **Action (Space)** charges a jump in Goat Only or Grapple mode and charges a shot in Launcher mode. Release to jump or fire.
 - Goats keep their momentum in the air. A drop of 48 world pixels below the last grounded position causes a bounce, and controls return once the goat settles. Adjust the drop distance in the console with `set fall_control_loss_distance 48`.

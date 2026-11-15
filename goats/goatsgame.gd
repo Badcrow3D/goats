@@ -24,6 +24,8 @@ const TRAIL_SMOKE_WIND_SPEED := 20.0
 const DIRT_GRAVITY := 400.0
 const GRAPPLE_RANGE := 500.0
 const GRAPPLE_MISS_SECONDS := 0.2
+const ACTIVE_GOAT_ARROW_TEXTURE := preload("res://sprites/arrow-16x16.png")
+const ACTIVE_GOAT_ARROW_FRAME_SECONDS := 0.08
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
 
@@ -79,8 +81,7 @@ const TUNING_FLOORS := {
 @export var knockback_speed_per_damage := 4.0
 @export_range(1, 8, 1) var camera_max_zoom := 2
 
-@onready var player_goat: Goat = $Goat
-@onready var second_goat: Goat = $Goat2
+@onready var goats: Array[Goat] = [$Goat, $Goat2]
 @onready var arena_camera: Camera2D = $ArenaCamera
 @onready var terrain_view: TerrainView = $Terrain
 @onready var cloud_layers := [$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear]
@@ -105,7 +106,6 @@ var dirt_settle_time := 1.0
 var dirt_diagonal_steps := 2
 var scorch_radius_modifier := 3.0
 var level_filename := DEFAULT_LEVEL
-var aim_degrees := 0.0
 var walk_start_msec := 0
 var shot_charge := 0.0
 var is_charging_shot := false
@@ -114,6 +114,7 @@ var mouse_unlocked := true
 var left_press_position := Vector2.INF
 var camera_dragging := false
 var camera_shake: Tween
+var active_goat_arrow: Sprite2D
 var arena_bounds: Rect2
 var terrain: Terrain
 var grapple_line := Node2D.new()
@@ -128,20 +129,20 @@ var wind_random := true
 var cloud_count := 15
 var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
-var second_goat_bouncing := false
 
 
 func _ready() -> void:
+	active_goat = goats[0]
 	_load_tuning()
 	_setup_level()
 	grapple_line.draw.connect(_draw_grapple_line)
 	grapple_line.hide()
 	add_child(grapple_line)
-	player_goat.damaged.connect(_knock_back_player)
-	player_goat.mode_changed.connect(_on_player_mode_changed)
-	second_goat.damaged.connect(_knock_back_second_goat)
-	var player_team := Team.new(player_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
-	player_team.goats.append(player_goat)
+	for target in goats:
+		target.damaged.connect(_knock_back_goat.bind(target))
+		target.mode_changed.connect(_on_goat_mode_changed.bind(target))
+	var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
+	player_team.goats.append(active_goat)
 	teams[player_team.id] = player_team
 	for layer in sky_layers:
 		layer.setup(arena_bounds)
@@ -154,7 +155,7 @@ func _ready() -> void:
 	arena_camera.add_child(camera_controls)
 	_update_mouse_mode()
 	get_viewport().size_changed.connect(_clamp_camera_position)
-	camera_target = goat.global_position
+	camera_target = active_goat.global_position
 	_zoom_camera(1)
 	var font := console_output.get_theme_font("normal_font")
 	var font_size := console_output.get_theme_font_size("normal_font_size")
@@ -184,9 +185,10 @@ func _setup_level() -> void:
 
 	terrain_view.setup(terrain, image)
 
-	goat_body = goat.bitmap_body_rect()
+	goat_body = active_goat.bitmap_body_rect()
 	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
-	_reset_fall_state()
+	for target in goats:
+		_reset_fall_state(target)
 
 
 func _read_level_image(filename: String) -> Image:
@@ -235,34 +237,34 @@ func _body_is_free(at: Vector2) -> bool:
 	return terrain.rect_is_free(rect.position.x, rect.position.y, rect.size.x, rect.size.y)
 
 
-func _is_grounded() -> bool:
-	return goat.velocity.y >= 0.0 and not _body_is_free(goat.position + Vector2.DOWN)
+func _is_grounded(body: Goat) -> bool:
+	return body.velocity.y >= 0.0 and not _body_is_free(body.position + Vector2.DOWN)
 
 
-func _move_goat(delta: float) -> float:
-	var start := goat.position
-	var grounded := _is_grounded()
-	var impact_velocity := goat.velocity
+func _move_goat(body: Goat, delta: float) -> float:
+	var start := body.position
+	var grounded := _is_grounded(body)
+	var impact_velocity := body.velocity
 	var motion := impact_velocity * delta
-	var dy := 0.0 if grounded else _sweep_vertical(goat.position, motion.y)
-	goat.position.y += dy
-	if not is_equal_approx(dy, motion.y) or _is_grounded():
-		goat.position.y = roundf(goat.position.y)
-		goat.velocity.y = 0.0
-		if motion.y > 0.0 and (not grounded or is_bouncing):
-			_handle_ground_impact(impact_velocity, _estimate_ground_normal(goat.position))
+	var dy := 0.0 if grounded else _sweep_vertical(body.position, motion.y)
+	body.position.y += dy
+	if not is_equal_approx(dy, motion.y) or _is_grounded(body):
+		body.position.y = roundf(body.position.y)
+		body.velocity.y = 0.0
+		if motion.y > 0.0 and (not grounded or body.is_bouncing):
+			_handle_ground_impact(body, impact_velocity, _estimate_ground_normal(body.position))
 
-	var target := goat.position + Vector2(goat.velocity.x * delta, 0.0)
-	goat.position = _sweep_horizontal(goat.position, target.x, grounded and not is_bouncing)
-	if goat.position.x != target.x:
-		goat.velocity.x = -goat.velocity.x * bounce_restitution if is_bouncing else 0.0
+	var target := body.position + Vector2(body.velocity.x * delta, 0.0)
+	body.position = _sweep_horizontal(body.position, target.x, grounded and not body.is_bouncing)
+	if body.position.x != target.x:
+		body.velocity.x = -body.velocity.x * bounce_restitution if body.is_bouncing else 0.0
 
-	if goat.position.y > arena_bounds.end.y or goat.position.x < -goat_body.size.x \
-			or goat.position.x > arena_bounds.end.x + goat_body.size.x:
-		goat.position = _spawn_at(player_spawn_x)
-		goat.velocity = Vector2.ZERO
-		_reset_fall_state()
-	return goat.position.x - start.x
+	if body.position.y > arena_bounds.end.y or body.position.x < -goat_body.size.x \
+			or body.position.x > arena_bounds.end.x + goat_body.size.x:
+		body.position = _spawn_at(player_spawn_x)
+		body.velocity = Vector2.ZERO
+		_reset_fall_state(body)
+	return body.position.x - start.x
 
 
 func _estimate_ground_normal(at: Vector2) -> Vector2:
@@ -294,21 +296,15 @@ func _knockback_velocity(at: Vector2, amount: int, hit_direction: Vector2) -> Ve
 	return direction * (amount * knockback_speed_per_damage)
 
 
-func _knock_back_player(amount: int, hit_direction: Vector2) -> void:
+func _knock_back_goat(amount: int, hit_direction: Vector2, target: Goat) -> void:
 	if knockback_speed_per_damage == 0.0:
 		return
-	_reset_fall_state()
-	goat.velocity = _knockback_velocity(goat.position, amount, hit_direction)
-	is_bouncing = true
-	is_charging_shot = false
-	shot_released = false
-
-
-func _knock_back_second_goat(amount: int, hit_direction: Vector2) -> void:
-	if knockback_speed_per_damage == 0.0:
-		return
-	second_goat.velocity = _knockback_velocity(second_goat.position, amount, hit_direction)
-	second_goat_bouncing = true
+	_reset_fall_state(target)
+	target.velocity = _knockback_velocity(target.position, amount, hit_direction)
+	target.is_bouncing = true
+	if target == active_goat:
+		is_charging_shot = false
+		shot_released = false
 
 
 func _nearby_surface_y(x: int, feet: int) -> int:
@@ -359,34 +355,6 @@ func _sweep_vertical(at: Vector2, distance: float) -> float:
 			break
 		moved += step_y
 	return moved
-
-
-func _apply_idle_goat_gravity(delta: float) -> void:
-	var grounded := second_goat.velocity.y >= 0.0 and not _body_is_free(second_goat.position + Vector2.DOWN)
-	if grounded and not second_goat_bouncing:
-		second_goat.position.y = roundf(second_goat.position.y)
-		second_goat.velocity.y = 0.0
-		return
-	second_goat.velocity.y += second_goat.get_gravity().y * gravity_scale * delta
-	var distance := second_goat.velocity.y * delta
-	var moved := 0.0 if grounded else _sweep_vertical(second_goat.position, distance)
-	second_goat.position.y += moved
-	var hit_ground := distance > 0.0 and not _body_is_free(second_goat.position + Vector2.DOWN)
-	if hit_ground or not is_equal_approx(moved, distance):
-		second_goat.position.y = roundf(second_goat.position.y)
-		var impact_velocity: Vector2 = second_goat.velocity
-		second_goat.velocity.y = 0.0
-		if distance > 0.0 and second_goat_bouncing:
-			var rebound := _ground_rebound(impact_velocity, _estimate_ground_normal(second_goat.position))
-			if rebound.y < -bounce_stop_speed:
-				second_goat.velocity = rebound
-			else:
-				second_goat.velocity = Vector2.ZERO
-				second_goat_bouncing = false
-	var target := second_goat.position + Vector2(second_goat.velocity.x * delta, 0.0)
-	second_goat.position = _sweep_horizontal(second_goat.position, target.x, false)
-	if second_goat.position.x != target.x:
-		second_goat.velocity.x *= -bounce_restitution
 
 
 func _load_tuning() -> void:
@@ -559,45 +527,87 @@ func _walk_direction() -> float:
 
 
 func _physics_process(delta: float) -> void:
-	super(delta)
-	_apply_idle_goat_gravity(delta)
+	var direction := _walk_direction()
+	for target in goats:
+		_step_goat(target, delta, direction if target == active_goat else 0.0)
 	if grapple_line.visible:
 		if grapple_miss_time > 0.0:
 			grapple_miss_time = maxf(0.0, grapple_miss_time - delta)
 			if grapple_miss_time == 0.0:
 				grapple_line.hide()
 		else:
-			var start_pixel := Vector2i(to_local(goat.grapple_pivot_position()).floor())
+			var start_pixel := Vector2i(to_local(active_goat.grapple_pivot_position()).floor())
 			if start_pixel != grapple_start_pixel:
 				grapple_start_pixel = start_pixel
 				grapple_line.queue_redraw()
 
 	var can_aim := (
-		player_goat.mode != Goat.Mode.GOAT_ONLY
+		active_goat.mode != Goat.Mode.GOAT_ONLY
 		and _can_control_movement()
-		and is_zero_approx(_walk_direction())
+		and is_zero_approx(direction)
 	)
 	if can_aim and not console.visible:
 		var elevation := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
-		aim_degrees = clampf(aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
+		active_goat.aim_degrees = clampf(active_goat.aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
-	goat.update_aim_pose(can_aim, aim_degrees, cursor_distance)
+	active_goat.update_aim_pose(can_aim, active_goat.aim_degrees, cursor_distance)
 	_update_shot_charge(delta)
 	_update_charge_meters()
 
 
 func _update_charge_meters() -> void:
-	goat.update_jump_meter(is_charging_jump and not jump_released, jump_charge / jump_charge_time)
-	goat.update_shot_meter(is_charging_shot, shot_charge / fire_charge_time)
+	active_goat.update_jump_meter(is_charging_jump and not jump_released, jump_charge / jump_charge_time)
+	active_goat.update_shot_meter(is_charging_shot, shot_charge / fire_charge_time)
 
 
-func _on_player_mode_changed() -> void:
+func _select_next_goat() -> void:
+	var next_goat := goats[(goats.find(active_goat) + 1) % goats.size()]
+	if next_goat == active_goat:
+		return
+	_cancel_jump()
+	is_charging_shot = false
+	shot_released = false
 	walk_start_msec = 0
-	if player_goat.mode == Goat.Mode.LAUNCHER:
-		if is_charging_jump:
-			jump_pause_remaining = 0.0
-		is_charging_jump = false
-		jump_released = false
+	_update_charge_meters()
+	active_goat.update_aim_pose(false, active_goat.aim_degrees, cursor_distance)
+	grapple_line.hide()
+	if active_goat.status == Goat.Status.ACTIVE:
+		active_goat.status = Goat.Status.ALIVE
+	active_goat = next_goat
+	if active_goat.status == Goat.Status.ALIVE:
+		active_goat.status = Goat.Status.ACTIVE
+	_show_active_goat_arrow()
+	camera_target = active_goat.global_position
+	_clamp_camera_position()
+
+
+func _show_active_goat_arrow() -> void:
+	if is_instance_valid(active_goat_arrow):
+		active_goat_arrow.queue_free()
+
+	var arrow := Sprite2D.new()
+	arrow.texture = ACTIVE_GOAT_ARROW_TEXTURE
+	arrow.hframes = roundi(arrow.texture.get_width() / float(arrow.texture.get_height()))
+	arrow.position = Vector2(0, -34)
+	arrow.scale = Vector2(2, 2)
+	arrow.z_index = 1
+	active_goat.add_child(arrow)
+	active_goat_arrow = arrow
+
+	var animation := arrow.create_tween()
+	for frame in range(1, arrow.hframes):
+		animation.tween_interval(ACTIVE_GOAT_ARROW_FRAME_SECONDS)
+		animation.tween_callback(arrow.set_frame.bind(frame))
+	animation.tween_interval(ACTIVE_GOAT_ARROW_FRAME_SECONDS)
+	animation.tween_callback(arrow.queue_free)
+
+
+func _on_goat_mode_changed(target: Goat) -> void:
+	if target != active_goat:
+		return
+	walk_start_msec = 0
+	if active_goat.mode == Goat.Mode.LAUNCHER:
+		_cancel_jump()
 	else:
 		is_charging_shot = false
 		shot_released = false
@@ -630,14 +640,18 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_TAB:
+			_select_next_goat()
+			get_viewport().set_input_as_handled()
+			return
 		if event.physical_keycode == KEY_SHIFT and event.location == KEY_LOCATION_LEFT:
-			player_goat.mode = Goat.Mode.GOAT_ONLY if player_goat.mode == Goat.Mode.LAUNCHER else Goat.Mode.LAUNCHER
+			active_goat.mode = Goat.Mode.GOAT_ONLY if active_goat.mode == Goat.Mode.LAUNCHER else Goat.Mode.LAUNCHER
 			get_viewport().set_input_as_handled()
 			return
 		if (event.physical_keycode == KEY_A or event.physical_keycode == KEY_D) \
 				and _can_control_movement() and not is_charging_jump:
 			var direction := -1.0 if event.physical_keycode == KEY_A else 1.0
-			if player_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
+			if active_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
 				walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
 			else:
 				walk_start_msec = 0
@@ -732,7 +746,7 @@ func _spawn_dirt(at: Vector2, stamp: Texture2D, launch_velocity := Vector2.ZERO)
 
 
 func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
-	for target: CharacterBody2D in [goat, second_goat]:
+	for target in goats:
 		var body := _bitmap_body_rect(target.position)
 		for pixel: Vector2i in grains:
 			if body.has_point(pixel) and terrain.is_solid(pixel.x, pixel.y):
@@ -747,10 +761,7 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 func _toggle_console() -> void:
 	console.visible = not console.visible
 	if console.visible:
-		if is_charging_jump:
-			is_charging_jump = false
-			jump_released = false
-			jump_pause_remaining = 0.0
+		_cancel_jump()
 		is_charging_shot = false
 		shot_released = false
 		console_input.grab_focus()
@@ -760,9 +771,9 @@ func _toggle_console() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if console.visible or is_bouncing or event.echo:
+	if console.visible or active_goat.is_bouncing or event.echo:
 		return
-	if event.physical_keycode == KEY_E and player_goat.mode == Goat.Mode.GRAPPLE:
+	if event.physical_keycode == KEY_E and active_goat.mode == Goat.Mode.GRAPPLE:
 		if event.pressed:
 			_fire_grapple()
 		get_viewport().set_input_as_handled()
@@ -784,8 +795,8 @@ func _unhandled_input(_event: InputEvent) -> void:
 
 
 func _fire_grapple() -> void:
-	var origin := goat.grapple_pivot_position()
-	var end := origin + goat.aim_direction() * GRAPPLE_RANGE
+	var origin := active_goat.grapple_pivot_position()
+	var end := origin + active_goat.aim_direction() * GRAPPLE_RANGE
 	var terrain_origin := terrain_view.to_local(origin)
 	var terrain_end := terrain_view.to_local(end)
 	var hit_fraction := _grapple_hit_fraction(terrain_origin, terrain_end - terrain_origin)
@@ -879,7 +890,7 @@ func _apply_camera_shake(progress: float) -> void:
 
 
 func _update_shot_charge(delta: float) -> void:
-	if is_bouncing:
+	if active_goat.is_bouncing:
 		is_charging_shot = false
 		shot_released = false
 		return
@@ -894,7 +905,7 @@ func _update_shot_charge(delta: float) -> void:
 
 	var charge_ratio := minf(shot_charge / fire_charge_time, 1.0)
 	var power := lerpf(fire_min_amount, fire_max_amount, charge_ratio)
-	_fire_missile(goat.aim_direction(), power)
+	_fire_missile(active_goat.aim_direction(), power)
 	is_charging_shot = false
 	shot_released = false
 

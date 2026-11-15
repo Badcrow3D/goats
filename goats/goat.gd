@@ -30,6 +30,13 @@ const LEFT_AIM_ORIGIN := Vector2(2, -6)
 @onready var _shot_meter: Sprite2D = $ShotChargeMeter
 @onready var _shot_meter_distance := absf(_shot_meter.position.x)
 
+var last_ground_position := Vector2.ZERO
+var has_ground_position := false
+var is_bouncing := false
+var landing_pause_pending := false
+var jump_pause_remaining := 0.0
+var aim_degrees := 0.0
+
 var _walking := false
 var _showing_aim_pose := false
 
