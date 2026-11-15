@@ -691,15 +691,12 @@ func _handle_camera_input(event: InputEvent) -> void:
 	# Handle zoom in both cursor modes before routing pointer input.
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
-			MOUSE_BUTTON_WHEEL_UP:
+			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
 				var anchor_offset := Vector2.ZERO
 				if mouse_unlocked:
 					anchor_offset = event.position - get_viewport_rect().get_center()
-				_zoom_camera(1, anchor_offset)
-				get_viewport().set_input_as_handled()
-				return
-			MOUSE_BUTTON_WHEEL_DOWN:
-				_zoom_camera(-1)
+				var zoom_step := 1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1
+				_zoom_camera(zoom_step, anchor_offset)
 				get_viewport().set_input_as_handled()
 				return
 	if mouse_unlocked:
