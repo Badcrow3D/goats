@@ -4,10 +4,10 @@ const GoatState := preload("res://goats/goat.gd")
 const MISSILE := preload("res://goats/missile.tscn")
 const Missile := preload("res://goats/missile.gd")
 const ACTION_KEY := KEY_SPACE
+const JUMP_CHARGE_FRAME_SECONDS := 0.08
 
 @export var walk_speed := 32.0
 @export var gravity_scale := 2.0
-@export var jump_pause_duration := 0.0
 @export var landing_pause_duration := 0.0
 @export var fall_control_loss_distance := 48.0
 @export_range(0.0, 0.9) var bounce_restitution := 0.35
@@ -22,6 +22,7 @@ var facing: float:
 var is_charging_jump := false
 var jump_released := false
 var jump_charge := 0.0
+var jump_charge_elapsed := 0.0
 var jump_minimum_x := 160.0
 var jump_maximum_x := 28.0
 var jump_minimum := 200.0
@@ -44,13 +45,15 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 	if charging:
 		target.velocity.x = 0.0
 		if not jump_released:
+			jump_charge_elapsed += delta
 			jump_charge = minf(jump_charge + delta, jump_charge_time)
-		elif target.jump_pause_remaining == 0.0:
+		else:
 			var charge_ratio := minf(jump_charge / jump_charge_time, 1.0)
 			target.velocity = Vector2(
 				lerpf(jump_minimum_x, jump_maximum_x, charge_ratio) * facing,
 				-lerpf(jump_minimum, jump_maximum, charge_ratio)
 			)
+			target.jump_launch_speed = -target.velocity.y
 			_cancel_jump()
 			target.landing_pause_pending = true
 	elif can_walk:
@@ -61,7 +64,12 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 	target.velocity += target.get_gravity() * gravity_scale * delta
 	var moved_x := _move_goat(target, delta)
 	_check_fall_distance(target)
-	if _is_grounded(target) and not target.is_bouncing:
+	var on_floor := _is_grounded(target)
+	if on_floor and not target.is_bouncing:
+		# A bitmap horizontal sweep can bring the goat onto a ledge after the vertical sweep.
+		if target.jump_launch_speed > 0.0:
+			target.jump_launch_speed = 0.0
+			target.play_landing_pose()
 		target.last_ground_position = target.position
 		target.has_ground_position = true
 		if not was_on_floor and target.landing_pause_pending and landing_pause_duration > 0.0:
@@ -69,7 +77,22 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 			target.velocity.x = 0.0
 		target.landing_pause_pending = false
 
-	target.update_walk_pose(takes_input and can_walk and not charging and _is_grounded(target) and not is_zero_approx(moved_x))
+	if target.is_bouncing:
+		target.show_standing_pose()
+	elif takes_input and is_charging_jump:
+		var charge_frame := mini(int(jump_charge_elapsed / JUMP_CHARGE_FRAME_SECONDS), 2)
+		target.show_jump_pose(charge_frame)
+	elif not on_floor and target.jump_launch_speed > 0.0:
+		var rise_ratio := -target.velocity.y / target.jump_launch_speed
+		if rise_ratio < -0.1:
+			target.show_jump_pose(7)
+		elif rise_ratio <= 0.1:
+			target.show_jump_pose(6)
+		else:
+			var rise_frame := clampi(int(3.0 * (1.0 - rise_ratio) / 0.9), 0, 2)
+			target.show_jump_pose(3 + rise_frame)
+	else:
+		target.update_walk_pose(takes_input and can_walk and not charging and on_floor and not is_zero_approx(moved_x))
 
 
 func _is_grounded(target: GoatState) -> bool:
@@ -77,9 +100,10 @@ func _is_grounded(target: GoatState) -> bool:
 
 
 func _move_goat(target: GoatState, _delta: float) -> float:
+	var was_on_floor := target.is_on_floor() and target.velocity.y >= 0.0
 	var impact_velocity := target.velocity
 	target.move_and_slide()
-	if target.is_on_floor() and impact_velocity.y > 0.0:
+	if target.is_on_floor() and impact_velocity.y > 0.0 and (not was_on_floor or target.is_bouncing):
 		_handle_ground_impact(target, impact_velocity)
 	return target.get_real_velocity().x
 
@@ -99,8 +123,11 @@ func _check_fall_distance(target: GoatState) -> void:
 
 func _handle_ground_impact(target: GoatState, impact_velocity: Vector2, normal := Vector2.UP) -> void:
 	_check_fall_distance(target)
+	target.jump_launch_speed = 0.0
 	if not target.is_bouncing:
+		target.play_landing_pose()
 		return
+	target.show_standing_pose()
 	target.landing_pause_pending = true
 	var rebound := _ground_rebound(impact_velocity, normal)
 	if rebound.y < -bounce_stop_speed:
@@ -124,6 +151,8 @@ func _reset_fall_state(target: GoatState) -> void:
 	target.is_bouncing = false
 	target.landing_pause_pending = false
 	target.jump_pause_remaining = 0.0
+	target.jump_launch_speed = 0.0
+	target.show_standing_pose()
 	target.last_ground_position = target.position
 	target.has_ground_position = true
 	if target == active_goat:
@@ -131,8 +160,6 @@ func _reset_fall_state(target: GoatState) -> void:
 
 
 func _cancel_jump() -> void:
-	if is_charging_jump:
-		active_goat.jump_pause_remaining = 0.0
 	is_charging_jump = false
 	jump_released = false
 
@@ -148,9 +175,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		is_charging_jump = true
 		jump_released = false
 		jump_charge = 0.0
+		jump_charge_elapsed = 0.0
 	elif not event.pressed and is_charging_jump and not jump_released:
 		jump_released = true
-		active_goat.jump_pause_remaining = jump_pause_duration
 
 
 func _unhandled_input(event: InputEvent) -> void:

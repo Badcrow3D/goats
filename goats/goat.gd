@@ -35,6 +35,7 @@ var has_ground_position := false
 var is_bouncing := false
 var landing_pause_pending := false
 var jump_pause_remaining := 0.0
+var jump_launch_speed := 0.0
 var aim_degrees := 0.0
 
 var _walking := false
@@ -68,6 +69,7 @@ func _ready() -> void:
 	if not Engine.is_editor_hint():
 		_sprite.frame_changed.connect(_sync_equipment_pose)
 		_sprite.animation_looped.connect(_on_walk_cycle_finished)
+		_sprite.animation_finished.connect(_on_landing_finished)
 		_apply_idle_facing()
 
 
@@ -80,9 +82,13 @@ func _apply_idle_facing() -> void:
 
 func update_walk_pose(walking: bool) -> void:
 	_walking = walking
+	if _sprite.animation == &"land":
+		return
 	if _walking:
 		_sprite.flip_h = false
 		_sprite.play(&"walk_left" if facing_direction == Facing.LEFT else &"walk_right")
+	elif _sprite.animation == &"jump":
+		show_standing_pose()
 	elif _sprite.animation == &"idle":
 		_sprite.flip_h = facing_direction == Facing.LEFT
 	else:
@@ -91,6 +97,33 @@ func update_walk_pose(walking: bool) -> void:
 		if _sprite.frame < finish_start:
 			_sprite.set_frame_and_progress(finish_start, 0.0)
 	_sync_equipment_pose()
+
+
+func show_jump_pose(frame: int) -> void:
+	_walking = false
+	_sprite.animation = &"jump"
+	_sprite.pause()
+	_sprite.frame = frame
+	_sprite.flip_h = facing_direction == Facing.LEFT
+	_sync_equipment_pose()
+
+
+func play_landing_pose() -> void:
+	_walking = false
+	_sprite.flip_h = facing_direction == Facing.LEFT
+	_sprite.stop()
+	_sprite.play(&"land")
+	_sync_equipment_pose()
+
+
+func show_standing_pose() -> void:
+	_sprite.play(&"idle")
+	_apply_idle_facing()
+
+
+func _on_landing_finished() -> void:
+	if _sprite.animation == &"land":
+		show_standing_pose()
 
 
 func _on_walk_cycle_finished() -> void:
@@ -103,6 +136,8 @@ func _sync_equipment_pose() -> void:
 	var column := _sprite.frame
 	if _sprite.animation == &"walk_left":
 		column += 5
+	elif _sprite.animation == &"jump" or _sprite.animation == &"land":
+		column = 0
 	_grapple.frame_coords = Vector2i(column, 0)
 	_launcher.frame_coords = Vector2i(column, 1)
 	_grapple.flip_h = _sprite.flip_h

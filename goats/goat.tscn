@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://cg7vpw67vt7a5" path="res://sprites/chargejump26x8.png" id="14_jump_charge"]
 [ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
 [ext_resource type="Texture2D" uid="uid://ubpgij5mvrq4" path="res://sprites/grapple-48x48.png" id="16_grapple_aim"]
+[ext_resource type="Texture2D" path="res://sprites/goatjump-24x24.png" id="17_jump"]
 
 [sub_resource type="AtlasTexture" id="Atlas_idle"]
 atlas = ExtResource("7_layers")
@@ -52,6 +53,54 @@ region = Rect2(72, 48, 24, 24)
 [sub_resource type="AtlasTexture" id="Atlas_walk_4"]
 atlas = ExtResource("7_layers")
 region = Rect2(96, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_1"]
+atlas = ExtResource("17_jump")
+region = Rect2(0, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_2"]
+atlas = ExtResource("17_jump")
+region = Rect2(24, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_3"]
+atlas = ExtResource("17_jump")
+region = Rect2(48, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_4"]
+atlas = ExtResource("17_jump")
+region = Rect2(72, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_5"]
+atlas = ExtResource("17_jump")
+region = Rect2(96, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_6"]
+atlas = ExtResource("17_jump")
+region = Rect2(120, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_7"]
+atlas = ExtResource("17_jump")
+region = Rect2(144, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_8"]
+atlas = ExtResource("17_jump")
+region = Rect2(168, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_9"]
+atlas = ExtResource("17_jump")
+region = Rect2(192, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_10"]
+atlas = ExtResource("17_jump")
+region = Rect2(216, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_11"]
+atlas = ExtResource("17_jump")
+region = Rect2(240, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_jump_12"]
+atlas = ExtResource("17_jump")
+region = Rect2(264, 0, 24, 24)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_goat"]
 animations = [{
@@ -101,6 +150,52 @@ animations = [{
 }],
 "loop": 1,
 "name": &"walk_right",
+"speed": 12.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_6")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_7")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_8")
+}],
+"loop": 0,
+"name": &"jump",
+"speed": 12.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_9")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_10")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_11")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_jump_12")
+}],
+"loop": 0,
+"name": &"land",
 "speed": 12.5
 }]
 

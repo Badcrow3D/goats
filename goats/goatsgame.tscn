@@ -28,7 +28,6 @@ texture_filter = 1
 script = ExtResource("2_test")
 camera_max_zoom = 3
 gravity_scale = 0.5
-jump_pause_duration = 0.16
 landing_pause_duration = 0.32
 
 [node name="Sky" type="Polygon2D" parent="." unique_id=401434795]
