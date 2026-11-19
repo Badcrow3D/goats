@@ -119,7 +119,9 @@ script = ExtResource("8_goat_state")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2143000917]
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_goat")
-animation = &"idle"
+animation = &"walk_right"
+frame = 4
+frame_progress = 0.74607253
 
 [node name="Grapple" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
 visible = false
@@ -129,7 +131,6 @@ hframes = 10
 vframes = 3
 
 [node name="Launcher" type="Sprite2D" parent="AnimatedSprite2D" unique_id=151829350]
-visible = false
 show_behind_parent = true
 texture = ExtResource("7_layers")
 hframes = 10
@@ -167,7 +168,7 @@ hframes = 21
 vframes = 2
 frame = 10
 
-[node name="GrappleAimPose" type="Sprite2D" parent="."]
+[node name="GrappleAimPose" type="Sprite2D" parent="." unique_id=1750366653]
 visible = false
 texture = ExtResource("16_grapple_aim")
 hframes = 6

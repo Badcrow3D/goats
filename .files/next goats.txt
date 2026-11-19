@@ -1,30 +1,29 @@
 + paint and test level2.png
-
-+ jump and landing animations
-+ bounced goat animation
 + author idle loop, play on inactive goat
++ weapons as polygon
 
-+ camera follow on movement
+arrow towards offscreen active goat
+camera follow on goat movement
+
+one shot per turn
+falling damage ends turn
+turn time limit
+retreat time after shot, then turn ends
+multiple goats per team
 
 laser digging
 
-arrow towards offscreen active goat
-parachute and deploy launcher
+parachute to get backpack, mode switch to deploy launcher
 mini map or radar when zoomed in
 sound and music
 bouncing weapon test
 
-particle effects
-
-turn time limit
-multiple goats per team
-
-pixel shot path tracers
-
-mushrooms in mountain level
 flowers in forest level
+mushrooms in mountain level
 trees background
 mountains background
+
+holiday themes level and outfits
 
 desert level
 tropical level
@@ -33,5 +32,5 @@ grass and trees
 snow and mountain
 cliffs and dessert sand, cactus, rocks
 tropical and beach, palm trees, rocks
-alien, swamp, jungle, city, castle ?
+alien, swamp, jungle, city, castle
 
