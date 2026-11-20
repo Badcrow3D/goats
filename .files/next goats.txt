@@ -1,3 +1,4 @@
++ backgrounds, sky colors, gradient
 + paint and test level2.png
 + author idle loop, play on inactive goat
 + weapons as polygon
