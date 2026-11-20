@@ -9,6 +9,11 @@
 [ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
 [ext_resource type="Texture2D" uid="uid://ubpgij5mvrq4" path="res://sprites/grapple-48x48.png" id="16_grapple_aim"]
 [ext_resource type="Texture2D" path="res://sprites/goatjump-24x24.png" id="17_jump"]
+[ext_resource type="Shader" path="res://goats/goat_palette.gdshader" id="18_palette"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_goat_palette"]
+resource_local_to_scene = true
+shader = ExtResource("18_palette")
 
 [sub_resource type="AtlasTexture" id="Atlas_idle"]
 atlas = ExtResource("7_layers")
@@ -212,6 +217,7 @@ collision_layer = 2
 script = ExtResource("8_goat_state")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2143000917]
+material = SubResource("ShaderMaterial_goat_palette")
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_goat")
 animation = &"walk_right"

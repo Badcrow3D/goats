@@ -3,6 +3,7 @@
 + weapons as polygon
 + bounced goat animation
 + how to show HP of goats
++ flag or wind speed meter, in addition to leaves
 
 arrow towards offscreen active goat
 camera follow on goat movement

@@ -79,8 +79,10 @@ mode = 0
 
 [node name="Goat2" parent="." unique_id=458998419 instance=ExtResource("16_goat")]
 position = Vector2(1520, 553)
+team_id = 1
 facing_direction = -1
 mode = 0
+team_color = Color(1, 0.6666667, 0.1882353, 1)
 
 [node name="ZoomEffect" type="CanvasLayer" parent="." unique_id=2089918821]
 
@@ -132,15 +134,15 @@ texture_filter = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 665.0
-offset_top = -506.0
-offset_right = 850.0
-offset_bottom = -470.0
+offset_left = 19.0
+offset_top = -688.0
+offset_right = 204.0
+offset_bottom = -652.0
 grow_vertical = 0
 scale = Vector2(2, 2)
 theme_override_fonts/font = ExtResource("18_pixel_font")
 theme_override_font_sizes/font_size = 10
-text = "Goat Test 100 damage"
+text = "Goats 2 Test Scene"
 
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
 position = Vector2(1400, 614)

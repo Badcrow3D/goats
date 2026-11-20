@@ -63,14 +63,48 @@ var _showing_aim_pose := false
 			_apply_mode_layers()
 		mode_changed.emit()
 
+@export_group("Goat Palette")
+@export_color_no_alpha var highlight_color := Color("#ffffff"):
+	set(value):
+		highlight_color = value
+		_apply_palette()
+@export_color_no_alpha var light_color := Color("#c0c0c0"):
+	set(value):
+		light_color = value
+		_apply_palette()
+@export_color_no_alpha var midtone_color := Color("#b1cdce"):
+	set(value):
+		midtone_color = value
+		_apply_palette()
+@export_color_no_alpha var shadow_color := Color("#696a6a"):
+	set(value):
+		shadow_color = value
+		_apply_palette()
+@export_color_no_alpha var team_color := Color("#ff3f51"):
+	set(value):
+		team_color = value
+		_apply_palette()
+
 
 func _ready() -> void:
+	_apply_palette()
 	_apply_mode_layers()
 	if not Engine.is_editor_hint():
 		_sprite.frame_changed.connect(_sync_equipment_pose)
 		_sprite.animation_looped.connect(_on_walk_cycle_finished)
 		_sprite.animation_finished.connect(_on_landing_finished)
 		_apply_idle_facing()
+
+
+func _apply_palette() -> void:
+	if not is_instance_valid(_sprite):
+		return
+	var palette := _sprite.material as ShaderMaterial
+	palette.set_shader_parameter(&"highlight_color", highlight_color)
+	palette.set_shader_parameter(&"light_color", light_color)
+	palette.set_shader_parameter(&"midtone_color", midtone_color)
+	palette.set_shader_parameter(&"shadow_color", shadow_color)
+	palette.set_shader_parameter(&"team_color", team_color)
 
 
 func _apply_idle_facing() -> void:
