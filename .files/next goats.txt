@@ -6,6 +6,8 @@
 + how to show HP of goats
 + flag or wind speed meter, in addition to leaves
 
+disable landing animation for short fall
+
 arrow towards offscreen active goat
 camera follow on goat movement
 one shot per turn
