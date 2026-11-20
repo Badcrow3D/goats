@@ -1,38 +1,32 @@
 + paint and test level2.png
 + author idle loop, play on inactive goat
 + weapons as polygon
-
-+ how to show HP of goats?
++ bounced goat animation
++ how to show HP of goats
 
 arrow towards offscreen active goat
 camera follow on goat movement
-
 one shot per turn
-falling damage ends turn
+
+falling damage. ends turn
 turn time limit
 retreat time after shot, then turn ends
 multiple goats per team
-
+sound and music
+bouncing weapon test
 laser digging
 
 parachute to get backpack, mode switch to deploy launcher
-mini map or radar when zoomed in
-sound and music
-bouncing weapon test
+- mini map or radar when zoomed in
 
-flowers in forest level
 mushrooms in mountain level
 trees background
 mountains background
-
-holiday themes level and outfits
-
-desert level
-tropical level
 
 grass and trees
 snow and mountain
 cliffs and dessert sand, cactus, rocks
 tropical and beach, palm trees, rocks
 alien, swamp, jungle, city, castle
+holiday themes level and outfits
 
