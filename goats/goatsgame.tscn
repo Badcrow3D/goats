@@ -1,14 +1,13 @@
 [gd_scene format=3 uid="uid://dy30w6r71qf2w"]
 
 [ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats/goatsgame.gd" id="2_test"]
-[ext_resource type="FontFile" uid="uid://c76u7lrkob2cb" path="res://assets/porto-buena.regular.otf" id="5_ui_font"]
+[ext_resource type="FontFile" uid="uid://cn2e5b80cewnv" path="res://assets/pixelfont2.png" id="5_ui_font"]
 [ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats/wind_leaves.gd" id="10_wind_leaves"]
 [ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
 [ext_resource type="Texture2D" uid="uid://y4htb8mkow8j" path="res://levels/level1.png" id="12_level"]
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
-[ext_resource type="FontFile" uid="uid://d04r8tget2lqd" path="res://assets/pixelfont.png" id="18_pixel_font"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_zoom_pixelation"]
 resource_local_to_scene = true
@@ -17,12 +16,27 @@ shader_parameter/block_size = 1.0
 
 [sub_resource type="Theme" id="Theme_pixel_ui"]
 default_font = ExtResource("5_ui_font")
-default_font_size = 16
+default_font_size = 20
 RichTextLabel/constants/line_separation = 0
 VBoxContainer/constants/separation = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_console"]
 bg_color = Color(0.10588235, 0.10588235, 0.10588235, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_console_input"]
+content_margin_left = 0.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.1, 0.1, 0.1, 0.6)
+border_width_bottom = 2
+border_color = Color(0, 0, 0, 0.6)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxEmpty" id="StyleBox_console_input_focus"]
 
 [node name="GoatsNewTest" type="Node2D" unique_id=2051334170]
 texture_filter = 1
@@ -101,6 +115,7 @@ layer = 2
 visible = false
 
 [node name="Panel" type="PanelContainer" parent="Console" unique_id=384858294]
+texture_filter = 1
 anchors_preset = 10
 anchor_right = 1.0
 grow_horizontal = 2
@@ -124,25 +139,9 @@ shortcut_keys_enabled = false
 
 [node name="Input" type="LineEdit" parent="Console/Panel/Margin/Rows" unique_id=523749669]
 layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBox_console_input")
+theme_override_styles/focus = SubResource("StyleBox_console_input_focus")
 keep_editing_on_text_submit = true
-
-[node name="FontPreview" type="CanvasLayer" parent="." unique_id=1970513448]
-layer = 3
-
-[node name="GoatTest" type="Label" parent="FontPreview" unique_id=848103966]
-texture_filter = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 19.0
-offset_top = -688.0
-offset_right = 204.0
-offset_bottom = -652.0
-grow_vertical = 0
-scale = Vector2(2, 2)
-theme_override_fonts/font = ExtResource("18_pixel_font")
-theme_override_font_sizes/font_size = 10
-text = "Goats 2 Test Scene"
 
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
 position = Vector2(1400, 614)
