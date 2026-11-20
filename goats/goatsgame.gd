@@ -10,11 +10,11 @@ const BLAST_DIRT_FRAME_SIZE := 16
 # Opaque pixel counts in the sheet's seven frames, largest to smallest.
 const BLAST_DIRT_PIXELS := [148, 112, 76, 52, 24, 12, 4]
 const EXPLOSION_TEXTURE := preload("res://sprites/explosion-40x40.png")
-const EXPLOSION_FRAME_SECONDS := 0.05
+const EXPLOSION_FRAME_SECONDS := 0.07
 const SMOKE_TEXTURE := preload("res://sprites/smoke-16x16.png")
 const SMOKE_FRAME_COUNT := 7
 const SMOKE_FRAME_SECONDS := 0.04
-const SMOKE_SPAWN_RADIUS := 16.0
+const SMOKE_SPAWN_RADIUS := 24.0
 const TRAIL_SMOKE_MIN_START_FRAME := 3
 const TRAIL_SMOKE_MAX_START_FRAME := 4
 const TRAIL_SMOKE_FRAME_SECONDS := 0.16
@@ -76,6 +76,7 @@ const TUNING_FLOORS := {
 	"knockback_speed_per_damage": 0.0,
 	"gravity_scale": 0.05,
 	"fall_control_loss_distance": 1.0,
+	"fall_animation_distance": 0.0,
 	"wind_scale": 0.0,
 }
 
@@ -1072,7 +1073,7 @@ func _spawn_explosion_smoke(center: Vector2) -> void:
 		var direction := Vector2.from_angle(randf() * TAU)
 		var spawn_position := center + direction * (sqrt(randf()) * SMOKE_SPAWN_RADIUS)
 		var first_frame := randi_range(0, SMOKE_FRAME_COUNT - 1)
-		var velocity := direction * randf_range(40.0, 100.0)
+		var velocity := direction * randf_range(6.0, 120.0)
 		_spawn_smoke(spawn_position, first_frame, SMOKE_FRAME_SECONDS, velocity)
 
 

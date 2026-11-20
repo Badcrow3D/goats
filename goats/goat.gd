@@ -32,6 +32,7 @@ const LEFT_AIM_ORIGIN := Vector2(2, -6)
 
 var last_ground_position := Vector2.ZERO
 var has_ground_position := false
+var walked_off_edge := false
 var is_bouncing := false
 var landing_pause_pending := false
 var jump_pause_remaining := 0.0
@@ -117,6 +118,7 @@ func _apply_idle_facing() -> void:
 func update_walk_pose(walking: bool) -> void:
 	_walking = walking
 	if _sprite.animation == &"land":
+		_sprite.play()
 		return
 	if _walking:
 		_sprite.flip_h = false
@@ -124,13 +126,18 @@ func update_walk_pose(walking: bool) -> void:
 	elif _sprite.animation == &"jump":
 		show_standing_pose()
 	elif _sprite.animation == &"idle":
-		_sprite.flip_h = facing_direction == Facing.LEFT
+		show_standing_pose()
 	else:
+		_sprite.play()
 		var frame_count := _sprite.sprite_frames.get_frame_count(_sprite.animation)
 		var finish_start := maxi(0, frame_count - 2)
 		if _sprite.frame < finish_start:
 			_sprite.set_frame_and_progress(finish_start, 0.0)
 	_sync_equipment_pose()
+
+
+func hold_current_pose() -> void:
+	_sprite.pause()
 
 
 func show_jump_pose(frame: int) -> void:

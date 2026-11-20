@@ -5,6 +5,7 @@
 + bounced goat animation
 + how to show HP of goats
 + flag or wind speed meter, in addition to leaves
++ targets and goals objects
 
 disable landing animation for short fall
 
@@ -23,7 +24,7 @@ laser digging
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
 
-mushrooms in mountain level
+ambient mushrooms in mountain level
 trees background
 mountains background
 

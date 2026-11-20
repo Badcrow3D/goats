@@ -9,6 +9,7 @@ const JUMP_CHARGE_FRAME_SECONDS := 0.08
 @export var walk_speed := 32.0
 @export var gravity_scale := 2.0
 @export var landing_pause_duration := 0.0
+@export var fall_animation_distance := 24.0
 @export var fall_control_loss_distance := 48.0
 @export_range(0.0, 0.9) var bounce_restitution := 0.35
 @export var bounce_stop_speed := 45.0
@@ -65,7 +66,10 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 	var moved_x := _move_goat(target, delta)
 	_check_fall_distance(target)
 	var on_floor := _is_grounded(target)
+	if was_on_floor and not on_floor and can_walk and not charging and not is_zero_approx(moved_x):
+		target.walked_off_edge = true
 	if on_floor and not target.is_bouncing:
+		target.walked_off_edge = false
 		# A bitmap horizontal sweep can bring the goat onto a ledge after the vertical sweep.
 		if target.jump_launch_speed > 0.0:
 			target.jump_launch_speed = 0.0
@@ -91,6 +95,11 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 		else:
 			var rise_frame := clampi(int(3.0 * (1.0 - rise_ratio) / 0.9), 0, 2)
 			target.show_jump_pose(3 + rise_frame)
+	elif not on_floor and target.walked_off_edge:
+		if target.position.y - target.last_ground_position.y >= fall_animation_distance:
+			target.show_jump_pose(7)
+		else:
+			target.hold_current_pose()
 	else:
 		target.update_walk_pose(takes_input and can_walk and not charging and on_floor and not is_zero_approx(moved_x))
 
@@ -125,7 +134,8 @@ func _handle_ground_impact(target: GoatState, impact_velocity: Vector2, normal :
 	_check_fall_distance(target)
 	target.jump_launch_speed = 0.0
 	if not target.is_bouncing:
-		target.play_landing_pose()
+		if not target.walked_off_edge or target.position.y - target.last_ground_position.y >= fall_animation_distance:
+			target.play_landing_pose()
 		return
 	target.show_standing_pose()
 	target.landing_pause_pending = true
@@ -149,6 +159,7 @@ func _ground_rebound(impact_velocity: Vector2, normal: Vector2) -> Vector2:
 
 func _reset_fall_state(target: GoatState) -> void:
 	target.is_bouncing = false
+	target.walked_off_edge = false
 	target.landing_pause_pending = false
 	target.jump_pause_remaining = 0.0
 	target.jump_launch_speed = 0.0
