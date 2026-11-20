@@ -1,0 +1,16 @@
+goat / default
+W	walk ?
+
+G	grenade
+M	missile
+R	rockets
+C	cannon
+L	laser
+D	dirt
+A	airstrike
+H	homing
+S	shield
+T	turret
+E	e tool
+
+

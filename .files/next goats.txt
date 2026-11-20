@@ -2,6 +2,8 @@
 + author idle loop, play on inactive goat
 + weapons as polygon
 
++ how to show HP of goats?
+
 arrow towards offscreen active goat
 camera follow on goat movement
 
