@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://dy30w6r71qf2w"]
 
+[ext_resource type="Script" path="res://goats/console.gd" id="console_script"]
 [ext_resource type="Script" uid="uid://c7fxelijw0yo3" path="res://goats/goatsgame.gd" id="2_test"]
 [ext_resource type="FontFile" uid="uid://cn2e5b80cewnv" path="res://assets/pixelfont2.png" id="5_ui_font"]
 [ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats/wind_leaves.gd" id="10_wind_leaves"]
@@ -150,6 +151,7 @@ texture = ExtResource("18_offscreen_arrow")
 [node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
 layer = 2
 visible = false
+script = ExtResource("console_script")
 
 [node name="Panel" type="PanelContainer" parent="Console" unique_id=384858294]
 texture_filter = 1

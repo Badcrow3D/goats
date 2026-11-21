@@ -104,13 +104,7 @@ const TUNING_FLOORS := {
 @onready var sky_layers := cloud_layers + leaf_layers
 @onready var camera_target := arena_camera.position
 @onready var camera_rest_offset := arena_camera.offset
-@onready var console: CanvasLayer = $Console
-@onready var console_output: RichTextLabel = $Console/Panel/Margin/Rows/Output
-@onready var console_input: LineEdit = $Console/Panel/Margin/Rows/Input
-
-# Keep command history when reset or load replaces the scene.
-static var console_history: Array[String] = []
-var console_history_index := -1
+@onready var console: ArenaConsole = $Console
 
 var fire_charge_time := 2.0
 var fire_min_amount := 0.25
@@ -186,10 +180,10 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_clamp_camera_position)
 	camera_target = active_goat.global_position
 	_clamp_camera_position()
-	var font := console_output.get_theme_font("normal_font")
-	var font_size := console_output.get_theme_font_size("normal_font_size")
-	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
-	console_input.text_submitted.connect(_run_console_command)
+	console.list_variables = _list_console_variables
+	console.set_variable = _set_console_variable
+	console.load_level = _load_console_level
+	console.reset_level = _reload_level
 	_show_active_goat_arrow()
 	_try_spawn_crow()
 	var crow_timer := Timer.new()
@@ -455,69 +449,35 @@ func _load_tuning() -> void:
 	fire_max_amount = maxf(fire_min_amount, fire_max_amount)
 
 
-func _run_console_command(command: String) -> void:
-	console_input.clear()
-	console_history_index = -1
-	var words := command.replace("\t", " ").split(" ", false)
-	if words.is_empty():
-		return
-
-	console_history.append(command)
-	var lines := PackedStringArray(["> " + command])
-	match words[0]:
-		"vars":
-			if words.size() != 1:
-				lines.append("Usage: vars")
-			else:
-				for field: String in TUNING_FLOORS:
-					lines.append("%s = %s" % [field, get(field)])
-				lines.append("wind_speed = %s" % wind_speed)
-				for field: String in TUNING_FLAGS:
-					lines.append("%s = %s" % [field, get(field)])
-				lines.append("leaf_count = %s" % leaf_count)
-				lines.append("level_filename = " + level_filename)
-		"set":
-			lines.append(_set_console_variable(words))
-		"load":
-			var filename := command.strip_edges().substr(4).strip_edges()
-			if filename.is_empty():
-				lines.append("Usage: load level.png")
-			else:
-				var image := _read_level_image(filename)
-				if image == null or image.is_empty():
-					lines.append("Could not load PNG from levels/: " + filename)
-				else:
-					var previous_level := level_filename
-					level_filename = filename
-					var error := _save_tuning()
-					if error == OK:
-						_reload_level.call_deferred()
-						return
-					level_filename = previous_level
-					lines.append("Could not save level preference: " + error_string(error))
-		"reset":
-			if words.size() != 1:
-				lines.append("Usage: reset")
-			else:
-				_reload_level.call_deferred()
-				return
-		_:
-			lines.append("Unknown command: " + words[0])
-
-	var first_line := 0
-	if not console_output.text.is_empty():
-		first_line = console_output.get_line_count()
-		console_output.text += "\n"
-	console_output.text += "\n".join(lines)
-	console_output.scroll_to_line(first_line)
+func _list_console_variables() -> PackedStringArray:
+	var lines := PackedStringArray()
+	for field: String in TUNING_FLOORS:
+		lines.append("%s = %s" % [field, get(field)])
+	lines.append("wind_speed = %s" % wind_speed)
+	for field: String in TUNING_FLAGS:
+		lines.append("%s = %s" % [field, get(field)])
+	lines.append("leaf_count = %s" % leaf_count)
+	lines.append("level_filename = " + level_filename)
+	return lines
 
 
-func _set_console_variable(words: PackedStringArray) -> String:
-	if words.size() != 3:
-		return "Usage: set varname value"
+func _load_console_level(filename: String) -> String:
+	var image := _read_level_image(filename)
+	if image == null or image.is_empty():
+		return "Could not load PNG from levels/: " + filename
 
-	var field := words[1]
-	var value_text := words[2]
+	var previous_level := level_filename
+	level_filename = filename
+	var error := _save_tuning()
+	if error != OK:
+		level_filename = previous_level
+		return "Could not save level preference: " + error_string(error)
+
+	_reload_level.call_deferred()
+	return ""
+
+
+func _set_console_variable(field: String, value_text: String) -> String:
 	if field == "wind_speed":
 		if not value_text.is_valid_int():
 			return "wind_speed expects a whole number."
@@ -573,8 +533,7 @@ func _set_console_variable(words: PackedStringArray) -> String:
 func _reload_level() -> void:
 	var error := get_tree().reload_current_scene()
 	if error != OK:
-		console_output.text += "\nCould not reset level: " + error_string(error)
-		console_output.scroll_to_line(console_output.get_line_count() - 1)
+		console.show_message("Could not reset level: " + error_string(error))
 
 
 func _save_tuning() -> Error:
@@ -741,12 +700,7 @@ func _input(event: InputEvent) -> void:
 			if event.physical_keycode == KEY_ESCAPE:
 				_toggle_console()
 				get_viewport().set_input_as_handled()
-			elif event.keycode == KEY_UP and console_input.has_focus() and not console_history.is_empty():
-				if console_history_index == -1:
-					console_history_index = console_history.size()
-				console_history_index = maxi(0, console_history_index - 1)
-				console_input.text = console_history[console_history_index]
-				console_input.caret_column = console_input.text.length()
+			elif event.keycode == KEY_UP and console.recall_previous_command():
 				get_viewport().set_input_as_handled()
 		return
 
@@ -886,14 +840,12 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 
 
 func _toggle_console() -> void:
-	console.visible = not console.visible
-	if console.visible:
+	var is_open := not console.visible
+	if is_open:
 		_cancel_jump()
 		is_charging_shot = false
 		shot_released = false
-		console_input.grab_focus()
-	else:
-		console_input.release_focus()
+	console.set_open(is_open)
 	_update_mouse_mode()
 
 
