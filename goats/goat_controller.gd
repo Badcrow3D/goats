@@ -7,10 +7,10 @@ const ACTION_KEY := KEY_SPACE
 const JUMP_CHARGE_FRAME_SECONDS := 0.08
 
 @export var walk_speed := 32.0
-@export var gravity_scale := 2.0
+@export var gravity_scale := 1.0
 @export var landing_pause_duration := 0.0
 @export var fall_animation_distance := 24.0
-@export var fall_control_loss_distance := 48.0
+@export var fall_control_loss_distance := 64.0
 @export_range(0.0, 0.9) var bounce_restitution := 0.35
 @export var bounce_stop_speed := 45.0
 

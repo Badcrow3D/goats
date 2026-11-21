@@ -89,7 +89,7 @@ const TUNING_FLOORS := {
 @export var knockback_speed_per_damage := 4.0
 @export_range(1, 8, 1) var camera_max_zoom := 2
 
-@onready var goats: Array[Goat] = [$Goat, $Goat2]
+@onready var goat_container: Node2D = $Goats
 @onready var arena_camera: Camera2D = $ArenaCamera
 @onready var offscreen_arrow: Sprite2D = $GoatIndicator/Arrow
 @onready var zoom_pixelation: ColorRect = $ZoomEffect/Pixelation
@@ -149,9 +149,13 @@ var enable_tracer := true
 var cloud_count := 15
 var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
+var goats: Array[Goat] = []
 
 
 func _ready() -> void:
+	for child in goat_container.get_children():
+		if child is Goat:
+			goats.append(child)
 	active_goat = goats[0]
 	_load_tuning()
 	_setup_level()
@@ -159,11 +163,12 @@ func _ready() -> void:
 	grapple_line.draw.connect(_draw_grapple_line)
 	grapple_line.hide()
 	add_child(grapple_line)
+	var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 	for target in goats:
 		target.damaged.connect(_knock_back_goat.bind(target))
 		target.mode_changed.connect(_on_goat_mode_changed.bind(target))
-	var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
-	player_team.goats.append(active_goat)
+		if target.team_id == player_team.id:
+			player_team.goats.append(target)
 	teams[player_team.id] = player_team
 	for layer in sky_layers:
 		layer.setup(arena_bounds)

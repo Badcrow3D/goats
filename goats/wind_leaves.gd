@@ -1,6 +1,6 @@
 extends MultiMeshInstance2D
 
-const LEAF_TEXTURE := preload("res://sprites/leaf16.png")
+const LEAF_TEXTURE := preload("res://sprites/leaf-16x16.png")
 const LEAF_SHADER := preload("res://goats/instanced_sprite_sheet.gdshader")
 const LEAF_SIZE := 32
 const MAX_LEAVES := 100
