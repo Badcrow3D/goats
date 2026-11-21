@@ -1,9 +1,12 @@
 StoryBoard
 
-+ author idle loop, play on inactive goat
-+ how to show HP of goats
+mines
+exploding barrels
+
 + backgrounds, sky colors, gradient
 + paint and test level2.png
++ author idle loop, play on inactive goat
++ how to show HP of goats
 + weapons as polygon
 + flag or wind speed meter, in addition to leaves
 + targets and goals objects
@@ -20,10 +23,10 @@ bouncing weapon test
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
 
-ambient mushrooms in mountain level
+what for boxes and mushrooms
+
 trees background
 mountains background
-
 grass and trees
 snow and mountain
 cliffs and dessert sand, cactus, rocks
@@ -33,3 +36,4 @@ holiday themes level and outfits
 
 4k testing ideas
 
+icon for Goats 2 version

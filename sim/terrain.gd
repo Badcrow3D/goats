@@ -26,26 +26,6 @@ func is_solid(x: int, y: int) -> bool:
 func in_bounds(x: int, y: int) -> bool:
 	return x >= 0 and y >= 0 and x < width and y < height
 
-## Simple seeded rolling hills (RandomNumberGenerator is deterministic per seed).
-func generate(seed_value: int) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	@warning_ignore("integer_division")
-	var lo: int = height / 3
-	@warning_ignore("integer_division")
-	var hi: int = height * 5 / 6
-	@warning_ignore("integer_division")
-	var h: int = height * 6 / 10
-	var slope: int = 0
-	for x in width:
-		if rng.randi_range(0, 3) == 0:
-			slope = clampi(slope + rng.randi_range(-1, 1), -2, 2)
-		h = clampi(h + slope, lo, hi)
-		if h == lo or h == hi:
-			slope = -slope
-		for y in range(h, height):
-			mask[y * width + x] = 1
-
 ## First solid pixel from the top of a column (height if the column is empty).
 func surface_y(x: int) -> int:
 	for y in height:
@@ -72,18 +52,6 @@ func carve_circle(cx: int, cy: int, r: int, center_between_pixels := false) -> C
 				crater.erased_pixels += 1
 	return crater
 
-## Rendering helpers (not part of the simulation).
-func make_image(terrain_color: Color, background_color: Color) -> Image:
-	var img := Image.create(width, height, false, Image.FORMAT_RGBA8)
-	img.fill(background_color)
-	update_image_region(img, Rect2i(0, 0, width, height), terrain_color, background_color)
-	return img
-
-func update_image_region(img: Image, rect: Rect2i, terrain_color: Color, background_color: Color) -> void:
-	for y in range(rect.position.y, rect.end.y):
-		for x in range(rect.position.x, rect.end.x):
-			img.set_pixel(x, y, terrain_color if mask[y * width + x] != 0 else background_color)
-			
 func rect_is_free(x: int, y: int, w: int, h: int) -> bool:
 	for yy in range(y, y + h):
 		for xx in range(x, x + w):

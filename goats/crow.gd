@@ -7,6 +7,9 @@ const FRAME_SECONDS := 0.08
 const FLIGHT_SPEED := 150.0
 const STAND_SECONDS := 10.0
 
+var _exit_point: Vector2
+var _rest: Tween
+
 
 func _ready() -> void:
 	offset = Vector2(0, -FRAME_SIZE * 0.5)
@@ -42,6 +45,9 @@ func _play_idle() -> void:
 func visit(entry: Vector2, perch: Vector2, level_width: int) -> void:
 	var incoming := perch - entry
 	flip_h = incoming.x > 0.0
+	var outgoing := Vector2(incoming.x, -incoming.y)
+	var exit_x := float(level_width + FRAME_SIZE if flip_h else -FRAME_SIZE)
+	_exit_point = perch + outgoing * ((exit_x - perch.x) / outgoing.x)
 	position = entry
 	play(&"fly")
 
@@ -51,18 +57,29 @@ func visit(entry: Vector2, perch: Vector2, level_width: int) -> void:
 	play(&"land")
 	await animation_finished
 	play(&"stand")
-	var rest := create_tween()
-	rest.tween_interval(STAND_SECONDS)
+	_rest = create_tween()
+	_rest.tween_interval(STAND_SECONDS)
 	# Leave enough time for either idle animation to finish within the first half.
-	rest.parallel().tween_callback(_play_idle).set_delay(randf_range(0.0, STAND_SECONDS * 0.5 - 2.0))
-	await rest.finished
+	_rest.parallel().tween_callback(_play_idle).set_delay(randf_range(0.0, STAND_SECONDS * 0.5 - 2.0))
+	await _rest.finished
 
-	var outgoing := Vector2(incoming.x, -incoming.y)
 	play(&"jump")
 	await animation_finished
+	_fly_away()
+
+
+func check_perch_after_blast(terrain: Terrain) -> void:
+	if animation == &"fly":
+		return
+	var feet := Vector2i(position)
+	if not terrain.is_solid(feet.x, feet.y):
+		if _rest and _rest.is_running():
+			_rest.kill()
+		_fly_away()
+
+
+func _fly_away() -> void:
 	play(&"fly")
-	var exit_x := float(level_width + FRAME_SIZE if flip_h else -FRAME_SIZE)
-	var exit_point := perch + outgoing * ((exit_x - perch.x) / outgoing.x)
 	var departure := create_tween()
-	departure.tween_property(self, "position", exit_point, position.distance_to(exit_point) / FLIGHT_SPEED)
+	departure.tween_property(self, "position", _exit_point, position.distance_to(_exit_point) / FLIGHT_SPEED)
 	departure.tween_callback(queue_free)

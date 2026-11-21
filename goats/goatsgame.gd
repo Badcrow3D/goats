@@ -1099,6 +1099,8 @@ func _apply_missile_blast(
 	if scorch_width > 0:
 		terrain_view.scorch_circle(pixel, radius + scorch_width, TERRAIN_BURN_COLOR)
 	terrain_view.carve(crater.bounds)
+	if is_instance_valid(crow):
+		crow.check_perch_after_blast(terrain)
 	_throw_blast_dirt(pixel, crater.erased_pixels, surface_normal)
 
 
