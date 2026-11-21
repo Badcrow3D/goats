@@ -4,6 +4,8 @@ const Goat := preload("res://goats/goat.gd")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
 const WindLeaves := preload("res://goats/wind_leaves.gd")
+const Crow := preload("res://goats/crow.gd")
+const CROW_SPAWN_INTERVAL := 10.0
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const BLAST_DIRT_TEXTURE := preload("res://sprites/dirt-16x16.png")
 const BLAST_DIRT_FRAME_SIZE := 16
@@ -136,6 +138,7 @@ var camera_follows_goat := false
 var active_goat_arrow: Sprite2D
 var arena_bounds: Rect2
 var terrain: Terrain
+var crow: Crow
 var grapple_line := Node2D.new()
 var grapple_start_pixel := Vector2i.ZERO
 var grapple_end_pixel := Vector2i.ZERO
@@ -188,6 +191,44 @@ func _ready() -> void:
 	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
 	console_input.text_submitted.connect(_run_console_command)
 	_show_active_goat_arrow()
+	_try_spawn_crow()
+	var crow_timer := Timer.new()
+	crow_timer.wait_time = CROW_SPAWN_INTERVAL
+	crow_timer.timeout.connect(_try_spawn_crow)
+	add_child(crow_timer)
+	crow_timer.start()
+
+
+func _try_spawn_crow() -> void:
+	if is_instance_valid(crow):
+		return
+
+	arena_camera.force_update_scroll()
+	var viewport_to_terrain := terrain_view.get_global_transform_with_canvas().affine_inverse()
+	var visible_area := viewport_to_terrain * get_viewport_rect()
+	var direction := 1 if randf() < 0.5 else -1
+	var middle_x := visible_area.get_center().x
+	var perches: Array[Vector2] = []
+	var near_perches: Array[Vector2] = []
+	var first_column := maxi(0, ceili(visible_area.position.x))
+	var last_column := mini(terrain.width - 1, floori(visible_area.end.x))
+	for x in range(first_column, last_column + 1):
+		var surface_y := terrain.surface_y(x)
+		var feet := Vector2(x, surface_y)
+		if surface_y < terrain.height and visible_area.has_point(feet):
+			perches.append(feet)
+			if (feet.x - middle_x) * direction <= 0.0:
+				near_perches.append(feet)
+	if perches.is_empty():
+		return
+
+	var perch: Vector2 = (near_perches if not near_perches.is_empty() else perches).pick_random()
+	var entry_x := visible_area.position.x if direction > 0 else visible_area.end.x
+	var entry_y := visible_area.position.y + randf() * visible_area.size.y / 3.0
+	var entry := Vector2(entry_x - direction * Crow.FRAME_SIZE, entry_y)
+	crow = Crow.new()
+	terrain_view.add_child(crow)
+	crow.visit(entry, perch, terrain.width)
 
 
 func _setup_level() -> void:
