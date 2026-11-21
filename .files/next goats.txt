@@ -15,15 +15,19 @@ laser digging
 
 sound and music
 
-falling damage, ends turn
-turn time limit
-retreat time after shot, then turn ends
+set damage for missile to 50, adjust knockback
+falling damage, ends turn, adjust bouncing
+turn time limit, time display
+retreat time after shot, then turn ends, player switch notice
 multiple goats per team
 bouncing weapon test
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
 
 what for boxes and mushrooms
+
+Walk, grapple E tool, Dirt launcher, Force field, Shield, Turret 
+Missile Grenade Rockets Cannon Laser Homing Airstrike
 
 trees background
 mountains background
@@ -35,5 +39,3 @@ alien, swamp, jungle, city, castle
 holiday themes level and outfits
 
 4k testing ideas
-
-icon for Goats 2 version

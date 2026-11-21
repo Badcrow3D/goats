@@ -12,5 +12,6 @@ H	homing
 S	shield
 T	turret
 E	e tool
+F	force field
 
 

@@ -69,14 +69,14 @@ mode = 0
 team_color = Color(1, 0.99607843, 0.3254902, 1)
 
 [node name="Goat4" parent="Goats" unique_id=434005598 instance=ExtResource("16_goat")]
-position = Vector2(1091, 614)
+position = Vector2(1894, 1201)
 team_id = 1
 facing_direction = -1
 mode = 0
 team_color = Color(0.3254902, 1, 0.42352942, 1)
 
 [node name="Goat5" parent="Goats" unique_id=1999858949 instance=ExtResource("16_goat")]
-position = Vector2(2055, 1167)
+position = Vector2(953, 940)
 team_id = 1
 facing_direction = -1
 mode = 0
@@ -185,3 +185,4 @@ keep_editing_on_text_submit = true
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
 position = Vector2(1400, 614)
 offset = Vector2(60, 0)
+zoom = Vector2(2, 2)
