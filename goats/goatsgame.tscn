@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
+[ext_resource type="Texture2D" uid="uid://cib86inmjlc13" path="res://sprites/arrow.png" id="18_offscreen_arrow"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_zoom_pixelation"]
 resource_local_to_scene = true
@@ -109,6 +110,14 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="GoatIndicator" type="CanvasLayer" parent="." unique_id=1289469154]
+
+[node name="Arrow" type="Sprite2D" parent="GoatIndicator" unique_id=61009221]
+visible = false
+texture_filter = 1
+scale = Vector2(3, 3)
+texture = ExtResource("18_offscreen_arrow")
 
 [node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
 layer = 2

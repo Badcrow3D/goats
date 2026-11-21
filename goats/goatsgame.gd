@@ -26,9 +26,12 @@ const GRAPPLE_RANGE := 500.0
 const GRAPPLE_MISS_SECONDS := 0.2
 const ACTIVE_GOAT_ARROW_TEXTURE := preload("res://sprites/arrow-16x16.png")
 const ACTIVE_GOAT_ARROW_FRAME_SECONDS := 0.08
+const OFFSCREEN_ARROW_MARGIN := 40.0
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
 const ZOOM_TRANSITION_SECONDS := 0.24
+const GOAT_SWITCH_CAMERA_SECONDS := 0.3
+const CAMERA_FOLLOW_IDLE_MSEC := 500
 const ZOOM_PEAK_BLOCK_SIZE := 10.0
 
 class CameraControls extends Node:
@@ -87,6 +90,7 @@ const TUNING_FLOORS := {
 
 @onready var goats: Array[Goat] = [$Goat, $Goat2]
 @onready var arena_camera: Camera2D = $ArenaCamera
+@onready var offscreen_arrow: Sprite2D = $GoatIndicator/Arrow
 @onready var zoom_pixelation: ColorRect = $ZoomEffect/Pixelation
 @onready var zoom_material: ShaderMaterial = zoom_pixelation.material
 @onready var camera_zoom_level := roundi(arena_camera.zoom.x)
@@ -117,11 +121,16 @@ var walk_start_msec := 0
 var shot_charge := 0.0
 var is_charging_shot := false
 var shot_released := false
+var active_missile: Missile
+var active_dirt_drops := 0
 var mouse_unlocked := true
 var left_press_position := Vector2.INF
 var camera_dragging := false
 var camera_shake: Tween
 var camera_zoom_transition: Tween
+var camera_goat_transition: Tween
+var last_manual_camera_msec := -CAMERA_FOLLOW_IDLE_MSEC
+var camera_follows_goat := false
 var active_goat_arrow: Sprite2D
 var arena_bounds: Rect2
 var terrain: Terrain
@@ -170,6 +179,7 @@ func _ready() -> void:
 	var font_size := console_output.get_theme_font_size("normal_font_size")
 	console_output.custom_minimum_size.y = ceilf(font.get_height(font_size)) * 10
 	console_input.text_submitted.connect(_run_console_command)
+	_show_active_goat_arrow()
 
 
 func _setup_level() -> void:
@@ -538,10 +548,45 @@ func _walk_direction() -> float:
 	return float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 
 
+func _process(_delta: float) -> void:
+	var screen := get_viewport_rect()
+	var goat_to_screen := active_goat.get_global_transform_with_canvas()
+	var body_on_screen := goat_to_screen * Rect2(active_goat.bitmap_body_rect())
+	if screen.intersects(body_on_screen):
+		offscreen_arrow.hide()
+		return
+
+	var angle := PI * 0.5 if body_on_screen.end.x <= screen.position.x else -PI * 0.5
+	if body_on_screen.end.y <= screen.position.y:
+		angle = PI
+	elif body_on_screen.position.y >= screen.end.y:
+		angle = 0.0
+	var sprite_rect := offscreen_arrow.get_rect()
+	var half_sprite := sprite_rect.position.abs().max(sprite_rect.end.abs()) * offscreen_arrow.scale
+	var rotated_half_size := half_sprite.rotated(angle).abs().ceil()
+	var inset := Vector2.ONE * OFFSCREEN_ARROW_MARGIN + rotated_half_size
+	var minimum := screen.position + inset
+	var maximum := screen.end - inset
+	if minimum.x > maximum.x or minimum.y > maximum.y:
+		offscreen_arrow.hide()
+		return
+
+	offscreen_arrow.position = body_on_screen.get_center().clamp(minimum, maximum)
+	offscreen_arrow.rotation = angle
+	offscreen_arrow.show()
+
+
 func _physics_process(delta: float) -> void:
+	var previous_goat_position := active_goat.global_position
 	var direction := _walk_direction()
 	for target in goats:
 		_step_goat(target, delta, direction if target == active_goat else 0.0)
+	if camera_follows_goat:
+		if not camera_goat_transition.is_running():
+			_set_camera_target(active_goat.global_position)
+	elif active_goat.global_position != previous_goat_position \
+			and Time.get_ticks_msec() - last_manual_camera_msec >= CAMERA_FOLLOW_IDLE_MSEC:
+		_pan_camera_to_active_goat()
 	if grapple_line.visible:
 		if grapple_miss_time > 0.0:
 			grapple_miss_time = maxf(0.0, grapple_miss_time - delta)
@@ -589,8 +634,7 @@ func _select_next_goat() -> void:
 	if active_goat.status == Goat.Status.ALIVE:
 		active_goat.status = Goat.Status.ACTIVE
 	_show_active_goat_arrow()
-	camera_target = active_goat.global_position
-	_clamp_camera_position()
+	_pan_camera_to_active_goat()
 
 
 func _show_active_goat_arrow() -> void:
@@ -718,7 +762,8 @@ func _handle_camera_input(event: InputEvent) -> void:
 	if mouse_unlocked:
 		_handle_unlocked_pointer(event)
 		return
-	if event is InputEventMouseMotion:
+	if event is InputEventMouseMotion and event.relative != Vector2.ZERO:
+		_note_manual_camera_control()
 		camera_target += event.relative * CAPTURED_MOUSE_SENSITIVITY / arena_camera.zoom
 		_clamp_camera_position()
 		get_viewport().set_input_as_handled()
@@ -742,8 +787,10 @@ func _handle_unlocked_pointer(event: InputEvent) -> void:
 		var motion: Vector2 = event.relative if camera_dragging else event.position - left_press_position
 		if camera_dragging or motion.length() >= CAMERA_DRAG_THRESHOLD:
 			camera_dragging = true
-			camera_target -= motion / arena_camera.zoom
-			_clamp_camera_position()
+			if motion != Vector2.ZERO:
+				_note_manual_camera_control()
+				camera_target -= motion / arena_camera.zoom
+				_clamp_camera_position()
 		get_viewport().set_input_as_handled()
 
 
@@ -764,7 +811,13 @@ func _spawn_dirt(at: Vector2, stamp: Texture2D, launch_velocity := Vector2.ZERO)
 	dirt.max_spread_time = dirt_settle_time
 	dirt.max_diagonal_steps = dirt_diagonal_steps
 	dirt.deposited.connect(_lift_goats_after_deposit)
+	dirt.tree_exited.connect(_on_dirt_drop_exited)
+	active_dirt_drops += 1
 	terrain_view.add_child(dirt)
+
+
+func _on_dirt_drop_exited() -> void:
+	active_dirt_drops -= 1
 
 
 func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
@@ -804,7 +857,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			super(event)
 			get_viewport().set_input_as_handled()
 			return
-		if event.pressed and not is_charging_shot:
+		if event.pressed and not is_charging_shot and _shot_simulation_finished():
 			is_charging_shot = true
 			shot_charge = 0.0
 		elif not event.pressed and is_charging_shot:
@@ -875,6 +928,7 @@ func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
 	var next_level := clampi(camera_zoom_level + amount, 1, camera_max_zoom)
 	if next_level == camera_zoom_level:
 		return
+	_note_manual_camera_control()
 	camera_zoom_level = next_level
 	if camera_zoom_transition and camera_zoom_transition.is_valid():
 		camera_zoom_transition.kill()
@@ -894,6 +948,7 @@ func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
 
 
 func _apply_camera_zoom(zoom_level: float, anchor_offset: Vector2) -> void:
+	last_manual_camera_msec = Time.get_ticks_msec()
 	var previous_zoom := arena_camera.zoom.x
 	# Keep the same world point under the screen anchor across the zoom step.
 	camera_target += anchor_offset / previous_zoom - anchor_offset / zoom_level
@@ -912,11 +967,44 @@ func _update_mouse_mode() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if cursor_visible else Input.MOUSE_MODE_CAPTURED
 
 
+func _pan_camera_to_active_goat() -> void:
+	_cancel_goat_camera_transition()
+	camera_follows_goat = true
+	camera_goat_transition = create_tween()
+	camera_goat_transition.tween_method(_interpolate_goat_camera.bind(camera_target),
+			0.0, 1.0, GOAT_SWITCH_CAMERA_SECONDS) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _interpolate_goat_camera(weight: float, start: Vector2) -> void:
+	_set_camera_target(start.lerp(_camera_target_in_bounds(active_goat.global_position), weight))
+
+
+func _note_manual_camera_control() -> void:
+	last_manual_camera_msec = Time.get_ticks_msec()
+	camera_follows_goat = false
+	_cancel_goat_camera_transition()
+
+
+func _cancel_goat_camera_transition() -> void:
+	if camera_goat_transition and camera_goat_transition.is_valid():
+		camera_goat_transition.kill()
+
+
+func _set_camera_target(target: Vector2) -> void:
+	camera_target = target
+	_clamp_camera_position()
+
+
+func _camera_target_in_bounds(target: Vector2) -> Vector2:
+	var half_view := (get_viewport_rect().size * 0.5 / arena_camera.zoom).min(arena_bounds.size * 0.5)
+	return target.clamp(arena_bounds.position + half_view, arena_bounds.end - half_view)
+
+
 func _clamp_camera_position() -> void:
 	var half_view_pixels := get_viewport_rect().size * 0.5
 	var camera_zoom := arena_camera.zoom
-	var half_view := (half_view_pixels / camera_zoom).min(arena_bounds.size * 0.5)
-	camera_target = camera_target.clamp(arena_bounds.position + half_view, arena_bounds.end - half_view)
+	camera_target = _camera_target_in_bounds(camera_target)
 	# Snap the viewport origin to a render pixel without discarding small mouse movements.
 	var origin_pixels := (camera_target * camera_zoom - half_view_pixels).round()
 	arena_camera.position = (origin_pixels + half_view_pixels) / camera_zoom
@@ -940,7 +1028,7 @@ func _apply_camera_shake(progress: float) -> void:
 
 
 func _update_shot_charge(delta: float) -> void:
-	if not _can_use_ground_controls():
+	if not _can_use_ground_controls() or not _shot_simulation_finished():
 		is_charging_shot = false
 		shot_released = false
 		return
@@ -960,10 +1048,17 @@ func _update_shot_charge(delta: float) -> void:
 	shot_released = false
 
 
+func _shot_simulation_finished() -> bool:
+	return not is_instance_valid(active_missile) and active_dirt_drops == 0
+
+
 func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
+	if not _shot_simulation_finished():
+		return null
 	var missile := super(direction, power)
 	if missile == null:
 		return null
+	active_missile = missile
 	missile.terrain = terrain
 	missile.terrain_pixel_size = terrain_view.scale
 	missile.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale

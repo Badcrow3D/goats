@@ -1,28 +1,21 @@
 StoryBoard
 
++ bounced goat animation
++ how to show HP of goats
 + backgrounds, sky colors, gradient
 + paint and test level2.png
 + author idle loop, play on inactive goat
 + weapons as polygon
-+ bounced goat animation
-+ how to show HP of goats
 + flag or wind speed meter, in addition to leaves
 + targets and goals objects
 
-disable landing animation for short fall
-
-arrow towards offscreen active goat
-camera follow on goat movement
-one shot per turn
-
+laser digging
 falling damage. ends turn
 turn time limit
 retreat time after shot, then turn ends
 multiple goats per team
 sound and music
 bouncing weapon test
-laser digging
-
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
 
