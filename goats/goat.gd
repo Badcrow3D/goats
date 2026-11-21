@@ -16,6 +16,7 @@ const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
 const LEFT_AIM_ORIGIN := Vector2(2, -6)
 
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var _bounce_pose: Sprite2D = $BouncePose
 @onready var _grapple: Sprite2D = $AnimatedSprite2D/Grapple
 @onready var _grapple_aim_pose: Sprite2D = $GrappleAimPose
 @onready var _launcher: Sprite2D = $AnimatedSprite2D/Launcher
@@ -88,6 +89,8 @@ var _showing_aim_pose := false
 
 
 func _ready() -> void:
+	_bounce_pose.material = _sprite.material
+	_bounce_pose.scale = _sprite.scale
 	_apply_palette()
 	_apply_mode_layers()
 	if not Engine.is_editor_hint():
@@ -149,7 +152,27 @@ func show_jump_pose(frame: int) -> void:
 	_sync_equipment_pose()
 
 
+func show_bounce_pose() -> void:
+	var column: int
+	var row: int
+	if _bounce_pose.visible:
+		var previous := _bounce_pose.frame_coords
+		row = previous.y
+		column = randi_range(0, _bounce_pose.hframes - 2)
+		if column >= previous.x:
+			column += 1
+	else:
+		row = 1 if facing_direction == Facing.LEFT else 0
+		column = randi_range(0, _bounce_pose.hframes - 1)
+		hold_current_pose()
+	_bounce_pose.frame_coords = Vector2i(column, row)
+	_bounce_pose.show()
+	_showing_aim_pose = false
+	_apply_mode_layers()
+
+
 func play_landing_pose() -> void:
+	_hide_bounce_pose()
 	_walking = false
 	_sprite.flip_h = facing_direction == Facing.LEFT
 	_sprite.stop()
@@ -158,8 +181,15 @@ func play_landing_pose() -> void:
 
 
 func show_standing_pose() -> void:
+	_hide_bounce_pose()
 	_sprite.play(&"idle")
 	_apply_idle_facing()
+
+
+func _hide_bounce_pose() -> void:
+	if _bounce_pose.visible:
+		_bounce_pose.hide()
+		_apply_mode_layers()
 
 
 func _on_landing_finished() -> void:
@@ -217,7 +247,7 @@ func _apply_mode_layers() -> void:
 	_grapple_aim_pose.visible = show_grapple and _showing_aim_pose
 	_launcher.visible = show_launcher
 	var show_aim_pose := _aim_pose.visible or _grapple_aim_pose.visible
-	_sprite.visible = not show_aim_pose
+	_sprite.visible = not show_aim_pose and not _bounce_pose.visible
 	_aim_cursor.visible = show_aim_pose
 
 

@@ -32,6 +32,7 @@ const CAPTURED_MOUSE_SENSITIVITY := 2.0
 const ZOOM_TRANSITION_SECONDS := 0.24
 const GOAT_SWITCH_CAMERA_SECONDS := 0.3
 const CAMERA_FOLLOW_IDLE_MSEC := 500
+const CAMERA_FOLLOW_MOVE_PIXELS := 100.0
 const ZOOM_PEAK_BLOCK_SIZE := 10.0
 
 class CameraControls extends Node:
@@ -130,6 +131,7 @@ var camera_shake: Tween
 var camera_zoom_transition: Tween
 var camera_goat_transition: Tween
 var last_manual_camera_msec := -CAMERA_FOLLOW_IDLE_MSEC
+var camera_follow_origin: Vector2
 var camera_follows_goat := false
 var active_goat_arrow: Sprite2D
 var arena_bounds: Rect2
@@ -153,6 +155,7 @@ func _ready() -> void:
 	active_goat = goats[0]
 	_load_tuning()
 	_setup_level()
+	camera_follow_origin = terrain_view.to_local(active_goat.global_position)
 	grapple_line.draw.connect(_draw_grapple_line)
 	grapple_line.hide()
 	add_child(grapple_line)
@@ -316,11 +319,12 @@ func _knockback_velocity(at: Vector2, amount: int, hit_direction: Vector2) -> Ve
 
 
 func _knock_back_goat(amount: int, hit_direction: Vector2, target: Goat) -> void:
-	if knockback_speed_per_damage == 0.0:
-		return
-	_reset_fall_state(target)
-	target.velocity = _knockback_velocity(target.position, amount, hit_direction)
+	if not target.is_bouncing:
+		_reset_fall_state(target)
+	if knockback_speed_per_damage != 0.0:
+		target.velocity = _knockback_velocity(target.position, amount, hit_direction)
 	target.is_bouncing = true
+	target.show_bounce_pose()
 	if target == active_goat:
 		is_charging_shot = false
 		shot_released = false
@@ -586,7 +590,9 @@ func _physics_process(delta: float) -> void:
 			_set_camera_target(active_goat.global_position)
 	elif active_goat.global_position != previous_goat_position \
 			and Time.get_ticks_msec() - last_manual_camera_msec >= CAMERA_FOLLOW_IDLE_MSEC:
-		_pan_camera_to_active_goat()
+		var displacement := (terrain_view.to_local(active_goat.global_position) - camera_follow_origin).abs()
+		if displacement.x >= CAMERA_FOLLOW_MOVE_PIXELS or displacement.y >= CAMERA_FOLLOW_MOVE_PIXELS:
+			_pan_camera_to_active_goat()
 	if grapple_line.visible:
 		if grapple_miss_time > 0.0:
 			grapple_miss_time = maxf(0.0, grapple_miss_time - delta)
@@ -949,6 +955,8 @@ func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
 
 func _apply_camera_zoom(zoom_level: float, anchor_offset: Vector2) -> void:
 	last_manual_camera_msec = Time.get_ticks_msec()
+	if not camera_follows_goat:
+		camera_follow_origin = terrain_view.to_local(active_goat.global_position)
 	var previous_zoom := arena_camera.zoom.x
 	# Keep the same world point under the screen anchor across the zoom step.
 	camera_target += anchor_offset / previous_zoom - anchor_offset / zoom_level
@@ -982,6 +990,7 @@ func _interpolate_goat_camera(weight: float, start: Vector2) -> void:
 
 func _note_manual_camera_control() -> void:
 	last_manual_camera_msec = Time.get_ticks_msec()
+	camera_follow_origin = terrain_view.to_local(active_goat.global_position)
 	camera_follows_goat = false
 	_cancel_goat_camera_transition()
 
@@ -1164,9 +1173,18 @@ func _play_missile_explosion(hit_position: Vector2) -> void:
 
 
 func _spawn_explosion_smoke(center: Vector2) -> void:
-	for particle in range(randi_range(6, 10)):
+	_spawn_smoke_burst(center, randi_range(6, 10), SMOKE_SPAWN_RADIUS)
+
+
+func _on_goat_bounced(target: Goat) -> void:
+	var impact_position := target.position + Vector2(0, goat_body.end.y)
+	_spawn_smoke_burst(impact_position, randi_range(1, 2), 0.0)
+
+
+func _spawn_smoke_burst(center: Vector2, count: int, radius: float) -> void:
+	for particle in range(count):
 		var direction := Vector2.from_angle(randf() * TAU)
-		var spawn_position := center + direction * (sqrt(randf()) * SMOKE_SPAWN_RADIUS)
+		var spawn_position := center + direction * (sqrt(randf()) * radius)
 		var first_frame := randi_range(0, SMOKE_FRAME_COUNT - 1)
 		var velocity := direction * randf_range(6.0, 120.0)
 		_spawn_smoke(spawn_position, first_frame, SMOKE_FRAME_SECONDS, velocity)

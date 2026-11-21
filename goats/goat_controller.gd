@@ -82,7 +82,7 @@ func _step_goat(target: GoatState, delta: float, direction: float) -> void:
 		target.landing_pause_pending = false
 
 	if target.is_bouncing:
-		target.show_standing_pose()
+		return
 	elif takes_input and is_charging_jump:
 		var charge_frame := mini(int(jump_charge_elapsed / JUMP_CHARGE_FRAME_SECONDS), 2)
 		target.show_jump_pose(charge_frame)
@@ -137,16 +137,23 @@ func _handle_ground_impact(target: GoatState, impact_velocity: Vector2, normal :
 		if not target.walked_off_edge or target.position.y - target.last_ground_position.y >= fall_animation_distance:
 			target.play_landing_pose()
 		return
-	target.show_standing_pose()
 	target.landing_pause_pending = true
 	var rebound := _ground_rebound(impact_velocity, normal)
 	if rebound.y < -bounce_stop_speed:
 		target.velocity = rebound
+		target.show_bounce_pose()
+		_on_goat_bounced(target)
 	else:
 		target.velocity = Vector2.ZERO
 		target.is_bouncing = false
 		target.last_ground_position = target.position
 		target.has_ground_position = true
+		target.mode = GoatState.Mode.GOAT_ONLY
+		target.play_landing_pose()
+
+
+func _on_goat_bounced(_target: GoatState) -> void:
+	pass
 
 
 func _ground_rebound(impact_velocity: Vector2, normal: Vector2) -> Vector2:

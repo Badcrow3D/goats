@@ -10,6 +10,7 @@ StoryBoard
 + targets and goals objects
 
 laser digging
+
 falling damage. ends turn
 turn time limit
 retreat time after shot, then turn ends

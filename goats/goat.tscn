@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://ubpgij5mvrq4" path="res://sprites/grapple-48x48.png" id="16_grapple_aim"]
 [ext_resource type="Texture2D" path="res://sprites/goatjump-24x24.png" id="17_jump"]
 [ext_resource type="Shader" path="res://goats/goat_palette.gdshader" id="18_palette"]
+[ext_resource type="Texture2D" path="res://sprites/bounce-24x24.png" id="19_bounce"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_goat_palette"]
 resource_local_to_scene = true
@@ -223,6 +224,12 @@ sprite_frames = SubResource("SpriteFrames_goat")
 animation = &"walk_right"
 frame = 4
 frame_progress = 0.74607253
+
+[node name="BouncePose" type="Sprite2D" parent="."]
+visible = false
+texture = ExtResource("19_bounce")
+hframes = 24
+vframes = 2
 
 [node name="Grapple" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
 visible = false
