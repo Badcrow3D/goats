@@ -1,21 +1,21 @@
 StoryBoard
 
-+ bounced goat animation
++ author idle loop, play on inactive goat
 + how to show HP of goats
 + backgrounds, sky colors, gradient
 + paint and test level2.png
-+ author idle loop, play on inactive goat
 + weapons as polygon
 + flag or wind speed meter, in addition to leaves
 + targets and goals objects
 
 laser digging
 
-falling damage. ends turn
+sound and music
+
+falling damage, ends turn
 turn time limit
 retreat time after shot, then turn ends
 multiple goats per team
-sound and music
 bouncing weapon test
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
@@ -30,4 +30,6 @@ cliffs and dessert sand, cactus, rocks
 tropical and beach, palm trees, rocks
 alien, swamp, jungle, city, castle
 holiday themes level and outfits
+
+4k testing ideas
 
