@@ -2,6 +2,7 @@ StoryBoard
 
 mines
 exploding barrels
+minimum zoom 1 or 0.5
 
 + backgrounds, sky colors, gradient
 + paint and test level2.png
@@ -28,6 +29,8 @@ what for boxes and mushrooms
 
 Walk, grapple E tool, Dirt launcher, Force field, Shield, Turret 
 Missile Grenade Rockets Cannon Laser Homing Airstrike
+ACDEFGHLMRTW
+-bijknopqsuvxyz
 
 trees background
 mountains background
