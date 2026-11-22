@@ -2,6 +2,7 @@ StoryBoard
 
 mines
 exploding barrels
+health crates
 minimum zoom 1 or 0.5
 
 + backgrounds, sky colors, gradient
@@ -42,3 +43,16 @@ alien, swamp, jungle, city, castle
 holiday themes level and outfits
 
 4k testing ideas
+
+level schema
+1920 x 1080 RGBa
+
+bottom left 4 pixels:
+[1] [2] [3] [4]
+
+1 - background
+2 - scorched
+3 - dirt
+4 - grass
+
+
