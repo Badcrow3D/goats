@@ -68,7 +68,7 @@ const LEVELS_DIR := "res://levels/"
 const DEFAULT_LEVEL := "level1.png"
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
-const TUNING_FLAGS := ["wind_random", "enable_tracer"]
+const TUNING_FLAGS := ["wind_random"]
 const TUNING_FLOORS := {
 	"jump_minimum_x": 1.0,
 	"jump_minimum": 1.0,
@@ -142,7 +142,6 @@ var player_spawn_x: int
 var wind_scale := 4.0
 var wind_speed := 0
 var wind_random := true
-var enable_tracer := true
 var cloud_count := 15
 var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
@@ -1072,13 +1071,7 @@ func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
 	missile.exploded_at.connect(_apply_missile_blast.bind(missile.blast_damage))
 	missile.impacted.connect(_roll_wind)
 	missile.trail_sampled.connect(_spawn_trail_smoke)
-	missile.flight_segment_traveled.connect(_draw_missile_trace)
 	return missile
-
-
-func _draw_missile_trace(from: Vector2, to: Vector2) -> void:
-	if enable_tracer:
-		terrain_view.draw_flight_trace(from, to)
 
 
 func _apply_missile_blast(

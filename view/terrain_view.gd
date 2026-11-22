@@ -4,37 +4,14 @@ extends Sprite2D
 ## All art handling lives here, so splitting the art into cells later
 ## only changes this file (the sim never sees it).
 
-const FLIGHT_TRACE_COLOR := Color("#ff3f51")
-
 var terrain: Terrain
 var image: Image          # RGBA8 artwork; air pixels are transparent
-var flight_image: Image
-var flight_overlay: Sprite2D
 
 func setup(p_terrain: Terrain, art: Image) -> void:
 	terrain = p_terrain
 	image = art
 	centered = false
 	texture = ImageTexture.create_from_image(image)
-	if flight_overlay == null:
-		flight_overlay = Sprite2D.new()
-		flight_overlay.centered = false
-		flight_overlay.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		add_child(flight_overlay)
-	flight_image = Image.create_empty(image.get_width(), image.get_height(), false, Image.FORMAT_RGBA8)
-	flight_overlay.texture = ImageTexture.create_from_image(flight_image)
-
-
-func draw_flight_trace(from: Vector2, to: Vector2) -> void:
-	var start := Vector2i(to_local(from).floor())
-	var finish := Vector2i(to_local(to).floor())
-	var changed := false
-	for pixel in Geometry2D.bresenham_line(start, finish):
-		if terrain.in_bounds(pixel.x, pixel.y) and flight_image.get_pixelv(pixel).a == 0.0:
-			flight_image.set_pixelv(pixel, FLIGHT_TRACE_COLOR)
-			changed = true
-	if changed:
-		(flight_overlay.texture as ImageTexture).update(flight_image)
 
 ## Recolors surviving terrain in a round stamp centered between pixels.
 ## The next carve call uploads both changes together.
