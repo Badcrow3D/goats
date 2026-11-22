@@ -183,6 +183,6 @@ theme_override_styles/focus = SubResource("StyleBox_console_input_focus")
 keep_editing_on_text_submit = true
 
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
-position = Vector2(1400, 614)
+position = Vector2(1338, 610)
 offset = Vector2(60, 0)
 zoom = Vector2(2, 2)
