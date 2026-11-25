@@ -198,4 +198,3 @@ keep_editing_on_text_submit = true
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
 position = Vector2(1338, 610)
 offset = Vector2(60, 0)
-zoom = Vector2(1, 1)

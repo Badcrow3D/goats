@@ -3,7 +3,6 @@ extends Node2D
 const GoatState := preload("res://goats/goat.gd")
 const MISSILE := preload("res://goats/missile.tscn")
 const Missile := preload("res://goats/missile.gd")
-const ACTION_KEY := KEY_SPACE
 const JUMP_CHARGE_FRAME_SECONDS := 0.08
 
 @export var walk_speed := 32.0
@@ -196,26 +195,28 @@ func _mode_allows_jump() -> bool:
 	return active_goat.mode != GoatState.Mode.LAUNCHER
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if not _mode_allows_jump() or event.physical_keycode != ACTION_KEY or event.echo:
-		return
-	if event.pressed and _can_control_movement() and not is_charging_jump:
-		is_charging_jump = true
-		jump_released = false
-		jump_charge = 0.0
-		jump_charge_elapsed = 0.0
-	elif not event.pressed and is_charging_jump and not jump_released:
-		jump_released = true
-
-
 func _unhandled_input(event: InputEvent) -> void:
+	if _mode_allows_jump() and event.is_action(&"charge_jump"):
+		_handle_jump_input(event)
+		return
 	if active_goat.is_bouncing or active_goat.mode != GoatState.Mode.LAUNCHER:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event.is_action_pressed(&"fire_at_pointer"):
 		var direction := active_goat.direction_to_target(get_global_mouse_position())
 		if direction == Vector2.ZERO:
 			direction = Vector2(facing, 0)
 		_fire_missile(direction)
+
+
+func _handle_jump_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"charge_jump") and _can_control_movement() and not is_charging_jump:
+		is_charging_jump = true
+		jump_released = false
+		jump_charge = 0.0
+		jump_charge_elapsed = 0.0
+	elif event.is_action_released(&"charge_jump") and not Input.is_action_pressed(&"charge_jump") \
+			and is_charging_jump and not jump_released:
+		jump_released = true
 
 
 func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:

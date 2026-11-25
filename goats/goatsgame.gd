@@ -122,7 +122,7 @@ var shot_released := false
 var active_missile: Missile
 var active_dirt_drops := 0
 var mouse_unlocked := true
-var left_press_position := Vector2.INF
+var pointer_press_position := Vector2.INF
 var camera_dragging := false
 var camera_shake: Tween
 var camera_zoom_transition: Tween
@@ -581,7 +581,7 @@ func _save_tuning() -> Error:
 func _walk_direction() -> float:
 	if not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
-	return float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
+	return Input.get_axis(&"walk_left", &"walk_right")
 
 
 func _process(_delta: float) -> void:
@@ -642,7 +642,7 @@ func _physics_process(delta: float) -> void:
 		and is_zero_approx(direction)
 	)
 	if can_aim and not console.visible:
-		var elevation := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
+		var elevation := Input.get_axis(&"aim_down", &"aim_up")
 		active_goat.aim_degrees = clampf(active_goat.aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
 	active_goat.update_aim_pose(can_aim, active_goat.aim_degrees, cursor_distance)
@@ -709,46 +709,44 @@ func _on_goat_mode_changed(target: Goat) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and not _can_use_ground_controls():
-		get_viewport().set_input_as_handled()
+	if not _can_use_ground_controls():
 		return
-	if event is InputEventKey and event.physical_keycode == KEY_F2:
-		if event.pressed and not event.echo:
+	if event.is_action(&"reload_level"):
+		if event.is_action_pressed(&"reload_level"):
 			_reload_level.call_deferred()
 		get_viewport().set_input_as_handled()
 		return
-	if event is InputEventKey and event.physical_keycode == KEY_QUOTELEFT:
-		if event.pressed and not event.echo:
+	if event.is_action(&"toggle_console"):
+		if event.is_action_pressed(&"toggle_console"):
 			_toggle_console()
 		get_viewport().set_input_as_handled()
 		return
 	if console.visible:
-		if event is InputEventKey and event.pressed:
-			if event.physical_keycode == KEY_ESCAPE:
-				_toggle_console()
-				get_viewport().set_input_as_handled()
-			elif event.keycode == KEY_UP and console.recall_previous_command():
-				get_viewport().set_input_as_handled()
+		if event.is_action_pressed(&"cancel"):
+			_toggle_console()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed(&"console_history_previous", true) and console.recall_previous_command():
+			get_viewport().set_input_as_handled()
 		return
 
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_TAB:
-			_select_next_goat()
-			get_viewport().set_input_as_handled()
-			return
-		if event.physical_keycode == KEY_SHIFT and event.location == KEY_LOCATION_LEFT:
-			active_goat.mode = Goat.Mode.GOAT_ONLY if active_goat.mode == Goat.Mode.LAUNCHER else Goat.Mode.LAUNCHER
-			get_viewport().set_input_as_handled()
-			return
-		if (event.physical_keycode == KEY_A or event.physical_keycode == KEY_D) \
-				and _can_control_movement() and not is_charging_jump:
-			var direction := -1.0 if event.physical_keycode == KEY_A else 1.0
-			if active_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
-				walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
-			else:
-				walk_start_msec = 0
-			facing = direction
-	if event is InputEventKey and event.physical_keycode == KEY_ESCAPE and event.pressed and not event.echo:
+	if event.is_action_pressed(&"select_next_goat"):
+		_select_next_goat()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed(&"toggle_launcher"):
+		active_goat.mode = Goat.Mode.GOAT_ONLY if active_goat.mode == Goat.Mode.LAUNCHER else Goat.Mode.LAUNCHER
+		get_viewport().set_input_as_handled()
+		return
+	var walk_left := event.is_action_pressed(&"walk_left")
+	if (walk_left or event.is_action_pressed(&"walk_right")) \
+			and _can_control_movement() and not is_charging_jump:
+		var direction := -1.0 if walk_left else 1.0
+		if active_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
+			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
+		else:
+			walk_start_msec = 0
+		facing = direction
+	if event.is_action_pressed(&"cancel"):
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
 
@@ -756,42 +754,40 @@ func _input(event: InputEvent) -> void:
 func _handle_camera_input(event: InputEvent) -> void:
 	if not _can_use_ground_controls() and not (
 			event is InputEventMouseMotion
-			or (event is InputEventMouseButton
-				and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT])
+			or event.is_action(&"arena_pointer")
+			or event.is_action(&"toggle_mouse_capture")
 	):
 		get_viewport().set_input_as_handled()
 		return
 	var tree := get_tree()
-	if event is InputEventKey and event.physical_keycode == KEY_F1:
-		if event.pressed and not event.echo:
+	if event.is_action(&"toggle_pause"):
+		if event.is_action_pressed(&"toggle_pause"):
 			tree.paused = not tree.paused
-			if not tree.paused and not Input.is_physical_key_pressed(ACTION_KEY):
+			if not tree.paused:
 				# A release during pause should cancel the charge instead of firing it.
-				if not jump_released:
+				if not jump_released and not Input.is_action_pressed(&"charge_jump"):
 					is_charging_jump = false
-				if not shot_released:
+				if not shot_released and not Input.is_action_pressed(&"charge_weapon"):
 					is_charging_shot = false
 			_update_mouse_mode()
 		get_viewport().set_input_as_handled()
 		return
 	if console.visible and not tree.paused:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if event.is_action_pressed(&"toggle_mouse_capture"):
 		mouse_unlocked = not mouse_unlocked
 		_update_mouse_mode()
 		get_viewport().set_input_as_handled()
 		return
 	# Handle zoom in both cursor modes before routing pointer input.
-	if event is InputEventMouseButton and event.pressed:
-		match event.button_index:
-			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
-				var anchor_offset := Vector2.ZERO
-				if mouse_unlocked:
-					anchor_offset = event.position - get_viewport_rect().get_center()
-				var zoom_step := 1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1
-				_zoom_camera(zoom_step, anchor_offset)
-				get_viewport().set_input_as_handled()
-				return
+	var zoom_in := event.is_action_pressed(&"camera_zoom_in")
+	if zoom_in or event.is_action_pressed(&"camera_zoom_out"):
+		var anchor_offset := Vector2.ZERO
+		if mouse_unlocked:
+			anchor_offset = _pointer_position(event) - get_viewport_rect().get_center()
+		_zoom_camera(1 if zoom_in else -1, anchor_offset)
+		get_viewport().set_input_as_handled()
+		return
 	if mouse_unlocked:
 		_handle_unlocked_pointer(event)
 		return
@@ -802,22 +798,31 @@ func _handle_camera_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _pointer_position(event: InputEvent) -> Vector2:
+	if event is InputEventMouse:
+		return event.position
+	return get_viewport().get_mouse_position()
+
+
 func _handle_unlocked_pointer(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			left_press_position = event.position
-			camera_dragging = false
-		else:
-			if not camera_dragging and event.position.distance_to(left_press_position) < CAMERA_DRAG_THRESHOLD \
-					and not get_tree().paused:
-				var at: Vector2 = terrain_view.get_global_transform_with_canvas().affine_inverse() * event.position
-				_drop_dirt(at)
-			left_press_position = Vector2.INF
+	if event.is_action_pressed(&"arena_pointer"):
+		if not pointer_press_position.is_finite():
+			pointer_press_position = _pointer_position(event)
 			camera_dragging = false
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 \
-			and left_press_position.is_finite():
-		var motion: Vector2 = event.relative if camera_dragging else event.position - left_press_position
+	elif event.is_action_released(&"arena_pointer"):
+		if not Input.is_action_pressed(&"arena_pointer"):
+			var pointer := _pointer_position(event)
+			if pointer_press_position.is_finite() and not camera_dragging \
+					and pointer.distance_to(pointer_press_position) < CAMERA_DRAG_THRESHOLD and not get_tree().paused:
+				var at: Vector2 = terrain_view.get_global_transform_with_canvas().affine_inverse() * pointer
+				_drop_dirt(at)
+			pointer_press_position = Vector2.INF
+			camera_dragging = false
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and pointer_press_position.is_finite() \
+			and Input.is_action_pressed(&"arena_pointer"):
+		var motion: Vector2 = event.relative if camera_dragging else event.position - pointer_press_position
 		if camera_dragging or motion.length() >= CAMERA_DRAG_THRESHOLD:
 			camera_dragging = true
 			if motion != Vector2.ZERO:
@@ -876,28 +881,23 @@ func _toggle_console() -> void:
 	_update_mouse_mode()
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if console.visible or not _can_use_ground_controls() or event.echo:
+func _unhandled_input(event: InputEvent) -> void:
+	if console.visible or not _can_use_ground_controls():
 		return
-	if event.physical_keycode == KEY_E and active_goat.mode == Goat.Mode.GRAPPLE:
-		if event.pressed:
+	if event.is_action(&"fire_grapple") and active_goat.mode == Goat.Mode.GRAPPLE:
+		if event.is_action_pressed(&"fire_grapple"):
 			_fire_grapple()
 		get_viewport().set_input_as_handled()
-	elif event.physical_keycode == ACTION_KEY:
-		if _mode_allows_jump():
-			super(event)
-			get_viewport().set_input_as_handled()
-			return
-		if event.pressed and not is_charging_shot and _shot_simulation_finished():
+	elif event.is_action(&"charge_jump") and _mode_allows_jump():
+		super(event)
+		get_viewport().set_input_as_handled()
+	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.LAUNCHER:
+		if event.is_action_pressed(&"charge_weapon") and not is_charging_shot and _shot_simulation_finished():
 			is_charging_shot = true
 			shot_charge = 0.0
-		elif not event.pressed and is_charging_shot:
+		elif event.is_action_released(&"charge_weapon") and not Input.is_action_pressed(&"charge_weapon") and is_charging_shot:
 			shot_released = true
 		get_viewport().set_input_as_handled()
-
-
-func _unhandled_input(_event: InputEvent) -> void:
-	pass
 
 
 func _fire_grapple() -> void:
@@ -995,7 +995,7 @@ func _set_zoom_block_size(block_size: float) -> void:
 
 
 func _update_mouse_mode() -> void:
-	left_press_position = Vector2.INF
+	pointer_press_position = Vector2.INF
 	camera_dragging = false
 	var cursor_visible := mouse_unlocked or (console.visible and not get_tree().paused)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if cursor_visible else Input.MOUSE_MODE_CAPTURED

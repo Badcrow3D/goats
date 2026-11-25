@@ -8,14 +8,16 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 
 ## Controls
 
+To rebind a control or add another key, mouse button, or controller input for the same action, open **Project > Project Settings > Input Map** in Godot. The console's text editing and submission use Godot's built-in UI actions.
+
 - **A / D** to walk.
 - **Tab** selects the next goat and centers the camera on it.
-- **Left Shift** switches the active goat between goat only (0) and launcher (2).
-- **Action (Space)** charges a jump in Goat Only or Grapple mode and charges a shot in Launcher mode. Release to jump or fire.
-- Goats keep their momentum in the air. A drop of 48 world pixels below the last grounded position causes a bounce, and controls return once the goat settles. Adjust the drop distance in the console with `set fall_control_loss_distance 48`.
+- **Left Shift** switches the active goat between Goat Only and Launcher.
+- Hold **Enter** to charge a jump in Goat Only mode. Release to jump.
+- Hold **Space** to charge a shot in Launcher mode. Release to fire.
+- Goats keep their momentum in the air. By default, a drop of 64 world pixels below the last grounded position disables controls until the goat settles. A hard landing can cause a bounce. Use `set fall_control_loss_distance <pixels>` to change the threshold.
 - When a goat walks off an edge, it holds its current frame for the first 24 world pixels of the drop. Adjust the threshold in the console with `set fall_animation_distance 24`.
-- In Grapple or Launcher mode, use **W / S** to aim while idle.
-- In Grapple mode, press **E** to shoot a line up to 500 world pixels. It stays on a terrain hit and disappears after 0.2 seconds on a miss.
+- In Launcher mode, use **W / S** to aim while idle.
 - The cursor starts visible. **Right-click** to capture the mouse so it pans the camera, and **right-click again** to release it. **Scroll** through 0.5×, 1×, 2×, and 3× zoom around the visible cursor. With the mouse captured, zooming uses the center of the view.
 - With the cursor visible, **left-click** in open air to drop dirt or **left-drag** to pan. Dirt drops are disabled while paused.
 - **F1** to pause or resume. Camera controls and mouse capture still work while paused.
@@ -26,7 +28,7 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 
 - `vars` lists the current tuning values and level filename.
 - `set <name> <value>` changes a tuning value.
-- `set leaf_count <count>` sets the total number of leaves across all three layers. Use a whole number from 0 to 60. The default is 30.
+- `set leaf_count <count>` sets the total number of leaves across all three layers. Use a whole number from 0 to 300. The default is 30.
 - `load <filename>.png` loads a PNG from `levels/` and restarts the arena.
 - `reset` reloads the current level.
 
