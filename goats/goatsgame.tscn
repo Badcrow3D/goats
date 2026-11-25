@@ -4,7 +4,6 @@
 [ext_resource type="FontFile" uid="uid://cn2e5b80cewnv" path="res://assets/pixelfont2.png" id="5_ui_font"]
 [ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats/wind_leaves.gd" id="10_wind_leaves"]
 [ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
-[ext_resource type="FontFile" uid="uid://8w263iwhuhew" path="res://assets/pixelfont1.png" id="11_xyno1"]
 [ext_resource type="Texture2D" uid="uid://y4htb8mkow8j" path="res://levels/level1.png" id="12_level"]
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
@@ -71,7 +70,7 @@ position = Vector2(1678, 741)
 team_id = 1
 goat_name = "Third Goat"
 mode = 0
-team_color = Color(1, 0.99607843, 0.3254902, 1)
+team_color = Color(1, 0.3529412, 0.8156863, 1)
 
 [node name="Goat4" parent="Goats" unique_id=434005598 instance=ExtResource("16_goat")]
 position = Vector2(1894, 1201)
@@ -94,7 +93,7 @@ position = Vector2(583, 1087)
 team_id = 1
 goat_name = "Six"
 mode = 0
-team_color = Color(0.47843137, 0.2627451, 1, 1)
+team_color = Color(0.5411765, 0.2784314, 1, 1)
 
 [node name="Sky" type="Polygon2D" parent="." unique_id=401434795]
 z_index = -2
@@ -156,7 +155,7 @@ texture_filter = 1
 scale = Vector2(3, 3)
 texture = ExtResource("18_offscreen_arrow")
 
-[node name="Nameplates" type="CanvasLayer" parent="."]
+[node name="Nameplates" type="CanvasLayer" parent="." unique_id=57894530]
 process_mode = 3
 process_priority = 1
 layer = 2
@@ -199,14 +198,4 @@ keep_editing_on_text_submit = true
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
 position = Vector2(1338, 610)
 offset = Vector2(60, 0)
-zoom = Vector2(2, 2)
-
-[node name="Label" type="Label" parent="." unique_id=949281742]
-offset_left = 1317.0
-offset_top = 575.0
-offset_right = 1328.0
-offset_bottom = 585.0
-theme_override_colors/font_color = Color(1, 1, 0, 1)
-theme_override_fonts/font = ExtResource("11_xyno1")
-theme_override_font_sizes/font_size = 10
-text = "25"
+zoom = Vector2(1, 1)

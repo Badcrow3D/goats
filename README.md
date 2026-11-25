@@ -16,7 +16,7 @@ Open this project in Godot 4.7 and press F5 to run the arena. To run the same sc
 - When a goat walks off an edge, it holds its current frame for the first 24 world pixels of the drop. Adjust the threshold in the console with `set fall_animation_distance 24`.
 - In Grapple or Launcher mode, use **W / S** to aim while idle.
 - In Grapple mode, press **E** to shoot a line up to 500 world pixels. It stays on a terrain hit and disappears after 0.2 seconds on a miss.
-- The cursor starts visible. **Right-click** to capture the mouse so it pans the camera, and **right-click again** to release it. **Scroll** to zoom in or out around the visible cursor. With the mouse captured, zooming uses the center of the view.
+- The cursor starts visible. **Right-click** to capture the mouse so it pans the camera, and **right-click again** to release it. **Scroll** through 0.5×, 1×, 2×, and 3× zoom around the visible cursor. With the mouse captured, zooming uses the center of the view.
 - With the cursor visible, **left-click** in open air to drop dirt or **left-drag** to pan. Dirt drops are disabled while paused.
 - **F1** to pause or resume. Camera controls and mouse capture still work while paused.
 - **F2** to reset the level, just like the console's `reset` command.

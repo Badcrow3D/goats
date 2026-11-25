@@ -19,6 +19,7 @@ var active_goat: GoatState:
 		if active_goat == value:
 			return
 		if is_instance_valid(active_goat):
+			active_goat.mode = GoatState.Mode.GOAT_ONLY
 			active_goat.set_nameplate_visible(true)
 		active_goat = value
 		if is_instance_valid(active_goat):

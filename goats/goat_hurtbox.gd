@@ -11,7 +11,8 @@ func apply_damage(amount: int, hit_direction := Vector2.ZERO) -> void:
 
 ## Call from a physics tick with a world-space radius and peak damage.
 static func apply_area_damage(
-	context: Node2D, center: Vector2, radius: float, peak_damage: int, direct_hit: Area2D = null
+	context: Node2D, center: Vector2, radius: float, peak_damage: int, direct_hit: Area2D = null,
+	full_damage_fraction: float = 0.0
 ) -> void:
 	var hurtbox_count := context.get_tree().get_node_count_in_group(&"goat_hurtboxes")
 	if radius <= 0.0 or peak_damage <= 0 or hurtbox_count == 0:
@@ -30,9 +31,9 @@ static func apply_area_damage(
 		if hurtbox == direct_hit:
 			continue
 		var shape_node: CollisionShape2D = hurtbox.collider
-		# Measure to the nearest point of the goat's hurtbox, so contact deals full damage.
+		# Measure to the nearest point of the goat's hurtbox.
 		var bounds := shape_node.shape.get_rect()
 		var nearest := shape_node.to_local(center).clamp(bounds.position, bounds.end)
 		var distance := center.distance_to(shape_node.to_global(nearest))
-		var falloff := clampf(1.0 - distance / radius, 0.0, 1.0)
+		var falloff := clampf((1.0 - distance / radius) / (1.0 - full_damage_fraction), 0.0, 1.0)
 		hurtbox.apply_damage(roundi(peak_damage * falloff))

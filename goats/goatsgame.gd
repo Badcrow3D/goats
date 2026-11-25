@@ -32,6 +32,7 @@ const OFFSCREEN_ARROW_MARGIN := 40.0
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
 const ZOOM_TRANSITION_SECONDS := 0.25
+const CAMERA_MIN_ZOOM := 0.5
 const GOAT_SWITCH_CAMERA_SECONDS := 0.3
 const CAMERA_FOLLOW_IDLE_MSEC := 500
 const CAMERA_FOLLOW_MOVE_PIXELS := 50.0
@@ -88,7 +89,7 @@ const TUNING_FLOORS := {
 
 @export var aim_speed := 90.0
 @export var cursor_distance := 40.0
-@export var knockback_speed_per_damage := 4.0
+@export var knockback_speed_per_damage := 1.0
 @export_range(1, 8, 1) var camera_max_zoom := 2
 
 @onready var goat_container: Node2D = $Goats
@@ -96,7 +97,7 @@ const TUNING_FLOORS := {
 @onready var offscreen_arrow: Sprite2D = $GoatIndicator/Arrow
 @onready var zoom_pixelation: ColorRect = $ZoomEffect/Pixelation
 @onready var zoom_material: ShaderMaterial = zoom_pixelation.material
-@onready var camera_zoom_level := roundi(arena_camera.zoom.x)
+@onready var camera_zoom_level := arena_camera.zoom.x
 @onready var terrain_view: TerrainView = $Terrain
 @onready var cloud_layers := [$Sky/CloudsFar, $Sky/CloudsMiddle, $Sky/CloudsNear]
 @onready var leaf_layers := [$Sky/LeavesFar, $Sky/LeavesMiddle, $Sky/LeavesNear]
@@ -161,6 +162,8 @@ func _ready() -> void:
 	add_child(grapple_line)
 	var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 	for target in goats:
+		if target != active_goat:
+			target.mode = Goat.Mode.GOAT_ONLY
 		target.damaged.connect(_knock_back_goat.bind(target))
 		target.mode_changed.connect(_on_goat_mode_changed.bind(target))
 		if target.team_id == player_team.id:
@@ -953,7 +956,8 @@ func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
 
 
 func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
-	var next_level := clampi(camera_zoom_level + amount, 1, camera_max_zoom)
+	# The half-scale stop sits below the whole-number zoom levels.
+	var next_level := clampf(floorf(camera_zoom_level) + amount, CAMERA_MIN_ZOOM, camera_max_zoom)
 	if next_level == camera_zoom_level:
 		return
 	_note_manual_camera_control()
@@ -965,7 +969,7 @@ func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
 	zoom_pixelation.show()
 	camera_zoom_transition = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	camera_zoom_transition.tween_method(_apply_camera_zoom.bind(anchor_offset),
-			arena_camera.zoom.x, float(camera_zoom_level), ZOOM_TRANSITION_SECONDS) \
+			arena_camera.zoom.x, camera_zoom_level, ZOOM_TRANSITION_SECONDS) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	camera_zoom_transition.parallel().tween_method(_set_zoom_block_size,
 			block_size, ZOOM_PEAK_BLOCK_SIZE, ZOOM_TRANSITION_SECONDS * 0.5)
@@ -1110,7 +1114,7 @@ func _apply_missile_blast(
 	var center := terrain_view.to_global(Vector2(pixel))
 	if direct_hit:
 		direct_hit.apply_damage(peak_damage, travel_direction)
-	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage, direct_hit)
+	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage, direct_hit, 0.1)
 	var surface_normal := _estimate_impact_normal(pixel, travel_direction)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
