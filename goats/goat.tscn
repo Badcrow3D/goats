@@ -8,57 +8,23 @@
 [ext_resource type="Texture2D" uid="uid://cg7vpw67vt7a5" path="res://sprites/chargejump26x8.png" id="14_jump_charge"]
 [ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
 [ext_resource type="Texture2D" uid="uid://ubpgij5mvrq4" path="res://sprites/grapple-48x48.png" id="16_grapple_aim"]
-[ext_resource type="Texture2D" path="res://sprites/goatjump-24x24.png" id="17_jump"]
-[ext_resource type="Shader" path="res://goats/goat_palette.gdshader" id="18_palette"]
-[ext_resource type="Texture2D" path="res://sprites/bounce-24x24.png" id="19_bounce"]
+[ext_resource type="Texture2D" uid="uid://c58haxakw4aio" path="res://sprites/goatjump-24x24.png" id="17_jump"]
+[ext_resource type="Shader" uid="uid://bmciwo1vwsfxd" path="res://goats/goat_palette.gdshader" id="18_palette"]
+[ext_resource type="Texture2D" uid="uid://bo37ia6axnsam" path="res://sprites/bounce-24x24.png" id="19_bounce"]
+[ext_resource type="PackedScene" path="res://goats/nameplate.tscn" id="20_nameplate"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_goat_palette"]
 resource_local_to_scene = true
 shader = ExtResource("18_palette")
+shader_parameter/highlight_color = Color(1, 1, 1, 1)
+shader_parameter/light_color = Color(0.7529412, 0.7529412, 0.7529412, 1)
+shader_parameter/midtone_color = Color(0.69411767, 0.8039216, 0.80784315, 1)
+shader_parameter/shadow_color = Color(0.4117647, 0.41568628, 0.41568628, 1)
+shader_parameter/team_color = Color(1, 0.24705882, 0.31764707, 1)
 
 [sub_resource type="AtlasTexture" id="Atlas_idle"]
 atlas = ExtResource("7_layers")
 region = Rect2(0, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_5"]
-atlas = ExtResource("7_layers")
-region = Rect2(120, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_6"]
-atlas = ExtResource("7_layers")
-region = Rect2(144, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_7"]
-atlas = ExtResource("7_layers")
-region = Rect2(168, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_8"]
-atlas = ExtResource("7_layers")
-region = Rect2(192, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_9"]
-atlas = ExtResource("7_layers")
-region = Rect2(216, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_0"]
-atlas = ExtResource("7_layers")
-region = Rect2(0, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
-atlas = ExtResource("7_layers")
-region = Rect2(24, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
-atlas = ExtResource("7_layers")
-region = Rect2(48, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_3"]
-atlas = ExtResource("7_layers")
-region = Rect2(72, 48, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_4"]
-atlas = ExtResource("7_layers")
-region = Rect2(96, 48, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_jump_1"]
 atlas = ExtResource("17_jump")
@@ -108,6 +74,46 @@ region = Rect2(240, 0, 24, 24)
 atlas = ExtResource("17_jump")
 region = Rect2(264, 0, 24, 24)
 
+[sub_resource type="AtlasTexture" id="Atlas_walk_5"]
+atlas = ExtResource("7_layers")
+region = Rect2(120, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_6"]
+atlas = ExtResource("7_layers")
+region = Rect2(144, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_7"]
+atlas = ExtResource("7_layers")
+region = Rect2(168, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_8"]
+atlas = ExtResource("7_layers")
+region = Rect2(192, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_9"]
+atlas = ExtResource("7_layers")
+region = Rect2(216, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_0"]
+atlas = ExtResource("7_layers")
+region = Rect2(0, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_1"]
+atlas = ExtResource("7_layers")
+region = Rect2(24, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_2"]
+atlas = ExtResource("7_layers")
+region = Rect2(48, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_3"]
+atlas = ExtResource("7_layers")
+region = Rect2(72, 48, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_4"]
+atlas = ExtResource("7_layers")
+region = Rect2(96, 48, 24, 24)
+
 [sub_resource type="SpriteFrames" id="SpriteFrames_goat"]
 animations = [{
 "frames": [{
@@ -117,46 +123,6 @@ animations = [{
 "loop": 0,
 "name": &"idle",
 "speed": 8.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_5")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_6")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_7")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_8")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_9")
-}],
-"loop": 1,
-"name": &"walk_left",
-"speed": 12.5
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_1")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_2")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_3")
-}, {
-"duration": 1.0,
-"texture": SubResource("Atlas_walk_4")
-}],
-"loop": 1,
-"name": &"walk_right",
-"speed": 12.5
 }, {
 "frames": [{
 "duration": 1.0,
@@ -203,6 +169,46 @@ animations = [{
 "loop": 0,
 "name": &"land",
 "speed": 12.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_5")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_6")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_7")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_8")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_9")
+}],
+"loop": 1,
+"name": &"walk_left",
+"speed": 12.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_4")
+}],
+"loop": 1,
+"name": &"walk_right",
+"speed": 12.5
 }]
 
 [sub_resource type="RectangleShape2D" id="Rectangle_goat"]
@@ -225,12 +231,6 @@ animation = &"walk_right"
 frame = 4
 frame_progress = 0.74607253
 
-[node name="BouncePose" type="Sprite2D" parent="."]
-visible = false
-texture = ExtResource("19_bounce")
-hframes = 24
-vframes = 2
-
 [node name="Grapple" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
 visible = false
 show_behind_parent = true
@@ -244,6 +244,14 @@ texture = ExtResource("7_layers")
 hframes = 10
 vframes = 3
 frame = 10
+
+[node name="BouncePose" type="Sprite2D" parent="." unique_id=824175151]
+visible = false
+material = SubResource("ShaderMaterial_goat_palette")
+scale = Vector2(2, 2)
+texture = ExtResource("19_bounce")
+hframes = 24
+vframes = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1763410790]
 position = Vector2(0, 16)
@@ -302,3 +310,9 @@ position = Vector2(-18, 11)
 texture = ExtResource("15_shot_charge")
 hframes = 26
 frame = 10
+
+[node name="Nameplate" parent="." unique_id=483324746 instance=ExtResource("20_nameplate")]
+offset_left = -30.0
+offset_top = -31.0
+offset_right = 30.0
+offset_bottom = -12.0

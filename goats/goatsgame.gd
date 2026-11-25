@@ -179,6 +179,9 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_clamp_camera_position)
 	camera_target = active_goat.global_position
 	_clamp_camera_position()
+	arena_camera.force_update_scroll()
+	for target in goats:
+		$Nameplates.track_goat(target)
 	console.list_variables = _list_console_variables
 	console.set_variable = _set_console_variable
 	console.load_level = _load_console_level
@@ -190,6 +193,28 @@ func _ready() -> void:
 	crow_timer.timeout.connect(_try_spawn_crow)
 	add_child(crow_timer)
 	crow_timer.start()
+	var goat_idle_timer := Timer.new()
+	goat_idle_timer.wait_time = 4.0
+	goat_idle_timer.timeout.connect(_play_random_goat_idle)
+	add_child(goat_idle_timer)
+	goat_idle_timer.start()
+
+
+func _play_random_goat_idle() -> void:
+	var screen := get_viewport_rect()
+	var inactive_goats: Array[Goat] = []
+	var onscreen_goats: Array[Goat] = []
+	for target in goats:
+		if target == active_goat or not target.can_play_idle_animation() or not _is_grounded(target):
+			continue
+		inactive_goats.append(target)
+		var body_on_screen := target.get_global_transform_with_canvas() * Rect2(target.bitmap_body_rect())
+		if target.is_visible_in_tree() and screen.intersects(body_on_screen):
+			onscreen_goats.append(target)
+	if not onscreen_goats.is_empty():
+		onscreen_goats.pick_random().play_idle_animation()
+	elif not inactive_goats.is_empty():
+		inactive_goats.pick_random().play_idle_animation()
 
 
 func _try_spawn_crow() -> void:

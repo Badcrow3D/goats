@@ -9,6 +9,10 @@ enum Status { ACTIVE, ALIVE, DEAD }
 enum Mode { GOAT_ONLY = 0, GRAPPLE = 1, LAUNCHER = 2 }
 
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
+const IDLE_SHEET := preload("res://sprites/goat_idle-24x24.png")
+const IDLE_FRAME_SIZE := 24
+const IDLE_ROW_LENGTHS := [6, 23, 7, 7, 3, 3, 41, 18]
+const IDLE_ANIMATION_PREFIX := "idle_row_"
 const AIM_POSE_STEP := 9.0
 const AIM_CURSOR_STEP := AIM_POSE_STEP / 4.0
 const GRAPPLE_AIM_POSE_STEP := 45.0
@@ -29,6 +33,10 @@ const LEFT_AIM_ORIGIN := Vector2(2, -6)
 @onready var _aim_cursor: Sprite2D = $AimCursor
 @onready var _jump_meter: Sprite2D = $JumpChargeMeter
 @onready var _shot_meter: Sprite2D = $ShotChargeMeter
+@onready var nameplate: Panel = $Nameplate
+@onready var _nameplate_label: Label = $Nameplate/Label
+@onready var _health_bar: ColorRect = $Nameplate/health
+@onready var _full_health_width := _health_bar.size.x
 @onready var _shot_meter_distance := absf(_shot_meter.position.x)
 
 var last_ground_position := Vector2.ZERO
@@ -42,10 +50,19 @@ var aim_degrees := 0.0
 
 var _walking := false
 var _showing_aim_pose := false
+var _idle_rows_remaining := 0
 
 @export var team_id := 0
-@export var goat_name := ""
-@export var health := 100
+@export var goat_name := "":
+	set(value):
+		goat_name = value
+		if is_node_ready():
+			_nameplate_label.text = goat_name
+@export var health := 100:
+	set(value):
+		health = value
+		if is_node_ready():
+			_update_health_bar()
 @export var energy := 100
 @export var facing_direction := Facing.RIGHT:
 	set(value):
@@ -89,15 +106,62 @@ var _showing_aim_pose := false
 
 
 func _ready() -> void:
+	_nameplate_label.text = goat_name
 	_bounce_pose.material = _sprite.material
 	_bounce_pose.scale = _sprite.scale
 	_apply_palette()
+	_update_health_bar()
 	_apply_mode_layers()
 	if not Engine.is_editor_hint():
+		_add_idle_animations()
+		_sprite.animation_changed.connect(_apply_mode_layers)
 		_sprite.frame_changed.connect(_sync_equipment_pose)
 		_sprite.animation_looped.connect(_on_walk_cycle_finished)
-		_sprite.animation_finished.connect(_on_landing_finished)
+		_sprite.animation_finished.connect(_on_pose_finished)
 		_apply_idle_facing()
+
+
+func _add_idle_animations() -> void:
+	var frames := _sprite.sprite_frames
+	if frames.has_animation(IDLE_ANIMATION_PREFIX + "0"):
+		return
+	for row in IDLE_ROW_LENGTHS.size():
+		var animation_name := StringName(IDLE_ANIMATION_PREFIX + str(row))
+		frames.add_animation(animation_name)
+		frames.set_animation_loop(animation_name, false)
+		frames.set_animation_speed(animation_name, 12.5)
+		for column in IDLE_ROW_LENGTHS[row]:
+			var frame_texture := AtlasTexture.new()
+			frame_texture.atlas = IDLE_SHEET
+			frame_texture.region = Rect2(
+				column * IDLE_FRAME_SIZE, row * IDLE_FRAME_SIZE, IDLE_FRAME_SIZE, IDLE_FRAME_SIZE
+			)
+			frames.add_frame(animation_name, frame_texture)
+
+
+func can_play_idle_animation() -> bool:
+	return status == Status.ALIVE and not is_bouncing and _sprite.animation == &"idle"
+
+
+func play_idle_animation() -> void:
+	_idle_rows_remaining = 2
+	_play_next_idle_row()
+
+
+func _play_next_idle_row() -> void:
+	_idle_rows_remaining -= 1
+	var row := randi_range(0, IDLE_ROW_LENGTHS.size() - 1)
+	_sprite.stop()
+	_sprite.play(StringName(IDLE_ANIMATION_PREFIX + str(row)))
+
+
+func stop_idle_animation() -> void:
+	if _is_playing_idle_animation():
+		show_standing_pose()
+
+
+func _is_playing_idle_animation() -> bool:
+	return _sprite.animation.begins_with(IDLE_ANIMATION_PREFIX)
 
 
 func _apply_palette() -> void:
@@ -109,6 +173,16 @@ func _apply_palette() -> void:
 	palette.set_shader_parameter(&"midtone_color", midtone_color)
 	palette.set_shader_parameter(&"shadow_color", shadow_color)
 	palette.set_shader_parameter(&"team_color", team_color)
+	_nameplate_label.add_theme_color_override(&"font_color", team_color)
+	_health_bar.color = team_color
+
+
+func _update_health_bar() -> void:
+	_health_bar.size.x = _full_health_width * clampf(health / 100.0, 0.0, 1.0)
+
+
+func set_nameplate_visible(visible_on_goat: bool) -> void:
+	nameplate.visible = visible_on_goat
 
 
 func _apply_idle_facing() -> void:
@@ -120,6 +194,8 @@ func _apply_idle_facing() -> void:
 
 func update_walk_pose(walking: bool) -> void:
 	_walking = walking
+	if not _walking and _is_playing_idle_animation():
+		return
 	if _sprite.animation == &"land":
 		_sprite.play()
 		return
@@ -140,6 +216,7 @@ func update_walk_pose(walking: bool) -> void:
 
 
 func hold_current_pose() -> void:
+	stop_idle_animation()
 	_sprite.pause()
 
 
@@ -181,6 +258,7 @@ func play_landing_pose() -> void:
 
 
 func show_standing_pose() -> void:
+	_idle_rows_remaining = 0
 	_hide_bounce_pose()
 	_sprite.play(&"idle")
 	_apply_idle_facing()
@@ -192,8 +270,10 @@ func _hide_bounce_pose() -> void:
 		_apply_mode_layers()
 
 
-func _on_landing_finished() -> void:
-	if _sprite.animation == &"land":
+func _on_pose_finished() -> void:
+	if _is_playing_idle_animation() and _idle_rows_remaining > 0:
+		_play_next_idle_row()
+	elif _sprite.animation == &"land" or _is_playing_idle_animation():
 		show_standing_pose()
 
 
@@ -207,7 +287,7 @@ func _sync_equipment_pose() -> void:
 	var column := _sprite.frame
 	if _sprite.animation == &"walk_left":
 		column += 5
-	elif _sprite.animation == &"jump" or _sprite.animation == &"land":
+	elif _sprite.animation == &"jump" or _sprite.animation == &"land" or _is_playing_idle_animation():
 		column = 0
 	_grapple.frame_coords = Vector2i(column, 0)
 	_launcher.frame_coords = Vector2i(column, 1)
@@ -240,8 +320,9 @@ func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) 
 
 
 func _apply_mode_layers() -> void:
-	var show_grapple := mode == Mode.GRAPPLE
-	var show_launcher := mode == Mode.LAUNCHER
+	var show_equipment := not _is_playing_idle_animation()
+	var show_grapple := mode == Mode.GRAPPLE and show_equipment
+	var show_launcher := mode == Mode.LAUNCHER and show_equipment
 	_aim_pose.visible = _showing_aim_pose and show_launcher
 	_grapple.visible = show_grapple and not _showing_aim_pose
 	_grapple_aim_pose.visible = show_grapple and _showing_aim_pose

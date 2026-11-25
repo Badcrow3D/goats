@@ -14,7 +14,16 @@ const JUMP_CHARGE_FRAME_SECONDS := 0.08
 @export_range(0.0, 0.9) var bounce_restitution := 0.35
 @export var bounce_stop_speed := 45.0
 
-var active_goat: GoatState
+var active_goat: GoatState:
+	set(value):
+		if active_goat == value:
+			return
+		if is_instance_valid(active_goat):
+			active_goat.set_nameplate_visible(true)
+		active_goat = value
+		if is_instance_valid(active_goat):
+			active_goat.stop_idle_animation()
+			active_goat.set_nameplate_visible(false)
 var facing: float:
 	get:
 		return float(active_goat.facing_direction)

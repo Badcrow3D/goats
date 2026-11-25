@@ -4,12 +4,14 @@
 [ext_resource type="FontFile" uid="uid://cn2e5b80cewnv" path="res://assets/pixelfont2.png" id="5_ui_font"]
 [ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats/wind_leaves.gd" id="10_wind_leaves"]
 [ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
+[ext_resource type="FontFile" uid="uid://8w263iwhuhew" path="res://assets/pixelfont1.png" id="11_xyno1"]
 [ext_resource type="Texture2D" uid="uid://y4htb8mkow8j" path="res://levels/level1.png" id="12_level"]
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
 [ext_resource type="Texture2D" uid="uid://cib86inmjlc13" path="res://sprites/arrow.png" id="18_offscreen_arrow"]
 [ext_resource type="Script" uid="uid://chyd27w7lvcgh" path="res://goats/console.gd" id="console_script"]
+[ext_resource type="Script" uid="uid://b8l6uevidf2wn" path="res://goats/nameplate_layer.gd" id="nameplate_layer"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_zoom_pixelation"]
 resource_local_to_scene = true
@@ -52,12 +54,14 @@ landing_pause_duration = 0.32
 [node name="Goat" parent="Goats" unique_id=163038628 instance=ExtResource("16_goat")]
 position = Vector2(1290, 585)
 team_id = 1
+goat_name = "Player1"
 status = 0
 mode = 0
 
 [node name="Goat2" parent="Goats" unique_id=458998419 instance=ExtResource("16_goat")]
 position = Vector2(1520, 567)
 team_id = 1
+goat_name = "Goats2"
 facing_direction = -1
 mode = 0
 team_color = Color(1, 0.6666667, 0.1882353, 1)
@@ -65,12 +69,14 @@ team_color = Color(1, 0.6666667, 0.1882353, 1)
 [node name="Goat3" parent="Goats" unique_id=248116656 instance=ExtResource("16_goat")]
 position = Vector2(1678, 741)
 team_id = 1
+goat_name = "Third Goat"
 mode = 0
 team_color = Color(1, 0.99607843, 0.3254902, 1)
 
 [node name="Goat4" parent="Goats" unique_id=434005598 instance=ExtResource("16_goat")]
 position = Vector2(1894, 1201)
 team_id = 1
+goat_name = "Goat4"
 facing_direction = -1
 mode = 0
 team_color = Color(0.3254902, 1, 0.42352942, 1)
@@ -78,6 +84,7 @@ team_color = Color(0.3254902, 1, 0.42352942, 1)
 [node name="Goat5" parent="Goats" unique_id=1999858949 instance=ExtResource("16_goat")]
 position = Vector2(953, 940)
 team_id = 1
+goat_name = "Team 5"
 facing_direction = -1
 mode = 0
 team_color = Color(0.2627451, 0.8039216, 1, 1)
@@ -85,6 +92,7 @@ team_color = Color(0.2627451, 0.8039216, 1, 1)
 [node name="Goat6" parent="Goats" unique_id=611581317 instance=ExtResource("16_goat")]
 position = Vector2(583, 1087)
 team_id = 1
+goat_name = "Six"
 mode = 0
 team_color = Color(0.47843137, 0.2627451, 1, 1)
 
@@ -148,8 +156,14 @@ texture_filter = 1
 scale = Vector2(3, 3)
 texture = ExtResource("18_offscreen_arrow")
 
-[node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
+[node name="Nameplates" type="CanvasLayer" parent="."]
+process_mode = 3
+process_priority = 1
 layer = 2
+script = ExtResource("nameplate_layer")
+
+[node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
+layer = 3
 visible = false
 script = ExtResource("console_script")
 
@@ -186,3 +200,13 @@ keep_editing_on_text_submit = true
 position = Vector2(1338, 610)
 offset = Vector2(60, 0)
 zoom = Vector2(2, 2)
+
+[node name="Label" type="Label" parent="." unique_id=949281742]
+offset_left = 1317.0
+offset_top = 575.0
+offset_right = 1328.0
+offset_bottom = 585.0
+theme_override_colors/font_color = Color(1, 1, 0, 1)
+theme_override_fonts/font = ExtResource("11_xyno1")
+theme_override_font_sizes/font_size = 10
+text = "25"
