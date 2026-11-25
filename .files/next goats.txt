@@ -1,39 +1,31 @@
-edited nameplate png, update to add black bar to scene
-
 StoryBoard
 
-mines
-exploding barrels
-health crates
-minimum zoom 1 or 0.5
+working mines, exploding barrels, halth crates
 
-+ backgrounds, sky colors, gradient
-+ paint and test level2.png
-+ author idle loop, play on inactive goat
-+ how to show HP of goats
++ targets and goals objects
 + weapons as polygon
 + flag or wind speed meter, in addition to leaves
-+ targets and goals objects
+
 
 laser digging
 
 sound and music
 
-set damage for missile to 50, adjust knockback
 falling damage, ends turn, adjust bouncing
 turn time limit, time display
 retreat time after shot, then turn ends, player switch notice
 multiple goats per team
-bouncing weapon test
+bouncing grenade weapon test
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
 
-what for boxes and mushrooms
+what for boxes and mushrooms, cosmetics?
 
 Walk, grapple E tool, Dirt launcher, Force field, Shield, Turret 
 Missile Grenade Rockets Cannon Laser Homing Airstrike
 ACDEFGHLMRTW
 -bijknopqsuvxyz
+Bomb, Proximity mine
 
 trees background
 mountains background

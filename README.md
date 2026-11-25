@@ -29,7 +29,7 @@ To rebind a control or add another key, mouse button, or controller input for th
 - `vars` lists the current tuning values and level filename.
 - `set <name> <value>` changes a tuning value.
 - `set leaf_count <count>` sets the total number of leaves across all three layers. Use a whole number from 0 to 300. The default is 30.
-- `load <filename>.png` loads a PNG from `levels/` and restarts the arena.
+- `load <filename>.png` loads a 1920×1080 level PNG from `levels/` and restarts the arena.
 - `reset` reloads the current level.
 
 ## Project layout

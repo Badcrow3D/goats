@@ -66,7 +66,8 @@ const MAX_STEP_UP := 2
 const MAX_STEP_DOWN := 2
 const TERRAIN_BURN_COLOR := Color("#4c4947")
 const LEVELS_DIR := "res://levels/"
-const DEFAULT_LEVEL := "level1.png"
+const DEFAULT_LEVEL := "level2.png"
+const LEVEL_SIZE := Vector2i(1920, 1080)
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
 const TUNING_FLAGS := ["wind_random"]
@@ -129,6 +130,7 @@ var camera_zoom_transition: Tween
 var camera_goat_transition: Tween
 var last_manual_camera_msec := -CAMERA_FOLLOW_IDLE_MSEC
 var camera_follow_origin: Vector2
+var camera_follow_armed := false
 var camera_follows_goat := false
 var active_goat_arrow: Sprite2D
 var arena_bounds: Rect2
@@ -155,8 +157,8 @@ func _ready() -> void:
 			goats.append(child)
 	active_goat = goats[0]
 	_load_tuning()
+	arena_camera.limit_enabled = false
 	_setup_level()
-	camera_follow_origin = terrain_view.to_local(active_goat.global_position)
 	grapple_line.draw.connect(_draw_grapple_line)
 	grapple_line.hide()
 	add_child(grapple_line)
@@ -179,9 +181,11 @@ func _ready() -> void:
 	camera_controls.input_received.connect(_handle_camera_input)
 	arena_camera.add_child(camera_controls)
 	_update_mouse_mode()
-	get_viewport().size_changed.connect(_clamp_camera_position)
-	camera_target = active_goat.global_position
-	_clamp_camera_position()
+	get_viewport().size_changed.connect(func() -> void:
+		if arena_camera.limit_enabled:
+			_clamp_camera_position()
+	)
+	_update_camera_parallax()
 	arena_camera.force_update_scroll()
 	for target in goats:
 		$Nameplates.track_goat(target)
@@ -254,7 +258,7 @@ func _try_spawn_crow() -> void:
 
 func _setup_level() -> void:
 	var image := _read_level_image(level_filename)
-	if image == null or image.is_empty():
+	if image == null or image.get_size() != LEVEL_SIZE:
 		push_warning("Could not load level %s. Using %s." % [level_filename, DEFAULT_LEVEL])
 		level_filename = DEFAULT_LEVEL
 		image = terrain_view.texture.get_image().duplicate() as Image
@@ -266,6 +270,8 @@ func _setup_level() -> void:
 	sky.polygon = PackedVector2Array([
 		Vector2.ZERO, Vector2(arena_bounds.size.x, 0), arena_bounds.end, Vector2(0, arena_bounds.size.y),
 	])
+	var background: TextureRect = $Sky/Background
+	background.size = arena_bounds.size
 	RenderingServer.set_default_clear_color(sky.color)
 	arena_camera.limit_left = 0
 	arena_camera.limit_top = 0
@@ -459,7 +465,7 @@ func _load_tuning() -> void:
 		var saved: Variant = config.get_value(TUNING_SECTION, field, get(field))
 		if (saved is float or saved is int) and is_finite(float(saved)):
 			set(field, maxf(float(saved), TUNING_FLOORS[field]))
-	var saved_level: Variant = config.get_value(TUNING_SECTION, "level_filename", DEFAULT_LEVEL)
+	var saved_level: Variant = config.get_value(TUNING_SECTION, "selected_level_filename", DEFAULT_LEVEL)
 	if saved_level is String:
 		level_filename = saved_level
 	var saved_wind_speed: Variant = config.get_value(TUNING_SECTION, "wind_speed", wind_speed)
@@ -492,6 +498,8 @@ func _load_console_level(filename: String) -> String:
 	var image := _read_level_image(filename)
 	if image == null or image.is_empty():
 		return "Could not load PNG from levels/: " + filename
+	if image.get_size() != LEVEL_SIZE:
+		return "Level PNG must be %d×%d pixels." % [LEVEL_SIZE.x, LEVEL_SIZE.y]
 
 	var previous_level := level_filename
 	level_filename = filename
@@ -567,7 +575,7 @@ func _save_tuning() -> Error:
 	var config := ConfigFile.new()
 	for key: String in TUNING_FLOORS:
 		config.set_value(TUNING_SECTION, key, get(key))
-	config.set_value(TUNING_SECTION, "level_filename", level_filename)
+	config.set_value(TUNING_SECTION, "selected_level_filename", level_filename)
 	config.set_value(TUNING_SECTION, "wind_speed", wind_speed)
 	for key: String in TUNING_FLAGS:
 		config.set_value(TUNING_SECTION, key, get(key))
@@ -617,10 +625,13 @@ func _physics_process(delta: float) -> void:
 	var direction := _walk_direction()
 	for target in goats:
 		_step_goat(target, delta, direction if target == active_goat else 0.0)
+	if not camera_follow_armed and (not is_zero_approx(direction) or active_goat.jump_launch_speed > 0.0):
+		camera_follow_armed = true
+		camera_follow_origin = terrain_view.to_local(previous_goat_position)
 	if camera_follows_goat:
 		if not camera_goat_transition.is_running():
 			_set_camera_target(active_goat.global_position)
-	elif active_goat.global_position != previous_goat_position \
+	elif camera_follow_armed and active_goat.global_position != previous_goat_position \
 			and Time.get_ticks_msec() - last_manual_camera_msec >= CAMERA_FOLLOW_IDLE_MSEC:
 		var displacement := (terrain_view.to_local(active_goat.global_position) - camera_follow_origin).abs()
 		if displacement.x >= CAMERA_FOLLOW_MOVE_PIXELS or displacement.y >= CAMERA_FOLLOW_MOVE_PIXELS:
@@ -1017,6 +1028,7 @@ func _interpolate_goat_camera(weight: float, start: Vector2) -> void:
 func _note_manual_camera_control() -> void:
 	last_manual_camera_msec = Time.get_ticks_msec()
 	camera_follow_origin = terrain_view.to_local(active_goat.global_position)
+	camera_follow_armed = true
 	camera_follows_goat = false
 	_cancel_goat_camera_transition()
 
@@ -1043,6 +1055,11 @@ func _clamp_camera_position() -> void:
 	# Snap the viewport origin to a render pixel without discarding small mouse movements.
 	var origin_pixels := (camera_target * camera_zoom - half_view_pixels).round()
 	arena_camera.position = (origin_pixels + half_view_pixels) / camera_zoom
+	arena_camera.limit_enabled = true
+	_update_camera_parallax()
+
+
+func _update_camera_parallax() -> void:
 	var camera_offset := arena_camera.position - arena_bounds.get_center()
 	for layer in sky_layers:
 		layer.update_parallax(camera_offset)

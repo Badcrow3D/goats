@@ -20,8 +20,8 @@ config/icon="uid://dsx5c522dqvkt"
 
 [display]
 
-window/size/viewport_width=1600
-window/size/viewport_height=900
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 
 [input]
 
@@ -57,7 +57,8 @@ toggle_launcher={
 }
 charge_jump={
 "deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":4194309)]
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":16,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194309,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+]
 }
 charge_weapon={
 "deadzone": 0.5,

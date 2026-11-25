@@ -4,7 +4,8 @@
 [ext_resource type="FontFile" uid="uid://cn2e5b80cewnv" path="res://assets/pixelfont2.png" id="5_ui_font"]
 [ext_resource type="Script" uid="uid://gbrhrcetl42" path="res://goats/wind_leaves.gd" id="10_wind_leaves"]
 [ext_resource type="Script" uid="uid://cg5jhrcddxahy" path="res://goats/wind_clouds.gd" id="11_wind_clouds"]
-[ext_resource type="Texture2D" uid="uid://y4htb8mkow8j" path="res://levels/level1.png" id="12_level"]
+[ext_resource type="Texture2D" uid="uid://bfch5ut2ygac1" path="res://levels/stripes.png" id="12_background"]
+[ext_resource type="Texture2D" uid="uid://c048iqnjf04o3" path="res://levels/level2.png" id="12_level"]
 [ext_resource type="Script" uid="uid://5yw13ir3ocjy" path="res://view/terrain_view.gd" id="13_terrain"]
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
@@ -51,14 +52,14 @@ landing_pause_duration = 0.32
 [node name="Goats" type="Node2D" parent="." unique_id=893621732]
 
 [node name="Goat" parent="Goats" unique_id=163038628 instance=ExtResource("16_goat")]
-position = Vector2(1290, 585)
+position = Vector2(1505, 1372)
 team_id = 1
 goat_name = "Player1"
 status = 0
 mode = 0
 
 [node name="Goat2" parent="Goats" unique_id=458998419 instance=ExtResource("16_goat")]
-position = Vector2(1520, 567)
+position = Vector2(1421, 744)
 team_id = 1
 goat_name = "Goats2"
 facing_direction = -1
@@ -66,14 +67,14 @@ mode = 0
 team_color = Color(1, 0.6666667, 0.1882353, 1)
 
 [node name="Goat3" parent="Goats" unique_id=248116656 instance=ExtResource("16_goat")]
-position = Vector2(1678, 741)
+position = Vector2(2214, 1272)
 team_id = 1
 goat_name = "Third Goat"
 mode = 0
 team_color = Color(1, 0.3529412, 0.8156863, 1)
 
 [node name="Goat4" parent="Goats" unique_id=434005598 instance=ExtResource("16_goat")]
-position = Vector2(1894, 1201)
+position = Vector2(2860, 860)
 team_id = 1
 goat_name = "Goat4"
 facing_direction = -1
@@ -81,7 +82,7 @@ mode = 0
 team_color = Color(0.3254902, 1, 0.42352942, 1)
 
 [node name="Goat5" parent="Goats" unique_id=1999858949 instance=ExtResource("16_goat")]
-position = Vector2(953, 940)
+position = Vector2(3221, 1616)
 team_id = 1
 goat_name = "Team 5"
 facing_direction = -1
@@ -89,7 +90,7 @@ mode = 0
 team_color = Color(0.2627451, 0.8039216, 1, 1)
 
 [node name="Goat6" parent="Goats" unique_id=611581317 instance=ExtResource("16_goat")]
-position = Vector2(583, 1087)
+position = Vector2(644, 1449)
 team_id = 1
 goat_name = "Six"
 mode = 0
@@ -98,7 +99,14 @@ team_color = Color(0.5411765, 0.2784314, 1, 1)
 [node name="Sky" type="Polygon2D" parent="." unique_id=401434795]
 z_index = -2
 color = Color(0.35686275, 0.69803923, 0.9882353, 1)
-polygon = PackedVector2Array(0, 0, 2800, 0, 2800, 1600, 0, 1600)
+polygon = PackedVector2Array(0, 0, 3840, 0, 3840, 2160, 0, 2160)
+
+[node name="Background" type="TextureRect" parent="Sky" unique_id=1017618329]
+offset_right = 3840.0
+offset_bottom = 2160.0
+mouse_filter = 2
+texture = ExtResource("12_background")
+expand_mode = 1
 
 [node name="CloudsFar" type="MultiMeshInstance2D" parent="Sky" unique_id=1774499158]
 self_modulate = Color(1, 1, 1, 0.35)
@@ -196,5 +204,4 @@ theme_override_styles/focus = SubResource("StyleBox_console_input_focus")
 keep_editing_on_text_submit = true
 
 [node name="ArenaCamera" type="Camera2D" parent="." unique_id=845076425]
-position = Vector2(1338, 610)
-offset = Vector2(60, 0)
+position = Vector2(1516, 1174)
