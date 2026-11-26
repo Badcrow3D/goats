@@ -81,6 +81,7 @@ class Team:
 class MatchSetup:
 	var filename: String
 	var image: Image
+	var spawn_terrain: Terrain
 	var rosters: Dictionary[int, Dictionary]
 	var positions: Array[Vector2]
 	var colors: PackedStringArray
@@ -320,14 +321,19 @@ func _try_spawn_crow() -> void:
 
 func _setup_level() -> void:
 	var image := _read_level_image(level_filename) if _match_setup == null \
-			else _match_setup.image.duplicate() as Image
+			else _match_setup.image
 	if image == null or image.get_size() != LEVEL_SIZE:
 		push_warning("Could not load level %s. Using %s." % [level_filename, DEFAULT_LEVEL])
 		level_filename = DEFAULT_LEVEL
-		image = terrain_view.texture.get_image().duplicate() as Image
-	image.convert(Image.FORMAT_RGBA8)
-	_clear_level_palette(image)
-	terrain = Terrain.from_image(image)
+		image = terrain_view.level_preview.texture.get_image()
+	if _match_setup != null and image == _match_setup.image:
+		terrain = _match_setup.spawn_terrain
+		_match_setup.spawn_terrain = null
+		if terrain == null:
+			terrain = Terrain.from_image(image)
+	else:
+		_prepare_level_image(image)
+		terrain = Terrain.from_image(image)
 	arena_bounds = Rect2(Vector2.ZERO, Vector2(image.get_size()) * terrain_view.scale)
 
 	var sky: Polygon2D = $Sky
@@ -441,15 +447,14 @@ func _spawn_surface(mask: Terrain, footprint: Rect2i) -> int:
 	return surface
 
 
-func _clear_level_palette(image: Image) -> void:
-	image.fill_rect(Rect2i(0, image.get_height() - 1, 4, 1), Color(0, 0, 0, 0))
-
-
-func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
+func _prepare_level_image(image: Image) -> Color:
 	image.convert(Image.FORMAT_RGBA8)
 	var grass_color := image.get_pixel(3, image.get_height() - 1)
-	_clear_level_palette(image)
-	var mask := Terrain.from_image(image)
+	image.fill_rect(Rect2i(0, image.get_height() - 1, 4, 1), Color(0, 0, 0, 0))
+	return grass_color
+
+
+func _match_spawn_positions(image: Image, mask: Terrain, grass_color: Color, count: int) -> Array[Vector2]:
 	var positions: Array[Vector2] = []
 	var stride := maxi(1, floori(goat_body.size.x / 4.0))
 	var columns := range(randi_range(0, stride - 1), floori(mask.width * terrain_view.scale.x), stride)
@@ -856,7 +861,9 @@ func _start_match(filename: String, selected: Dictionary[int, Dictionary]) -> St
 	shuffled_colors.shuffle()
 	setup.colors = PackedStringArray(shuffled_colors)
 
-	setup.positions = _match_spawn_positions(image, goat_count)
+	var grass_color := _prepare_level_image(image)
+	setup.spawn_terrain = Terrain.from_image(image)
+	setup.positions = _match_spawn_positions(image, setup.spawn_terrain, grass_color, goat_count)
 	if setup.positions.size() < goat_count:
 		return "Could not find safe spawn positions for %d goats." % goat_count
 	# Each left-to-right group receives one goat per team that still has goats to place.
@@ -1862,11 +1869,7 @@ func _apply_blast(
 	_apply_area_damage(damage_center, radius * terrain_view.scale.x, peak_damage, direct_hit)
 	_spread_blast_knockback()
 	var surface_normal := _estimate_impact_normal(pixel, travel_direction)
-	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
-	var scorch_width := roundi(scorch_radius_modifier)
-	if scorch_width > 0:
-		terrain_view.scorch_circle(pixel, radius + scorch_width, TERRAIN_BURN_COLOR)
-	terrain_view.carve(crater.bounds)
+	var crater := terrain_view.blast(pixel, radius, roundi(scorch_radius_modifier), TERRAIN_BURN_COLOR)
 	if is_instance_valid(crow):
 		crow.check_perch_after_blast(terrain)
 	_throw_blast_dirt(pixel, crater.erased_pixels, surface_normal)

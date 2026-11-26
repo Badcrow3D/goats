@@ -139,12 +139,14 @@ scroll_factor = 0.14625
 self_modulate = Color(1, 1, 1, 0.45)
 script = ExtResource("10_wind_leaves")
 
-[node name="Terrain" type="Sprite2D" parent="." unique_id=1167225093]
+[node name="Terrain" type="Node2D" parent="." unique_id=1167225093]
 z_index = -1
 scale = Vector2(2, 2)
+script = ExtResource("13_terrain")
+
+[node name="LevelPreview" type="Sprite2D" parent="Terrain"]
 texture = ExtResource("12_level")
 centered = false
-script = ExtResource("13_terrain")
 
 [node name="Items" type="Node2D" parent="." unique_id=985274432]
 
