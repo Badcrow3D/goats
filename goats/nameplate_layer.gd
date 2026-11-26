@@ -63,7 +63,9 @@ func _preferred_rect(goat: Goat) -> Rect2:
 
 func _place_plate(rect: Rect2, view: Rect2, occupied: Array[Rect2]) -> Vector2:
 	var limit := (view.end - rect.size).max(view.position)
-	var origin := rect.position.clamp(view.position, limit)
+	# Keep the natural height even if the camera clips the plate at the top.
+	var origin := Vector2(clampf(rect.position.x, view.position.x, limit.x), minf(rect.position.y, limit.y))
+	var min_y := minf(view.position.y, origin.y)
 	rect.position = origin
 	var xs := [origin.x]
 	var ys := [origin.y]
@@ -74,8 +76,8 @@ func _place_plate(rect: Rect2, view: Rect2, occupied: Array[Rect2]) -> Vector2:
 		# A closest free position can sit flush against any earlier plate.
 		xs.append(clampf(obstacle.position.x - rect.size.x, view.position.x, limit.x))
 		xs.append(clampf(obstacle.end.x, view.position.x, limit.x))
-		ys.append(clampf(obstacle.position.y - rect.size.y, view.position.y, limit.y))
-		ys.append(clampf(obstacle.end.y, view.position.y, limit.y))
+		ys.append(clampf(obstacle.position.y - rect.size.y, min_y, origin.y))
+		ys.append(clampf(obstacle.end.y, min_y, origin.y))
 	if clear:
 		return origin
 
@@ -86,8 +88,8 @@ func _place_plate(rect: Rect2, view: Rect2, occupied: Array[Rect2]) -> Vector2:
 		for x: float in xs:
 			rect.position = Vector2(x, y)
 			var offset := rect.position - origin
-			# Prefer vertical separation and keep labels above their goats when possible.
-			var cost := offset.length_squared() + 0.5 * offset.x ** 2 + maxf(offset.y, 0.0) ** 2
+			# Prefer raising a plate over an equally long sideways move.
+			var cost := offset.length_squared() + 0.5 * offset.x ** 2
 			if best_overlap == 0.0 and cost >= best_cost:
 				continue
 			var overlap := 0.0
