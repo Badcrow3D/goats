@@ -38,6 +38,7 @@ func _physics_process(delta: float) -> void:
 
 func _begin_settling(center: Vector2i) -> void:
 	var stamp := texture.get_image()
+	@warning_ignore("integer_division")
 	var top_left := center - stamp.get_size() / 2
 	var terrain := terrain_view.terrain
 	for y in stamp.get_height():

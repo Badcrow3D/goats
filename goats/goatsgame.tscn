@@ -47,7 +47,7 @@ corner_radius_bottom_left = 3
 [node name="GoatsNewTest" type="Node2D" unique_id=2051334170]
 texture_filter = 1
 script = ExtResource("2_test")
-knockback_speed_per_damage = 2.0
+knockback_speed_per_damage = 3.0
 camera_max_zoom = 3
 gravity_scale = 0.5
 landing_pause_duration = 0.32

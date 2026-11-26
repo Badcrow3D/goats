@@ -46,6 +46,7 @@ func setup(p_terrain: Terrain, art: Image) -> void:
 		var tile := Tile.new()
 		tile.image = art.get_region(chunk.bounds)
 		tile.texture = ImageTexture.create_from_image(tile.image)
+		@warning_ignore("integer_division")
 		_tiles[chunk.bounds.position / Terrain.CHUNK_SIZE] = tile
 		var sprite := Sprite2D.new()
 		sprite.centered = false
@@ -102,6 +103,7 @@ func deposit(grains: Dictionary[Vector2i, Color]) -> void:
 	for pixel in grains:
 		if not terrain.in_bounds(pixel.x, pixel.y):
 			continue
+		@warning_ignore("integer_division")
 		var id := pixel / Terrain.CHUNK_SIZE
 		var local := pixel - id * Terrain.CHUNK_SIZE
 		var image := _tiles[id].image

@@ -44,7 +44,9 @@ func chunk_range(rect: Rect2i) -> Rect2i:
 	var clipped := rect.intersection(Rect2i(0, 0, width, height))
 	if not clipped.has_area():
 		return Rect2i()
+	@warning_ignore("integer_division")
 	var first := clipped.position / CHUNK_SIZE
+	@warning_ignore("integer_division")
 	var last := (clipped.end - Vector2i.ONE) / CHUNK_SIZE
 	return Rect2i(first, last - first + Vector2i.ONE)
 
@@ -114,6 +116,7 @@ func carve_circle(cx: int, cy: int, r: int, center_between_pixels := false) -> C
 func add_solid(pixel: Vector2i) -> bool:
 	if not in_bounds(pixel.x, pixel.y):
 		return false
+	@warning_ignore("integer_division")
 	var chunk := chunk_at(pixel / CHUNK_SIZE)
 	var i := chunk.index_at(pixel.x, pixel.y)
 	if chunk.mask[i] != 0:

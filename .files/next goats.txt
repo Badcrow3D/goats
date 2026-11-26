@@ -20,6 +20,8 @@ mushroom, health over time or poison over time, can be destroyed, grows from gro
 address goat out of arena, shots out of arena
 turn team and goat announcement, countdown
 
+background parallax layers
+
 Main menu: New match, Teams, quit
 New match: add team, remove team, Teams, back
 Teams: add team, remove team, Edit team
@@ -34,11 +36,13 @@ bouncing grenade weapon test
 parachute to get backpack, mode switch to deploy launcher
 - mini map or radar when zoomed in
 
-Walk Q, Grapple E, 8Turret, 9Dirt, 0Prox mine
-1Missile 2Grenade 3Rockets 4Cannon 5Laser 6Homing 7Airstrike
+add bindings for weapons
+
+Walk Q, Grapple E, 
+1 Missile 2 Grenade 3 Rockets 4 Cannon 5 Laser 6 Homing 7 Airstrike
+8 Turret, 9 Dirt, 0 Prox mine
 QE ACDGHLMRTW
 -bfijknoqsuvxyz
-Bomb, hield, Force field
 
 grass and trees
 snow and mountain

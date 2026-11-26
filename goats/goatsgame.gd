@@ -350,7 +350,7 @@ func _setup_level() -> void:
 
 	terrain_view.setup(terrain, image)
 	for child in $Items.get_children():
-		if _match_setup != null and not child is ProximityMine:
+		if _match_setup != null:
 			$Items.remove_child(child)
 			child.queue_free()
 			continue
@@ -605,9 +605,9 @@ func _move_goat(body: Goat, delta: float) -> float:
 		if contact:
 			_bump_goat(body, contact, Vector2.DOWN * signf(motion.y))
 		elif not _item_blocks_goat(ahead):
-			var snapped := Vector2(body.position.x, roundf(body.position.y))
-			if not _goat_at(body, snapped) and not _item_blocks_goat(snapped):
-				body.position = snapped
+			var snapped_position := Vector2(body.position.x, roundf(body.position.y))
+			if not _goat_at(body, snapped_position) and not _item_blocks_goat(snapped_position):
+				body.position = snapped_position
 			normal = _estimate_ground_normal(body.position)
 		body.velocity.y = 0.0
 		if motion.y > 0.0 and (not grounded or body.is_bouncing):
@@ -1939,9 +1939,9 @@ func _throw_blast_dirt(center: Vector2i, erased_pixels: int, surface_normal: Vec
 			for frame in BLAST_DIRT_PIXELS.size():
 				var new_total: int = total + BLAST_DIRT_PIXELS[frame]
 				if not next.has(new_total):
-					var frames := combinations[total].duplicate()
-					frames.append(frame)
-					next[new_total] = frames
+					var candidate_frames := combinations[total].duplicate()
+					candidate_frames.append(frame)
+					next[new_total] = candidate_frames
 		combinations = next
 	var best_total := 0
 	for total in combinations:
@@ -1950,8 +1950,8 @@ func _throw_blast_dirt(center: Vector2i, erased_pixels: int, surface_normal: Vec
 
 	var sheet := BLAST_DIRT_TEXTURE.get_image()
 	var size := Vector2i.ONE * BLAST_DIRT_FRAME_SIZE
-	var frames := combinations[best_total]
-	for frame in frames:
+	var selected_frames := combinations[best_total]
+	for frame in selected_frames:
 		var region := Rect2i(Vector2i(frame * size.x, 0), size)
 		var stamp := ImageTexture.create_from_image(sheet.get_region(region))
 		var angle := randf_range(-PI * 0.42, PI * 0.42)

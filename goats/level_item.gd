@@ -1,5 +1,6 @@
 extends Area2D
 
+@warning_ignore("unused_signal")
 signal exploded(center: Vector2, damage: int)
 
 const COLLISION_MASK := 1 << 3

@@ -300,10 +300,10 @@ func _sync_equipment_pose() -> void:
 	_launcher.flip_h = _sprite.flip_h
 
 
-func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) -> void:
+func update_aim_pose(can_aim: bool, pose_aim_degrees: float, cursor_distance: float) -> void:
 	# Let the layered sprite finish its walk tail before switching poses.
 	_showing_aim_pose = can_aim and _sprite.animation == &"idle"
-	var snapped_aim := snappedf(aim_degrees, AIM_CURSOR_STEP) if _showing_aim_pose or mode == Mode.GRAPPLE else 0.0
+	var snapped_aim := snappedf(pose_aim_degrees, AIM_CURSOR_STEP) if _showing_aim_pose or mode == Mode.GRAPPLE else 0.0
 	var angle := deg_to_rad(snapped_aim)
 	_muzzle_right.rotation = -angle
 	_muzzle_left.rotation = angle
@@ -312,7 +312,7 @@ func update_aim_pose(can_aim: bool, aim_degrees: float, cursor_distance: float) 
 		var row := 1 if faces_left else 0
 		var origin: Vector2
 		if mode == Mode.GRAPPLE:
-			var column := roundi((90.0 - aim_degrees) / GRAPPLE_AIM_POSE_STEP)
+			var column := roundi((90.0 - pose_aim_degrees) / GRAPPLE_AIM_POSE_STEP)
 			_grapple_aim_pose.frame_coords = Vector2i(column, row)
 			origin = grapple_pivot_position()
 		else:
@@ -385,6 +385,7 @@ func get_hurtbox() -> GoatHurtbox:
 
 func bitmap_body_rect() -> Rect2i:
 	var body_size := Vector2i((_collider.shape as RectangleShape2D).size)
+	@warning_ignore("integer_division")
 	return Rect2i(Vector2i(_collider.position) - Vector2i(body_size / 2), body_size)
 
 

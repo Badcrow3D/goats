@@ -133,9 +133,9 @@ func _place_plate(rect: Rect2, view: Rect2, occupied: Array[Rect2]) -> Vector2:
 	for y: float in ys:
 		for x: float in xs:
 			rect.position = Vector2(x, y)
-			var offset := rect.position - origin
+			var rect_offset := rect.position - origin
 			# Prefer raising a plate over an equally long sideways move.
-			var cost := offset.length_squared() + 0.5 * offset.x ** 2
+			var cost := rect_offset.length_squared() + 0.5 * rect_offset.x ** 2
 			if best_overlap == 0.0 and cost >= best_cost:
 				continue
 			var overlap := 0.0
