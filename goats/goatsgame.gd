@@ -88,7 +88,7 @@ class MatchSetup:
 
 
 const WALK_HOLD_MSEC := 80
-const wind_max := 12
+const wind_max := 6
 const DEFAULT_EXPLOSION_RADIUS := 18.0
 const EXPLOSION_SHAKE_DURATION := 0.25
 const EXPLOSION_SHAKE_PIXELS := 5.0

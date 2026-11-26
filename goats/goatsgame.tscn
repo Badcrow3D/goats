@@ -144,7 +144,7 @@ z_index = -1
 scale = Vector2(2, 2)
 script = ExtResource("13_terrain")
 
-[node name="LevelPreview" type="Sprite2D" parent="Terrain"]
+[node name="LevelPreview" type="Sprite2D" parent="Terrain" unique_id=1525222149]
 texture = ExtResource("12_level")
 centered = false
 
