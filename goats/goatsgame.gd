@@ -4,6 +4,7 @@ const Goat := preload("res://goats/goat.gd")
 const GOAT_SCENE := preload("res://goats/goat.tscn")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const LevelItem := preload("res://goats/level_item.gd")
+const ProximityMine := preload("res://goats/proximity_mine.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
 const WindLeaves := preload("res://goats/wind_leaves.gd")
 const Crow := preload("res://goats/crow.gd")
@@ -349,7 +350,7 @@ func _setup_level() -> void:
 
 	terrain_view.setup(terrain, image)
 	for child in $Items.get_children():
-		if _match_setup != null:
+		if _match_setup != null and not child is ProximityMine:
 			$Items.remove_child(child)
 			child.queue_free()
 			continue
@@ -360,6 +361,8 @@ func _setup_level() -> void:
 				child.queue_free()
 				continue
 			var offset := grounded.position - bounds.position
+			if child is ProximityMine and offset.y > 0.0:
+				offset.y = 0.0 # Let the mine fall to the sampled surface during play.
 			child.global_position = terrain_view.to_global(terrain_view.to_local(child.global_position) + offset)
 			child.terrain_view = terrain_view
 			child.exploded.connect(_queue_item_blast)
@@ -1899,7 +1902,11 @@ func _apply_area_damage(center: Vector2, radius: float, peak_damage: int, direct
 		var nearest := shape_node.to_local(center).clamp(bounds.position, bounds.end)
 		var distance := center.distance_to(shape_node.to_global(nearest))
 		var falloff := clampf((1.0 - distance / radius) / 0.9, 0.0, 1.0)
-		hurtbox.apply_damage(roundi(peak_damage * falloff))
+		var damage := roundi(peak_damage * falloff)
+		if hurtbox is ProximityMine:
+			hurtbox.apply_damage(damage, hurtbox.global_position - center)
+		else:
+			hurtbox.apply_damage(damage)
 
 
 func _estimate_impact_normal(center: Vector2i, travel_direction: Vector2) -> Vector2:

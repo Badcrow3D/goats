@@ -1,3 +1,5 @@
+Goats2 title screen logo, related to icon maybe, or draw Goats2 terrain with grass etc
+
 how to fix animation in grapple
 
 knock health bar portions off when taking damage, flash it white

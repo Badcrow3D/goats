@@ -2,18 +2,18 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://c76u7lrkob2cb"
-path="res://.godot/imported/porto-buena.regular.otf-b9a8ba0c0856d5746a384f6fe9811034.fontdata"
+uid="uid://cbp6nyx3hn76p"
+path="res://.godot/imported/PixelFont2.ttf-5ae06a966c655d371d0557e6cf00e1bb.fontdata"
 
 [deps]
 
-source_file="res://assets/porto-buena.regular.otf"
-dest_files=["res://.godot/imported/porto-buena.regular.otf-b9a8ba0c0856d5746a384f6fe9811034.fontdata"]
+source_file="res://assets/PixelFont2.ttf"
+dest_files=["res://.godot/imported/PixelFont2.ttf-5ae06a966c655d371d0557e6cf00e1bb.fontdata"]
 
 [params]
 
 Rendering=null
-antialiasing=0
+antialiasing=1
 generate_mipmaps=false
 disable_embedded_bitmaps=true
 multichannel_signed_distance_field=false
@@ -22,8 +22,8 @@ msdf_size=48
 allow_system_fallback=true
 force_autohinter=false
 modulate_color_glyphs=false
-hinting=0
-subpixel_positioning=0
+hinting=3
+subpixel_positioning=4
 keep_rounding_remainders=true
 oversampling=0.0
 Fallbacks=null
