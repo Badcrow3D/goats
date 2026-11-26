@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 signal impacted
-signal exploded_at(pixel: Vector2i, direct_hit: GoatHurtbox, travel_direction: Vector2)
+signal exploded_at(pixel: Vector2i, direct_hit: Area2D, travel_direction: Vector2)
 signal trail_sampled(at: Vector2)
 
 const ANGLE_FRAMES := 40
@@ -9,6 +9,7 @@ const TRAIL_SPACING := 16.0
 const FIRST_TRAIL_SAMPLE_DISTANCE := 8.0
 const TRAIL_LAG_SAMPLES := 1
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
+const LevelItem := preload("res://goats/level_item.gd")
 
 @export var speed := 220.0
 @export var gravity := 400.0
@@ -62,8 +63,8 @@ func _physics_process(delta: float) -> void:
 	impact_cast.force_shapecast_update()
 	if impact_cast.is_colliding():
 		for index in impact_cast.get_collision_count():
-			var hurtbox := impact_cast.get_collider(index) as GoatHurtbox
-			if hurtbox:
+			var hurtbox := impact_cast.get_collider(index) as Area2D
+			if hurtbox is GoatHurtbox or hurtbox is LevelItem:
 				var contact := impact_cast.get_collision_point(index)
 				exploded_at.emit(Vector2i(get_parent().to_local(contact).floor()), hurtbox, velocity.normalized())
 				break

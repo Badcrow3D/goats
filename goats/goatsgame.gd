@@ -2,6 +2,7 @@ extends "res://goats/goat_controller.gd"
 
 const Goat := preload("res://goats/goat.gd")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
+const LevelItem := preload("res://goats/level_item.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
 const WindLeaves := preload("res://goats/wind_leaves.gd")
 const Crow := preload("res://goats/crow.gd")
@@ -25,7 +26,17 @@ const TRAIL_SMOKE_RISE_SPEED := 20.0
 const TRAIL_SMOKE_WIND_SPEED := 20.0
 const DIRT_GRAVITY := 400.0
 const GRAPPLE_RANGE := 500.0
+const GRAPPLE_CHUNK_PIXELS := 2.0
 const GRAPPLE_MISS_SECONDS := 0.2
+const GRAPPLE_REEL_SPEED := 80.0
+const GRAPPLE_REEL_MOMENTUM_EXPONENT := 1.5
+const GRAPPLE_SWING_ACCELERATION := 150.0
+const GRAPPLE_SWING_DRAG := 0.18 # Per second, applied to tangential speed.
+const GRAPPLE_MAX_SPEED := 360.0 # Six world pixels per 60 Hz tick.
+const GRAPPLE_SWING_RESTITUTION := 0.75
+const GRAPPLE_BOUNCE_HEIGHT := 24.0 # Standing sprite height in world pixels.
+const GRAPPLE_BOUNCE_STRENGTH := 0.75
+const GRAPPLE_BOUNCE_COOLDOWN := 2.0
 const ACTIVE_GOAT_ARROW_TEXTURE := preload("res://sprites/arrow-16x16.png")
 const ACTIVE_GOAT_ARROW_FRAME_SECONDS := 0.08
 const OFFSCREEN_ARROW_MARGIN := 40.0
@@ -43,6 +54,13 @@ class CameraControls extends Node:
 
 	func _input(event: InputEvent) -> void:
 		input_received.emit(event)
+
+
+# A straight run of pinned chunks only needs its last joint stored.
+class RopeBend:
+	var joint: Vector2
+	var pinned_length: float
+	var winding: float
 
 
 class Team:
@@ -122,6 +140,7 @@ var is_charging_shot := false
 var shot_released := false
 var active_missile: Missile
 var active_dirt_drops := 0
+var pending_item_blasts: Array[Callable] = []
 var mouse_unlocked := true
 var pointer_press_position := Vector2.INF
 var camera_dragging := false
@@ -140,6 +159,12 @@ var grapple_line := Node2D.new()
 var grapple_start_pixel := Vector2i.ZERO
 var grapple_end_pixel := Vector2i.ZERO
 var grapple_miss_time := 0.0
+var grapple_attached := false
+var grapple_anchor := Vector2.ZERO
+var grapple_length := 0.0:
+	set(value):
+		grapple_length = clampf(value, 0.0, GRAPPLE_RANGE)
+var grapple_bends: Array[RopeBend] = []
 var goat_body: Rect2i
 var player_spawn_x: int
 var wind_scale := 4.0
@@ -161,7 +186,9 @@ func _ready() -> void:
 	_setup_level()
 	grapple_line.draw.connect(_draw_grapple_line)
 	grapple_line.hide()
-	add_child(grapple_line)
+	grapple_line.z_as_relative = false
+	grapple_line.z_index = 1
+	terrain_view.add_child(grapple_line)
 	var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 	for target in goats:
 		if target != active_goat:
@@ -279,6 +306,10 @@ func _setup_level() -> void:
 	arena_camera.limit_bottom = roundi(arena_bounds.end.y)
 
 	terrain_view.setup(terrain, image)
+	for child in $Items.get_children():
+		if child is LevelItem:
+			child.terrain_view = terrain_view
+			child.exploded.connect(_queue_item_blast)
 
 	goat_body = active_goat.bitmap_body_rect()
 	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
@@ -333,6 +364,8 @@ func _body_is_free(at: Vector2) -> bool:
 
 
 func _is_grounded(body: Goat) -> bool:
+	if grapple_attached and body == active_goat:
+		return _grapple_contact(body.position + Vector2.DOWN * 0.25).y < -0.001
 	return body.velocity.y >= 0.0 and not _body_is_free(body.position + Vector2.DOWN)
 
 
@@ -392,6 +425,8 @@ func _knockback_velocity(at: Vector2, amount: int, hit_direction: Vector2) -> Ve
 
 
 func _knock_back_goat(amount: int, hit_direction: Vector2, target: Goat) -> void:
+	if target == active_goat and grapple_attached:
+		_disconnect_grapple()
 	if not target.is_bouncing:
 		_reset_fall_state(target)
 	if knockback_speed_per_damage != 0.0:
@@ -587,7 +622,7 @@ func _save_tuning() -> Error:
 
 
 func _walk_direction() -> float:
-	if not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
+	if grapple_attached or not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
 	return Input.get_axis(&"walk_left", &"walk_right")
 
@@ -621,11 +656,18 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	while not pending_item_blasts.is_empty():
+		var blast: Callable = pending_item_blasts.pop_front()
+		blast.call()
 	var previous_goat_position := active_goat.global_position
 	var direction := _walk_direction()
 	for target in goats:
-		_step_goat(target, delta, direction if target == active_goat else 0.0)
-	if not camera_follow_armed and (not is_zero_approx(direction) or active_goat.jump_launch_speed > 0.0):
+		target.grapple_bounce_cooldown = maxf(0.0, target.grapple_bounce_cooldown - delta)
+		if grapple_attached and target == active_goat:
+			_step_grapple(delta)
+		else:
+			_step_goat(target, delta, direction if target == active_goat else 0.0)
+	if not camera_follow_armed and (grapple_attached or not is_zero_approx(direction) or active_goat.jump_launch_speed > 0.0):
 		camera_follow_armed = true
 		camera_follow_origin = terrain_view.to_local(previous_goat_position)
 	if camera_follows_goat:
@@ -641,22 +683,22 @@ func _physics_process(delta: float) -> void:
 			grapple_miss_time = maxf(0.0, grapple_miss_time - delta)
 			if grapple_miss_time == 0.0:
 				grapple_line.hide()
-		else:
-			var start_pixel := Vector2i(to_local(active_goat.grapple_pivot_position()).floor())
-			if start_pixel != grapple_start_pixel:
-				grapple_start_pixel = start_pixel
-				grapple_line.queue_redraw()
 
 	var can_aim := (
 		active_goat.mode != Goat.Mode.GOAT_ONLY
 		and _can_control_movement()
 		and is_zero_approx(direction)
 	)
-	if can_aim and not console.visible:
+	if can_aim and not grapple_attached and not console.visible:
 		var elevation := Input.get_axis(&"aim_down", &"aim_up")
 		active_goat.aim_degrees = clampf(active_goat.aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
-	active_goat.update_aim_pose(can_aim, active_goat.aim_degrees, cursor_distance)
+	active_goat.update_aim_pose(can_aim or grapple_attached, active_goat.aim_degrees, cursor_distance)
+	if grapple_attached:
+		var start_pixel := Vector2i(terrain_view.to_local(active_goat.muzzle_origin()).floor())
+		if start_pixel != grapple_start_pixel:
+			grapple_start_pixel = start_pixel
+			grapple_line.queue_redraw()
 	_update_shot_charge(delta)
 	_update_charge_meters()
 
@@ -676,7 +718,7 @@ func _select_next_goat() -> void:
 	walk_start_msec = 0
 	_update_charge_meters()
 	active_goat.update_aim_pose(false, active_goat.aim_degrees, cursor_distance)
-	grapple_line.hide()
+	_disconnect_grapple()
 	if active_goat.status == Goat.Status.ACTIVE:
 		active_goat.status = Goat.Status.ALIVE
 	active_goat = next_goat
@@ -710,6 +752,8 @@ func _show_active_goat_arrow() -> void:
 func _on_goat_mode_changed(target: Goat) -> void:
 	if target != active_goat:
 		return
+	if target.mode != Goat.Mode.GRAPPLE:
+		_disconnect_grapple()
 	walk_start_msec = 0
 	if active_goat.mode == Goat.Mode.LAUNCHER:
 		_cancel_jump()
@@ -745,12 +789,21 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"toggle_launcher"):
-		active_goat.mode = Goat.Mode.GOAT_ONLY if active_goat.mode == Goat.Mode.LAUNCHER else Goat.Mode.LAUNCHER
+		if grapple_attached:
+			get_viewport().set_input_as_handled()
+			return
+		match active_goat.mode:
+			Goat.Mode.GOAT_ONLY:
+				active_goat.mode = Goat.Mode.GRAPPLE
+			Goat.Mode.GRAPPLE:
+				active_goat.mode = Goat.Mode.LAUNCHER
+			Goat.Mode.LAUNCHER:
+				active_goat.mode = Goat.Mode.GOAT_ONLY
 		get_viewport().set_input_as_handled()
 		return
 	var walk_left := event.is_action_pressed(&"walk_left")
 	if (walk_left or event.is_action_pressed(&"walk_right")) \
-			and _can_control_movement() and not is_charging_jump:
+			and not grapple_attached and _can_control_movement() and not is_charging_jump:
 		var direction := -1.0 if walk_left else 1.0
 		if active_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
 			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
@@ -767,6 +820,11 @@ func _handle_camera_input(event: InputEvent) -> void:
 			event is InputEventMouseMotion
 			or event.is_action(&"arena_pointer")
 			or event.is_action(&"toggle_mouse_capture")
+			or (grapple_attached and (
+				event.is_action(&"fire_grapple")
+				or event.is_action(&"camera_zoom_in")
+				or event.is_action(&"camera_zoom_out")
+			))
 	):
 		get_viewport().set_input_as_handled()
 		return
@@ -879,6 +937,17 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 					clear_position.y -= 1.0
 				target.position = clear_position
 				target.velocity.y = minf(target.velocity.y, 0.0)
+				if grapple_attached and target == active_goat:
+					var pivot := _rope_pivot()
+					var span := target.muzzle_origin() - pivot
+					var remaining := GRAPPLE_RANGE - _pinned_length()
+					if span.length() > remaining:
+						var limited := target.position + (span.limit_length(remaining) - span)
+						if not _body_is_free(limited):
+							_disconnect_grapple()
+							break
+						target.position = limited
+					grapple_length = _pinned_length() + target.muzzle_origin().distance_to(pivot)
 				break
 
 
@@ -893,14 +962,25 @@ func _toggle_console() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if console.visible or not _can_use_ground_controls():
+	if console.visible:
+		return
+	if grapple_attached and event.is_action(&"fire_grapple"):
+		if event.is_action_pressed(&"fire_grapple"):
+			_disconnect_grapple()
+		get_viewport().set_input_as_handled()
+		return
+	if not _can_use_ground_controls():
 		return
 	if event.is_action(&"fire_grapple") and active_goat.mode == Goat.Mode.GRAPPLE:
 		if event.is_action_pressed(&"fire_grapple"):
 			_fire_grapple()
 		get_viewport().set_input_as_handled()
 	elif event.is_action(&"charge_jump") and _mode_allows_jump():
-		super(event)
+		if grapple_attached:
+			if event.is_action_pressed(&"charge_jump"):
+				_bounce_on_grapple()
+		else:
+			super(event)
 		get_viewport().set_input_as_handled()
 	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.LAUNCHER:
 		if event.is_action_pressed(&"charge_weapon") and not is_charging_shot and _shot_simulation_finished():
@@ -911,30 +991,255 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _bounce_on_grapple() -> void:
+	if not is_zero_approx(active_goat.grapple_bounce_cooldown):
+		return
+	var tangent := _rope_pivot().direction_to(active_goat.muzzle_origin()).orthogonal()
+	if tangent == Vector2.ZERO:
+		return
+	if is_zero_approx(tangent.y):
+		# Directly below the pivot, either side of the arc rises.
+		var direction := Input.get_axis(&"walk_left", &"walk_right")
+		if is_zero_approx(direction):
+			direction = facing
+		tangent = Vector2(direction, 0.0).normalized()
+	elif tangent.y > 0.0:
+		tangent = -tangent
+	var gravity := active_goat.get_gravity().length() * gravity_scale
+	var speed := sqrt(2.0 * gravity * GRAPPLE_BOUNCE_HEIGHT)
+	active_goat.velocity = tangent * minf(speed, GRAPPLE_MAX_SPEED) * GRAPPLE_BOUNCE_STRENGTH
+	active_goat.grapple_bounce_cooldown = GRAPPLE_BOUNCE_COOLDOWN
+
+
+func _step_grapple(delta: float) -> void:
+	var reel := Input.get_axis(&"aim_up", &"aim_down") if not console.visible else 0.0
+	var steer := Input.get_axis(&"walk_left", &"walk_right") if not console.visible else 0.0
+	var gravity := active_goat.get_gravity() * gravity_scale
+	# Keep each sweep shorter than one terrain cell, even on a fast swing.
+	var speed_bound := active_goat.velocity.length() + GRAPPLE_REEL_SPEED + (gravity.length() + GRAPPLE_SWING_ACCELERATION) * delta
+	speed_bound = minf(speed_bound, GRAPPLE_MAX_SPEED)
+	if reel < 0.0:
+		speed_bound = GRAPPLE_MAX_SPEED
+	var cell_size := minf(terrain_view.scale.x, terrain_view.scale.y)
+	var steps := maxi(1, ceili(speed_bound * delta / (0.5 * cell_size)))
+	var dt := delta / steps
+	for i in steps:
+		var grounded := _is_grounded(active_goat)
+		var reel_speed := minf(reel, 0.0) if grounded else reel
+		if grounded and is_zero_approx(reel_speed) and active_goat.velocity.length() < 1.0:
+			break
+		var origin := active_goat.muzzle_origin()
+		var pivot := _rope_pivot()
+		var pinned := _pinned_length()
+		var free_length := maxf(0.0, grapple_length - pinned)
+		var radial := pivot.direction_to(origin)
+		if radial == Vector2.ZERO:
+			radial = -active_goat.aim_direction()
+		var tangent := radial.orthogonal()
+		var acceleration := gravity
+		if not grounded:
+			acceleration.x += steer * GRAPPLE_SWING_ACCELERATION
+		var speed := (active_goat.velocity + acceleration * dt).dot(tangent)
+		var length_now := clampf(free_length + reel_speed * GRAPPLE_REEL_SPEED * dt, minf(free_length, 1.0), GRAPPLE_RANGE - pinned)
+		if not grounded:
+			speed *= exp(-GRAPPLE_SWING_DRAG * dt)
+		# Reeling and swinging share the same travel budget for this collision step.
+		var radial_speed := (length_now - free_length) / dt
+		var max_tangent := sqrt(maxf(0.0, GRAPPLE_MAX_SPEED ** 2 - radial_speed ** 2))
+		speed = clampf(speed, -max_tangent, max_tangent)
+		var turn_radius := sqrt(free_length * length_now)
+		var next_radial := (radial * maxf(turn_radius, 0.001) + tangent * speed * dt).normalized()
+		var motion := pivot + next_radial * length_now - origin
+		var start := active_goat.position
+		var candidate := start + motion
+		# Resolve corners and slopes along their contact normals so the circle can slide.
+		for iteration in 4:
+			var correction := _grapple_contact(candidate)
+			if correction.is_zero_approx():
+				break
+			# The ground-control probe reaches slightly below the feet. A goat
+			# crossing that gap is still airborne until it actually hits terrain.
+			var airborne := not grounded or _grapple_contact(start + Vector2.DOWN * 0.001).is_zero_approx()
+			if airborne and (tangent * speed).dot(correction) < 0.0:
+				# A taut rope leaves one direction of travel along the arc.
+				# Rebound from the last clear position, keeping its rope length.
+				active_goat.velocity = -tangent * speed * GRAPPLE_SWING_RESTITUTION
+				return
+			candidate += correction
+		var next_origin := origin + (candidate - start)
+		var reached := next_origin.distance_to(pivot)
+		# Contact can limit reeling. Only accept a length within this step's reel travel.
+		var shortest := minf(free_length, length_now)
+		var longest := maxf(free_length, length_now)
+		if not _grapple_contact(candidate).is_zero_approx() or reached < shortest - 0.001 or reached > longest + 0.001:
+			active_goat.velocity = Vector2.ZERO
+			break
+		if _update_rope_contacts(pivot, origin, next_origin):
+			continue
+		active_goat.position = candidate
+		var velocity := (candidate - start) / dt
+		var new_length := clampf(reached, shortest, longest)
+		if not grounded and new_length > 0.0 and new_length != free_length and candidate == start + motion:
+			# Amplify the speed change from reeling around the current pivot.
+			var end_tangent := pivot.direction_to(next_origin).orthogonal()
+			var end_speed := speed * pow(free_length / new_length, GRAPPLE_REEL_MOMENTUM_EXPONENT)
+			velocity += end_tangent * (end_speed - velocity.dot(end_tangent))
+		active_goat.velocity = velocity.limit_length(GRAPPLE_MAX_SPEED)
+		grapple_length = pinned + new_length
+
+
+func _rope_pivot() -> Vector2:
+	return grapple_anchor if grapple_bends.is_empty() else grapple_bends.back().joint
+
+
+func _pinned_length() -> float:
+	return 0.0 if grapple_bends.is_empty() else grapple_bends.back().pinned_length
+
+
+func _update_rope_contacts(pivot: Vector2, origin: Vector2, next_origin: Vector2) -> bool:
+	if origin == next_origin:
+		return false
+	var local_pivot := terrain_view.to_local(pivot)
+	var old_span := terrain_view.to_local(origin) - local_pivot
+	var new_span := terrain_view.to_local(next_origin) - local_pivot
+	if not grapple_bends.is_empty():
+		var last := grapple_bends.size() - 1
+		var previous := grapple_anchor if last == 0 else grapple_bends[last - 1].joint
+		var incoming := pivot - previous
+		# Lift the last joint when the free rope swings back through the pinned run.
+		if incoming.normalized().cross(next_origin - pivot) * grapple_bends[last].winding < -0.0001:
+			var previous_local := terrain_view.to_local(previous)
+			if not _rope_span_blocked(previous_local, local_pivot + old_span) and not _rope_span_blocked(previous_local, local_pivot + new_span):
+				grapple_bends.pop_back()
+				grapple_line.queue_redraw()
+				return true
+
+	var old_length := old_span.length()
+	var new_length := new_span.length()
+	var old_direction := old_span.normalized()
+	var new_direction := new_span.normalized()
+	var chunk_start := local_pivot
+	var distance := 0.0
+	while distance < new_length:
+		distance = minf(distance + GRAPPLE_CHUNK_PIXELS, new_length)
+		var joint := local_pivot + new_direction * distance
+		var old_joint := local_pivot + old_direction * minf(distance, old_length)
+		# Test the entire chunk and the path swept by its distal joint.
+		if _rope_span_blocked(chunk_start, joint) or _rope_span_blocked(old_joint, joint):
+			var winding := signf(old_span.cross(new_span))
+			if distance < minf(old_length, new_length) - 0.001 and winding != 0.0:
+				var bend := RopeBend.new()
+				bend.joint = terrain_view.to_global(old_joint)
+				bend.pinned_length = _pinned_length() + pivot.distance_to(bend.joint)
+				bend.winding = winding
+				grapple_bends.append(bend)
+				grapple_line.queue_redraw()
+			else:
+				# The final partial chunk has no free joint beyond it.
+				active_goat.velocity = Vector2.ZERO
+			return true
+		chunk_start = joint
+	return false
+
+
+func _rope_span_blocked(from: Vector2, to: Vector2) -> bool:
+	var motion := to - from
+	if motion.length_squared() < 0.00000001:
+		return false
+	# The anchor can lie exactly on a solid cell's edge. Sample its outgoing side.
+	var start := from + motion.limit_length(0.0005)
+	return _grapple_hit_fraction(start, to - start) >= 0.0
+
+
+func _grapple_contact(at: Vector2) -> Vector2:
+	# Inscribe the circle at the feet so switching shapes keeps the same ground level.
+	var radius := 0.5 * mini(goat_body.size.x, goat_body.size.y)
+	var center := at + Vector2(goat_body.get_center().x, goat_body.end.y - radius)
+	var cell := terrain_view.scale
+	var first := Vector2i(((center - Vector2.ONE * radius) / cell).floor())
+	var last := Vector2i(((center + Vector2.ONE * radius) / cell).floor())
+	var correction := Vector2.ZERO
+	for y in range(first.y, last.y + 1):
+		for x in range(first.x, last.x + 1):
+			if not terrain.is_solid(x, y):
+				continue
+			var corner := Vector2(x, y) * cell
+			var offset := center - center.clamp(corner, corner + cell)
+			var distance := offset.length()
+			if distance < radius and radius - distance > correction.length():
+				correction = (offset / distance if distance > 0.0 else Vector2.UP) * (radius - distance)
+	return correction
+
+
+func _nearest_standing_position(at: Vector2) -> Vector2:
+	if _body_is_free(at):
+		return at
+	var distance := 1
+	while true:
+		for offset in range(-distance, distance + 1):
+			for step: Vector2 in [Vector2(offset, -distance), Vector2(offset, distance),
+					Vector2(-distance, offset), Vector2(distance, offset)]:
+				if _body_is_free(at + step):
+					return at + step
+		distance += 1
+	return at
+
+
+func _disconnect_grapple() -> void:
+	if grapple_attached:
+		active_goat.aim_locked = false
+		# The standing rectangle can overlap a corner cleared by the circle.
+		active_goat.position = _nearest_standing_position(active_goat.position)
+		active_goat.last_ground_position = active_goat.position
+	grapple_attached = false
+	grapple_bends.clear()
+	grapple_miss_time = 0.0
+	grapple_line.hide()
+
+
 func _fire_grapple() -> void:
-	var origin := active_goat.grapple_pivot_position()
+	var origin := active_goat.muzzle_origin()
 	var end := origin + active_goat.aim_direction() * GRAPPLE_RANGE
 	var terrain_origin := terrain_view.to_local(origin)
 	var terrain_end := terrain_view.to_local(end)
 	var hit_fraction := _grapple_hit_fraction(terrain_origin, terrain_end - terrain_origin)
 	grapple_miss_time = GRAPPLE_MISS_SECONDS if hit_fraction < 0.0 else 0.0
 	if hit_fraction >= 0.0:
-		end = origin.lerp(end, hit_fraction)
-	grapple_start_pixel = Vector2i(to_local(origin).floor())
-	grapple_end_pixel = Vector2i(to_local(end).floor())
+		grapple_attached = true
+		active_goat.aim_locked = true
+		_cancel_jump()
+		terrain_end = terrain_origin.lerp(terrain_end, hit_fraction)
+		grapple_anchor = terrain_view.to_global(terrain_end)
+		grapple_length = origin.distance_to(grapple_anchor)
+		active_goat.velocity = Vector2.ZERO
+		active_goat.update_walk_pose(false)
+	grapple_start_pixel = Vector2i(terrain_origin.floor())
+	grapple_end_pixel = Vector2i(terrain_end.floor())
 	grapple_line.show()
 	grapple_line.queue_redraw()
 
 
 func _draw_grapple_line() -> void:
-	# Rasterize onto the world pixel grid before the camera scales it.
-	var pixel := grapple_start_pixel
-	var distance := (grapple_end_pixel - pixel).abs()
-	var step := (grapple_end_pixel - pixel).sign()
+	if grapple_bends.is_empty():
+		_draw_rope_span(grapple_start_pixel, grapple_end_pixel)
+		return
+	var from := grapple_end_pixel
+	for bend in grapple_bends:
+		var joint := Vector2i(terrain_view.to_local(bend.joint).floor())
+		_draw_rope_span(from, joint)
+		from = joint
+	_draw_rope_span(from, grapple_start_pixel)
+
+
+func _draw_rope_span(from: Vector2i, to: Vector2i) -> void:
+	# Each step fills one pixel on the terrain grid.
+	var pixel := from
+	var distance := (to - pixel).abs()
+	var step := (to - pixel).sign()
 	var error := distance.x - distance.y
 	while true:
 		grapple_line.draw_rect(Rect2(Vector2(pixel), Vector2.ONE), Color.WHITE)
-		if pixel == grapple_end_pixel:
+		if pixel == to:
 			break
 		var doubled_error := 2 * error
 		if doubled_error > -distance.y:
@@ -1101,7 +1406,12 @@ func _update_shot_charge(delta: float) -> void:
 
 
 func _shot_simulation_finished() -> bool:
-	return not is_instance_valid(active_missile) and active_dirt_drops == 0
+	return (
+		not is_instance_valid(active_missile)
+		and active_dirt_drops == 0
+		and pending_item_blasts.is_empty()
+		and get_tree().get_node_count_in_group(LevelItem.DETONATING_GROUP) == 0
+	)
 
 
 func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
@@ -1121,17 +1431,28 @@ func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
 
 
 func _apply_missile_blast(
-	world_pixel: Vector2i, direct_hit: GoatHurtbox, travel_direction: Vector2, peak_damage: int
+	world_pixel: Vector2i, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int
 ) -> void:
-	_play_missile_explosion(Vector2(world_pixel))
+	var at := to_global(Vector2(world_pixel))
+	var damage_center := terrain_view.to_global(terrain_view.to_local(at).floor())
+	_apply_blast(at, damage_center, direct_hit, travel_direction, peak_damage)
+
+
+func _queue_item_blast(center: Vector2, damage: int) -> void:
+	pending_item_blasts.append(_apply_blast.bind(center, center, null, Vector2.ZERO, damage))
+
+
+func _apply_blast(
+	at: Vector2, damage_center: Vector2, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int
+) -> void:
+	_play_explosion(to_local(at))
 	_shake_camera()
-	var pixel := Vector2i((Vector2(world_pixel) / terrain_view.scale).floor())
+	var pixel := Vector2i(terrain_view.to_local(at).floor())
 	var radius := roundi(explosion_radius)
 	# Damage signals sample the surface synchronously, before the bitmap changes.
-	var center := terrain_view.to_global(Vector2(pixel))
 	if direct_hit:
 		direct_hit.apply_damage(peak_damage, travel_direction)
-	GoatHurtbox.apply_area_damage(self, center, radius * terrain_view.scale.x, peak_damage, direct_hit, 0.1)
+	_apply_area_damage(damage_center, radius * terrain_view.scale.x, peak_damage, direct_hit)
 	var surface_normal := _estimate_impact_normal(pixel, travel_direction)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
@@ -1141,6 +1462,33 @@ func _apply_missile_blast(
 	if is_instance_valid(crow):
 		crow.check_perch_after_blast(terrain)
 	_throw_blast_dirt(pixel, crater.erased_pixels, surface_normal)
+
+
+func _apply_area_damage(center: Vector2, radius: float, peak_damage: int, direct_hit: Area2D) -> void:
+	var hurtbox_count := get_tree().get_node_count_in_group(&"goat_hurtboxes")
+	hurtbox_count += get_tree().get_node_count_in_group(&"level_items")
+	if radius <= 0.0 or peak_damage <= 0 or hurtbox_count == 0:
+		return
+	var circle := CircleShape2D.new()
+	circle.radius = radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = circle
+	query.transform = Transform2D(0.0, center)
+	query.collision_mask = GoatHurtbox.COLLISION_MASK | LevelItem.COLLISION_MASK
+	query.collide_with_bodies = false
+	query.collide_with_areas = true
+	var hits := get_world_2d().direct_space_state.intersect_shape(query, hurtbox_count)
+	for hit in hits:
+		var hurtbox: Area2D = hit.collider
+		if hurtbox == direct_hit or hurtbox.is_queued_for_deletion():
+			continue
+		var shape_node: CollisionShape2D = hurtbox.collider
+		# Measure to the nearest point of the hitbox so the entire item can receive damage.
+		var bounds := shape_node.shape.get_rect()
+		var nearest := shape_node.to_local(center).clamp(bounds.position, bounds.end)
+		var distance := center.distance_to(shape_node.to_global(nearest))
+		var falloff := clampf((1.0 - distance / radius) / 0.9, 0.0, 1.0)
+		hurtbox.apply_damage(roundi(peak_damage * falloff))
 
 
 func _estimate_impact_normal(center: Vector2i, travel_direction: Vector2) -> Vector2:
@@ -1193,7 +1541,7 @@ func _throw_blast_dirt(center: Vector2i, erased_pixels: int, surface_normal: Vec
 		_spawn_dirt(Vector2(center), stamp, launch_velocity)
 
 
-func _play_missile_explosion(hit_position: Vector2) -> void:
+func _play_explosion(hit_position: Vector2) -> void:
 	var explosion := Sprite2D.new()
 	explosion.texture = EXPLOSION_TEXTURE
 	explosion.hframes = roundi(EXPLOSION_TEXTURE.get_width() / float(EXPLOSION_TEXTURE.get_height()))

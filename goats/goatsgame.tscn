@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://8cps383vrqb8" path="res://goats/goat.tscn" id="16_goat"]
 [ext_resource type="Shader" uid="uid://csogdddq5xcnx" path="res://goats/zoom_pixelation.gdshader" id="17_zoom_pixelation"]
 [ext_resource type="Texture2D" uid="uid://cib86inmjlc13" path="res://sprites/arrow.png" id="18_offscreen_arrow"]
+[ext_resource type="PackedScene" uid="uid://bl3oiwvwxvn1m" path="res://goats/barrel.tscn" id="19_barrel"]
 [ext_resource type="Script" uid="uid://chyd27w7lvcgh" path="res://goats/console.gd" id="console_script"]
 [ext_resource type="Script" uid="uid://b8l6uevidf2wn" path="res://goats/nameplate_layer.gd" id="nameplate_layer"]
 
@@ -52,7 +53,7 @@ landing_pause_duration = 0.32
 [node name="Goats" type="Node2D" parent="." unique_id=893621732]
 
 [node name="Goat" parent="Goats" unique_id=163038628 instance=ExtResource("16_goat")]
-position = Vector2(1505, 1372)
+position = Vector2(1440, 1374)
 team_id = 1
 goat_name = "Player1"
 status = 0
@@ -142,6 +143,11 @@ scale = Vector2(2, 2)
 texture = ExtResource("12_level")
 centered = false
 script = ExtResource("13_terrain")
+
+[node name="Items" type="Node2D" parent="." unique_id=985274432]
+
+[node name="Barrel" parent="Items" unique_id=1304777136 instance=ExtResource("19_barrel")]
+position = Vector2(1537, 1387)
 
 [node name="ZoomEffect" type="CanvasLayer" parent="." unique_id=2089918821]
 

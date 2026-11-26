@@ -12,7 +12,9 @@ To rebind a control or add another key, mouse button, or controller input for th
 
 - **A / D** to walk.
 - **Tab** selects the next goat and centers the camera on it.
-- **Left Shift** switches the active goat between Goat Only and Launcher.
+- **Left Shift** cycles the active goat through Goat Only → Grapple → Launcher → Goat Only.
+- In Grapple mode, aim with **W / S** and press **E** to anchor the rope to terrain. Hold **W** to reel in and pull the goat toward the anchor. While airborne, hold **S** to lengthen the rope and use **A / D** to build swing momentum. Press **E** again to release.
+- Tap **Enter** while grounded with the grapple connected to bounce into a swing. Each goat can bounce once every two seconds.
 - Hold **Enter** to charge a jump in Goat Only mode. Release to jump.
 - Hold **Space** to charge a shot in Launcher mode. Release to fire.
 - Goats keep their momentum in the air. By default, a drop of 64 world pixels below the last grounded position disables controls until the goat settles. A hard landing can cause a bounce. Use `set fall_control_loss_distance <pixels>` to change the threshold.

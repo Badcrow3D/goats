@@ -1,11 +1,18 @@
 StoryBoard
 
-working mines, exploding barrels, halth crates
+how to do animation in grapple mode
+
+working mines, health crates
 
 + targets and goals objects
 + weapons as polygon
 + flag or wind speed meter, in addition to leaves
 
+Main menu: New match, Teams, quit
+New match: add team, remove team, Teams, back
+Teams: add team, remove team, Edit team
+Edit team: team name, 10 goat names, save, cancel, back
+List of team colors saved
 
 laser digging
 
@@ -27,8 +34,6 @@ ACDEFGHLMRTW
 -bijknopqsuvxyz
 Bomb, Proximity mine
 
-trees background
-mountains background
 grass and trees
 snow and mountain
 cliffs and dessert sand, cactus, rocks

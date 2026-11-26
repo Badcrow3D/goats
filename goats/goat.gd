@@ -45,11 +45,16 @@ var walked_off_edge := false
 var is_bouncing := false
 var landing_pause_pending := false
 var jump_pause_remaining := 0.0
+var grapple_bounce_cooldown := 0.0
 var jump_launch_speed := 0.0
 var aim_degrees := 0.0
 
 var _walking := false
 var _showing_aim_pose := false
+var aim_locked := false:
+	set(value):
+		aim_locked = value
+		_apply_mode_layers()
 var _idle_rows_remaining := 0
 
 @export var team_id := 0
@@ -329,7 +334,7 @@ func _apply_mode_layers() -> void:
 	_launcher.visible = show_launcher
 	var show_aim_pose := _aim_pose.visible or _grapple_aim_pose.visible
 	_sprite.visible = not show_aim_pose and not _bounce_pose.visible
-	_aim_cursor.visible = show_aim_pose
+	_aim_cursor.visible = show_aim_pose and not aim_locked
 
 
 func update_jump_meter(show_charge: bool, charge_ratio: float) -> void:
@@ -363,6 +368,10 @@ func grapple_pivot_position() -> Vector2:
 
 func direction_to_target(target: Vector2) -> Vector2:
 	return _active_muzzle().global_position.direction_to(target)
+
+
+func muzzle_origin() -> Vector2:
+	return _active_muzzle().global_position
 
 
 func missile_spawn_position() -> Vector2:
