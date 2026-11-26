@@ -34,6 +34,23 @@ To rebind a control or add another key, mouse button, or controller input for th
 - `load <filename>.png` loads a 1920×1080 level PNG from `levels/` and restarts the arena.
 - `reset` reloads the current level.
 
+### Test teams
+
+- `team create [name]` creates a team and prints its numeric ID. Omit the name to use a default such as `Team 1`.
+- `team name <id> <name>` renames a team, for example `team name 1 Hill Climbers`.
+- `team add <id> <goat name>` adds a goat name, for example `team add 1 Billy Blue`. Each team can hold up to 12 goat names.
+- `team list` shows team IDs, names, and rosters.
+
+The console loads all test teams into memory and saves every successful change to `user://teams.cfg`. These commands manage test roster data independently of the goats in the arena.
+
+On first launch, the console creates `Team1` and `Team2` if `teams.cfg` is missing. Each team has `Goat1` through `Goat12`.
+
+`newmatch level2 team1 team2` starts a fresh arena on `levels/level2.png`. Provide two or more distinct teams by case-insensitive name or numeric ID from `team list`. Use IDs for names containing spaces. Each team uses its first four saved goat names and draws a color from the shuffled `colors.cfg` palette. Colors repeat only if there are more teams than palette entries. The goats start at randomly assigned, separate spots on the terrain.
+
+Each successful `newmatch` saves the level, teams, and goat count to `user://rematch.cfg`. Run `rematch` to start a fresh match with the saved level and teams, with new random spawn positions and team colors. During a match, `reset` restores its starting positions and terrain.
+
+The active goat starts in goat-only mode. The camera holds at 2× on that goat for one second, then zooms out to 1× before returning control to the player.
+
 ## Project layout
 
 - [`goats/`](goats/) contains the arena, goat controller, missile, dirt drop, and wind effects.

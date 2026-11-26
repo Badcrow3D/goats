@@ -2,6 +2,8 @@
 
 Use Godot 4.7 with the GL Compatibility renderer configured in `project.godot`. The main scene is `goats/goatsgame.tscn`. See [README.md](README.md) for controls and tuning commands.
 
+On this Windows machine, the editor is at `D:\Godot\Godot_v4.7.2\Godot_v4.7.2-stable_win64.exe`. The install directory is on the user PATH. Use `Godot_v4.7.2-stable_win64_console.exe` for command-line checks. If your shell has an older PATH, invoke it directly with `& 'D:\Godot\Godot_v4.7.2\Godot_v4.7.2-stable_win64_console.exe'`. In the commands below, replace `godot` with that executable when needed.
+
 ## Where changes belong
 
 - `goats/goatsgame.gd` wires the arena together. It owns level loading, camera input, bitmap movement and collision, and the arena's response to missile impacts and dirt deposits.

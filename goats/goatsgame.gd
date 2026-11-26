@@ -1,6 +1,7 @@
 extends "res://goats/goat_controller.gd"
 
 const Goat := preload("res://goats/goat.gd")
+const GOAT_SCENE := preload("res://goats/goat.tscn")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const LevelItem := preload("res://goats/level_item.gd")
 const DirtDrop := preload("res://goats/dirt_drop.gd")
@@ -43,6 +44,7 @@ const OFFSCREEN_ARROW_MARGIN := 40.0
 const CAMERA_DRAG_THRESHOLD := 4.0
 const CAPTURED_MOUSE_SENSITIVITY := 2.0
 const ZOOM_TRANSITION_SECONDS := 0.25
+const MATCH_CAMERA_HOLD_MSEC := 1000
 const CAMERA_MIN_ZOOM := 0.5
 const GOAT_SWITCH_CAMERA_SECONDS := 0.3
 const CAMERA_FOLLOW_IDLE_MSEC := 500
@@ -75,6 +77,14 @@ class Team:
 		color = team_color
 
 
+class MatchSetup:
+	var filename: String
+	var image: Image
+	var rosters: Dictionary[int, Dictionary]
+	var positions: Array[Vector2]
+	var colors: PackedStringArray
+
+
 const WALK_HOLD_MSEC := 80
 const wind_max := 12
 const DEFAULT_EXPLOSION_RADIUS := 18.0
@@ -86,6 +96,8 @@ const TERRAIN_BURN_COLOR := Color("#4c4947")
 const LEVELS_DIR := "res://levels/"
 const DEFAULT_LEVEL := "level2.png"
 const LEVEL_SIZE := Vector2i(1920, 1080)
+const GOATS_PER_MATCH_TEAM := 4
+const TEAM_COLORS_PATH := "res://colors.cfg"
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
 const TUNING_FLAGS := ["wind_random"]
@@ -113,6 +125,7 @@ const TUNING_FLOORS := {
 
 @onready var goat_container: Node2D = $Goats
 @onready var arena_camera: Camera2D = $ArenaCamera
+@onready var background: TextureRect = $Sky/Background
 @onready var offscreen_arrow: Sprite2D = $GoatIndicator/Arrow
 @onready var zoom_pixelation: ColorRect = $ZoomEffect/Pixelation
 @onready var zoom_material: ShaderMaterial = zoom_pixelation.material
@@ -144,6 +157,7 @@ var pending_item_blasts: Array[Callable] = []
 var mouse_unlocked := true
 var pointer_press_position := Vector2.INF
 var camera_dragging := false
+var match_camera_intro := false
 var camera_shake: Tween
 var camera_zoom_transition: Tween
 var camera_goat_transition: Tween
@@ -174,14 +188,23 @@ var cloud_count := 15
 var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
 var goats: Array[Goat] = []
+static var _next_match: MatchSetup
+var _match_setup: MatchSetup
 
 
 func _ready() -> void:
+	_match_setup = _next_match
+	_next_match = null
+	_load_tuning()
+	if _match_setup != null:
+		level_filename = _match_setup.filename
+		_create_match_goats()
 	for child in goat_container.get_children():
 		if child is Goat:
 			goats.append(child)
 	active_goat = goats[0]
-	_load_tuning()
+	if _match_setup != null:
+		active_goat.status = Goat.Status.ACTIVE
 	arena_camera.limit_enabled = false
 	_setup_level()
 	grapple_line.draw.connect(_draw_grapple_line)
@@ -189,15 +212,16 @@ func _ready() -> void:
 	grapple_line.z_as_relative = false
 	grapple_line.z_index = 1
 	terrain_view.add_child(grapple_line)
-	var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
+	if _match_setup == null:
+		var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
+		teams[player_team.id] = player_team
 	for target in goats:
 		if target != active_goat:
 			target.mode = Goat.Mode.GOAT_ONLY
 		target.damaged.connect(_knock_back_goat.bind(target))
 		target.mode_changed.connect(_on_goat_mode_changed.bind(target))
-		if target.team_id == player_team.id:
-			player_team.goats.append(target)
-	teams[player_team.id] = player_team
+		if teams.has(target.team_id):
+			teams[target.team_id].goats.append(target)
 	for layer in sky_layers:
 		layer.setup(arena_bounds)
 	_apply_cloud_count()
@@ -213,6 +237,8 @@ func _ready() -> void:
 			_clamp_camera_position()
 	)
 	_update_camera_parallax()
+	if _match_setup != null:
+		_begin_match_camera_intro()
 	arena_camera.force_update_scroll()
 	for target in goats:
 		$Nameplates.track_goat(target)
@@ -220,6 +246,7 @@ func _ready() -> void:
 	console.set_variable = _set_console_variable
 	console.load_level = _load_console_level
 	console.reset_level = _reload_level
+	console.start_match = _start_match
 	_show_active_goat_arrow()
 	_try_spawn_crow()
 	var crow_timer := Timer.new()
@@ -284,7 +311,8 @@ func _try_spawn_crow() -> void:
 
 
 func _setup_level() -> void:
-	var image := _read_level_image(level_filename)
+	var image := _read_level_image(level_filename) if _match_setup == null \
+			else _match_setup.image.duplicate() as Image
 	if image == null or image.get_size() != LEVEL_SIZE:
 		push_warning("Could not load level %s. Using %s." % [level_filename, DEFAULT_LEVEL])
 		level_filename = DEFAULT_LEVEL
@@ -297,7 +325,6 @@ func _setup_level() -> void:
 	sky.polygon = PackedVector2Array([
 		Vector2.ZERO, Vector2(arena_bounds.size.x, 0), arena_bounds.end, Vector2(0, arena_bounds.size.y),
 	])
-	var background: TextureRect = $Sky/Background
 	background.size = arena_bounds.size
 	RenderingServer.set_default_clear_color(sky.color)
 	arena_camera.limit_left = 0
@@ -315,6 +342,31 @@ func _setup_level() -> void:
 	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
 	for target in goats:
 		_reset_fall_state(target)
+
+
+func _create_match_goats() -> void:
+	for child in goat_container.get_children():
+		if child is Goat:
+			goat_container.remove_child(child)
+			child.queue_free()
+
+	var spawn_index := 0
+	var color_index := 0
+	for team_id in _match_setup.rosters:
+		var roster: Dictionary = _match_setup.rosters[team_id]
+		var color := Color.from_string(_match_setup.colors[color_index], Color.WHITE)
+		teams[team_id] = Team.new(team_id, roster["name"], color)
+		color_index = (color_index + 1) % _match_setup.colors.size()
+		var names: PackedStringArray = roster["goats"]
+		for goat_name in names:
+			var goat := GOAT_SCENE.instantiate() as Goat
+			goat.goat_name = goat_name
+			goat.team_id = team_id
+			goat.team_color = color
+			goat.mode = Goat.Mode.GOAT_ONLY
+			goat.position = _match_setup.positions[spawn_index]
+			goat_container.add_child(goat)
+			spawn_index += 1
 
 
 func _read_level_image(filename: String) -> Image:
@@ -341,13 +393,33 @@ func _spawn_at(preferred_x: int) -> Vector2:
 			var footprint := _bitmap_body_rect(Vector2(x, 0))
 			if footprint.position.x < 0 or footprint.end.x > terrain.width:
 				continue
-			var surface := terrain.height
-			for column in range(footprint.position.x, footprint.end.x):
-				surface = mini(surface, terrain.surface_y(column))
+			var surface := _spawn_surface(terrain, footprint)
 			if surface < terrain.height:
 				return Vector2(x, surface * terrain_view.scale.y - goat_body.end.y)
 	push_error("Level bitmap has no solid spawn surface.")
 	return Vector2(preferred_x, 0)
+
+
+func _spawn_surface(mask: Terrain, footprint: Rect2i) -> int:
+	var surface := mask.height
+	for column in range(footprint.position.x, footprint.end.x):
+		surface = mini(surface, mask.surface_y(column))
+	return surface
+
+
+func _match_spawn_positions(mask: Terrain) -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	var spacing := maxi(1, goat_body.size.x * 2)
+	var world_width := floori(mask.width * terrain_view.scale.x)
+	for x in range(randi_range(0, spacing - 1), world_width, spacing):
+		var footprint := _bitmap_body_rect(Vector2(x, 0))
+		if footprint.position.x < 0 or footprint.end.x > mask.width:
+			continue
+		var surface := _spawn_surface(mask, footprint)
+		if surface < mask.height and surface * terrain_view.scale.y >= goat_body.size.y:
+			positions.append(Vector2(x, surface * terrain_view.scale.y - goat_body.end.y))
+	positions.shuffle()
+	return positions
 
 
 func _bitmap_body_rect(at: Vector2) -> Rect2i:
@@ -543,7 +615,62 @@ func _load_console_level(filename: String) -> String:
 		level_filename = previous_level
 		return "Could not save level preference: " + error_string(error)
 
-	_reload_level.call_deferred()
+	_replace_arena.call_deferred(null)
+	return ""
+
+
+func _start_match(filename: String, selected: Dictionary[int, Dictionary]) -> String:
+	var image := _read_level_image(filename)
+	if image == null or image.is_empty():
+		return "Could not load PNG from levels/: " + filename
+	if image.get_size() != LEVEL_SIZE:
+		return "Level PNG must be %d×%d pixels." % [LEVEL_SIZE.x, LEVEL_SIZE.y]
+
+	var setup := MatchSetup.new()
+	setup.filename = filename
+	setup.image = image
+	var team_ids := PackedInt32Array()
+	var team_names := PackedStringArray()
+	for team_id in selected:
+		var roster: Dictionary = selected[team_id]
+		var team_name: String = roster["name"]
+		var names: PackedStringArray = roster["goats"]
+		if names.size() < GOATS_PER_MATCH_TEAM:
+			return "%s needs at least %d goat names." % [team_name, GOATS_PER_MATCH_TEAM]
+		setup.rosters[team_id] = {"name": team_name, "goats": names.slice(0, GOATS_PER_MATCH_TEAM)}
+		team_ids.append(team_id)
+		team_names.append(team_name)
+
+	var palette := ConfigFile.new()
+	var error := palette.load(TEAM_COLORS_PATH)
+	if error != OK:
+		return "Could not load team colors: " + error_string(error)
+	var colors: Variant = palette.get_value("teams", "colors", PackedStringArray())
+	if not (colors is PackedStringArray) or colors.is_empty():
+		return "Team color list is empty or invalid."
+	var shuffled_colors := Array(colors)
+	shuffled_colors.shuffle()
+	setup.colors = PackedStringArray(shuffled_colors)
+
+	setup.positions = _match_spawn_positions(Terrain.from_image(image))
+	var goat_count := GOATS_PER_MATCH_TEAM * selected.size()
+	if setup.positions.size() < goat_count:
+		return "Level does not have enough safe spawn positions for %d goats." % goat_count
+	setup.positions.resize(goat_count)
+
+	var config := ConfigFile.new()
+	config.set_value("match", "level", filename)
+	config.set_value("match", "team_ids", team_ids)
+	config.set_value("match", "team_names", team_names)
+	config.set_value("match", "goats_per_team", GOATS_PER_MATCH_TEAM)
+	var temporary_path := ArenaConsole.REMATCH_PATH + ".tmp"
+	error = config.save(temporary_path)
+	if error == OK:
+		error = DirAccess.rename_absolute(temporary_path, ArenaConsole.REMATCH_PATH)
+	if error != OK:
+		return "Could not save rematch settings: " + error_string(error)
+
+	_replace_arena.call_deferred(setup)
 	return ""
 
 
@@ -601,9 +728,15 @@ func _set_console_variable(field: String, value_text: String) -> String:
 
 
 func _reload_level() -> void:
+	_replace_arena(_match_setup)
+
+
+func _replace_arena(setup: MatchSetup) -> void:
+	_next_match = setup
 	var error := get_tree().reload_current_scene()
 	if error != OK:
-		console.show_message("Could not reset level: " + error_string(error))
+		_next_match = null
+		console.show_message("Could not reload arena: " + error_string(error))
 
 
 func _save_tuning() -> Error:
@@ -785,7 +918,8 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed(&"select_next_goat"):
-		_select_next_goat()
+		if not match_camera_intro:
+			_select_next_goat()
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"toggle_launcher"):
@@ -842,6 +976,11 @@ func _handle_camera_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if console.visible and not tree.paused:
+		return
+	if match_camera_intro:
+		if event.is_action(&"camera_zoom_in") or event.is_action(&"camera_zoom_out") \
+				or event.is_action(&"arena_pointer") or event.is_action(&"toggle_mouse_capture"):
+			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"toggle_mouse_capture"):
 		mouse_unlocked = not mouse_unlocked
@@ -1271,6 +1410,22 @@ func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
 	return -1.0
 
 
+func _begin_match_camera_intro() -> void:
+	match_camera_intro = true
+	camera_zoom_level = 2.0
+	arena_camera.zoom = Vector2.ONE * camera_zoom_level
+	_set_camera_target(active_goat.global_position)
+	# Use wall-clock time so the scene-load frame does not shorten the hold.
+	await get_tree().process_frame
+	var hold_until := Time.get_ticks_msec() + MATCH_CAMERA_HOLD_MSEC
+	while Time.get_ticks_msec() < hold_until:
+		await get_tree().process_frame
+	_zoom_camera(-1)
+	camera_zoom_transition.finished.connect(func() -> void:
+		match_camera_intro = false
+	)
+
+
 func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
 	# The half-scale stop sits below the whole-number zoom levels.
 	var next_level := clampf(floorf(camera_zoom_level) + amount, CAMERA_MIN_ZOOM, camera_max_zoom)
@@ -1302,6 +1457,8 @@ func _apply_camera_zoom(zoom_level: float, anchor_offset: Vector2) -> void:
 	var previous_zoom := arena_camera.zoom.x
 	# Keep the same world point under the screen anchor across the zoom step.
 	camera_target += anchor_offset / previous_zoom - anchor_offset / zoom_level
+	if match_camera_intro:
+		camera_target = active_goat.global_position
 	arena_camera.zoom = Vector2.ONE * zoom_level
 	_clamp_camera_position()
 
@@ -1318,6 +1475,8 @@ func _update_mouse_mode() -> void:
 
 
 func _pan_camera_to_active_goat() -> void:
+	if match_camera_intro:
+		return
 	_cancel_goat_camera_transition()
 	camera_follows_goat = true
 	camera_goat_transition = create_tween()
@@ -1366,6 +1525,7 @@ func _clamp_camera_position() -> void:
 
 func _update_camera_parallax() -> void:
 	var camera_offset := arena_camera.position - arena_bounds.get_center()
+	background.position = arena_bounds.position + camera_offset * 0.5
 	for layer in sky_layers:
 		layer.update_parallax(camera_offset)
 
