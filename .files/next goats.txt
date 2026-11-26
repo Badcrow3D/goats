@@ -42,8 +42,6 @@ holiday themes level and outfits
 
 4k testing ideas
 
-+erase bottom 4 pixels when loaded:
-
 level schema
 1920 x 1080 RGBa
 

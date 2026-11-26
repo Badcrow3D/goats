@@ -132,8 +132,8 @@ func _run_command(command: String) -> void:
 
 
 func _run_new_match(words: PackedStringArray) -> String:
-	if words.size() < 4:
-		return "Usage: newmatch <level> <team> <team> [more teams]"
+	if words.size() < 6 or words.size() % 2 != 0:
+		return "Usage: newmatch <level> <team> <goat count> <team> <goat count> [<team> <goat count> ...]"
 	var filename := words[1]
 	if filename.get_extension().to_lower() != "png":
 		filename += ".png"
@@ -155,9 +155,13 @@ func _run_rematch(words: PackedStringArray) -> String:
 	if not (filename is String) or filename.is_empty() \
 			or not (team_ids is PackedInt32Array) or team_ids.size() < 2:
 		return "Invalid rematch settings. Start one with newmatch."
+	var counts: Variant = config.get_value("match", "goats_per_team", PackedInt32Array())
+	if not (counts is PackedInt32Array) or counts.size() != team_ids.size():
+		return "Invalid rematch settings. Start one with newmatch."
 	var selectors := PackedStringArray()
-	for team_id in team_ids:
-		selectors.append(str(team_id))
+	for index in team_ids.size():
+		selectors.append(str(team_ids[index]))
+		selectors.append(str(counts[index]))
 	return _start_match_with_teams(filename, selectors)
 
 
@@ -166,7 +170,8 @@ func _start_match_with_teams(filename: String, selectors: PackedStringArray) -> 
 		return "Could not load teams: " + error_string(_teams_load_error)
 
 	var selected: Dictionary[int, Dictionary] = {}
-	for selector in selectors:
+	for index in range(0, selectors.size(), 2):
+		var selector := selectors[index]
 		var team_id := _match_team_id(selector)
 		if team_id == -1:
 			return "Ambiguous team name '%s'. Use a numeric ID from team list." % selector
@@ -174,7 +179,20 @@ func _start_match_with_teams(filename: String, selectors: PackedStringArray) -> 
 			return "Unknown team '%s'. Use team list to see teams." % selector
 		if selected.has(team_id):
 			return "Team %d was selected more than once." % team_id
-		selected[team_id] = _teams[team_id - 1]
+		var count_text := selectors[index + 1]
+		var count := count_text.to_int()
+		if not count_text.is_valid_int() or count < 1 or count > MAX_GOAT_NAMES:
+			return "Goat count for '%s' must be a whole number from 1 to %d." % [selector, MAX_GOAT_NAMES]
+		var roster: Dictionary = _teams[team_id - 1]
+		var names: PackedStringArray = roster["goats"]
+		var match_names := names.slice(0, count)
+		var fallback_number := 1
+		while match_names.size() < count:
+			var fallback_name := "Goat%d" % fallback_number
+			if not match_names.has(fallback_name):
+				match_names.append(fallback_name)
+			fallback_number += 1
+		selected[team_id] = {"name": roster["name"], "goats": match_names}
 
 	return start_match.call(filename, selected)
 

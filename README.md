@@ -46,9 +46,9 @@ The console loads all test teams into memory and saves every successful change t
 
 On first launch, the console creates `Team1` and `Team2` if `teams.cfg` is missing. Each team has `Goat1` through `Goat12`.
 
-`newmatch level2 team1 team2` starts a fresh arena on `levels/level2.png`. Provide two or more distinct teams by case-insensitive name or numeric ID from `team list`. Use IDs for names containing spaces. Each team uses its first four saved goat names and draws a color from the shuffled `colors.cfg` palette. Colors repeat only if there are more teams than palette entries. The goats start at randomly assigned, separate spots on the terrain.
+`newmatch level2 team1 4 team2 6` starts a fresh arena on `levels/level2.png`. Provide two or more distinct teams by case-insensitive name or numeric ID from `team list`. Use IDs for names containing spaces. Follow each team with its goat count, a whole number from 1 to 12. Each team uses its saved goat names in order. Empty slots get temporary names such as `Goat1` and `Goat2`, skipping names already in use on that team. Each team draws a color from the shuffled `colors.cfg` palette. Colors repeat only if there are more teams than palette entries. The goats start at randomly assigned, separate spots on the terrain.
 
-Each successful `newmatch` saves the level, teams, and goat count to `user://rematch.cfg`. Run `rematch` to start a fresh match with the saved level and teams, with new random spawn positions and team colors. During a match, `reset` restores its starting positions and terrain.
+Each successful `newmatch` saves the level, teams, and per-team goat counts to `user://rematch.cfg`. Run `rematch` to start a fresh match with the saved level, teams, and goat counts, with new random spawn positions and team colors. During a match, `reset` restores its starting positions and terrain.
 
 The active goat starts in goat-only mode. The camera holds at 2× on that goat for one second, then zooms out to 1× before returning control to the player.
 

@@ -97,7 +97,6 @@ const TERRAIN_BURN_COLOR := Color("#4c4947")
 const LEVELS_DIR := "res://levels/"
 const DEFAULT_LEVEL := "level2.png"
 const LEVEL_SIZE := Vector2i(1920, 1080)
-const GOATS_PER_MATCH_TEAM := 4
 const TEAM_COLORS_PATH := "res://colors.cfg"
 const TUNING_PATH := "user://goats_newtest_tuning.cfg"
 const TUNING_SECTION := "tuning"
@@ -320,6 +319,7 @@ func _setup_level() -> void:
 		level_filename = DEFAULT_LEVEL
 		image = terrain_view.texture.get_image().duplicate() as Image
 	image.convert(Image.FORMAT_RGBA8)
+	_clear_level_palette(image)
 	terrain = Terrain.from_image(image)
 	arena_bounds = Rect2(Vector2.ZERO, Vector2(image.get_size()) * terrain_view.scale)
 
@@ -411,16 +411,23 @@ func _spawn_surface(mask: Terrain, footprint: Rect2i) -> int:
 	return surface
 
 
+func _clear_level_palette(image: Image) -> void:
+	image.fill_rect(Rect2i(0, image.get_height() - 1, 4, 1), Color(0, 0, 0, 0))
+
+
 func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 	image.convert(Image.FORMAT_RGBA8)
+	var grass_color := image.get_pixel(3, image.get_height() - 1)
+	_clear_level_palette(image)
 	var mask := Terrain.from_image(image)
 	var positions: Array[Vector2] = []
 	var stride := maxi(1, floori(goat_body.size.x / 4.0))
 	var columns := range(randi_range(0, stride - 1), floori(mask.width * terrain_view.scale.x), stride)
 	columns.shuffle()
-	if mask.width >= 4 and image.get_pixel(3, mask.height - 1).a >= 0.5:
+	if grass_color.a >= 0.5:
 		var colors := image.get_data().to_int32_array()
-		var grass := colors[(mask.height - 1) * mask.width + 3]
+		# Match the signed RGBA8 words in the pixel buffer.
+		var grass := PackedInt32Array([grass_color.to_abgr32()])[0]
 		for x: int in columns:
 			var footprint := _bitmap_body_rect(Vector2(x, 0))
 			if footprint.position.x < 0 or footprint.end.x > mask.width:
@@ -430,7 +437,7 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 			var in_grass := false
 			for y in mask.height:
 				var is_grass := colors[y * mask.width + center] == grass
-				if is_grass and not in_grass and (y != mask.height - 1 or center >= 4):
+				if is_grass and not in_grass:
 					var floor_y := _floor_above_grass(mask, footprint, y)
 					if floor_y >= 0:
 						candidates.append(Vector2(x, floor_y * terrain_view.scale.y - goat_body.end.y))
@@ -773,15 +780,21 @@ func _start_match(filename: String, selected: Dictionary[int, Dictionary]) -> St
 	setup.image = image
 	var team_ids := PackedInt32Array()
 	var team_names := PackedStringArray()
+	var team_counts := PackedInt32Array()
+	var team_offsets := PackedInt32Array()
+	var goat_count := 0
+	var max_team_count := 0
 	for team_id in selected:
 		var roster: Dictionary = selected[team_id]
 		var team_name: String = roster["name"]
 		var names: PackedStringArray = roster["goats"]
-		if names.size() < GOATS_PER_MATCH_TEAM:
-			return "%s needs at least %d goat names." % [team_name, GOATS_PER_MATCH_TEAM]
-		setup.rosters[team_id] = {"name": team_name, "goats": names.slice(0, GOATS_PER_MATCH_TEAM)}
+		setup.rosters[team_id] = roster
 		team_ids.append(team_id)
 		team_names.append(team_name)
+		team_counts.append(names.size())
+		team_offsets.append(goat_count)
+		goat_count += names.size()
+		max_team_count = maxi(max_team_count, names.size())
 
 	var palette := ConfigFile.new()
 	var error := palette.load(TEAM_COLORS_PATH)
@@ -794,26 +807,27 @@ func _start_match(filename: String, selected: Dictionary[int, Dictionary]) -> St
 	shuffled_colors.shuffle()
 	setup.colors = PackedStringArray(shuffled_colors)
 
-	var goat_count := GOATS_PER_MATCH_TEAM * selected.size()
 	setup.positions = _match_spawn_positions(image, goat_count)
 	if setup.positions.size() < goat_count:
 		return "Could not find safe spawn positions for %d goats." % goat_count
-	# Each left-to-right group receives one goat per team in a fresh random order.
+	# Each left-to-right group receives one goat per team that still has goats to place.
 	setup.positions.sort_custom(func(a: Vector2, b: Vector2) -> bool:
 		return a.x < b.x or (a.x == b.x and a.y < b.y))
 	var sorted_positions := setup.positions.duplicate()
 	var team_slots := range(selected.size())
-	for round_index in GOATS_PER_MATCH_TEAM:
+	var position_index := 0
+	for round_index in max_team_count:
 		team_slots.shuffle()
-		for slot in team_slots.size():
-			var roster_index: int = team_slots[slot] * GOATS_PER_MATCH_TEAM + round_index
-			setup.positions[roster_index] = sorted_positions[round_index * team_slots.size() + slot]
+		for slot in team_slots:
+			if round_index < team_counts[slot]:
+				setup.positions[team_offsets[slot] + round_index] = sorted_positions[position_index]
+				position_index += 1
 
 	var config := ConfigFile.new()
 	config.set_value("match", "level", filename)
 	config.set_value("match", "team_ids", team_ids)
 	config.set_value("match", "team_names", team_names)
-	config.set_value("match", "goats_per_team", GOATS_PER_MATCH_TEAM)
+	config.set_value("match", "goats_per_team", team_counts)
 	var temporary_path := ArenaConsole.REMATCH_PATH + ".tmp"
 	error = config.save(temporary_path)
 	if error == OK:
