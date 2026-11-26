@@ -25,7 +25,6 @@ func _physics_process(delta: float) -> void:
 	_move_mine(delta)
 	if fuse_duration == 0.0 and _goat_in_range():
 		fuse_duration = randi_range(1, 12) * 0.25
-		add_to_group(DETONATING_GROUP)
 	if fuse_duration > 0.0:
 		fuse_elapsed += delta
 		if fuse_elapsed >= fuse_duration:
