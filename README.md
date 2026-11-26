@@ -12,6 +12,7 @@ To rebind a control or add another key, mouse button, or controller input for th
 
 - **A / D** to walk.
 - **Tab** selects the next goat and centers the camera on it.
+- **Z** cycles inactive goats’ nameplates from 2× (default) to 1×, then hidden, then back to 2×.
 - **Left Shift** cycles the active goat through Goat Only → Grapple → Launcher → Goat Only.
 - In Grapple mode, aim with **W / S** and press **E** to anchor the rope to terrain. Hold **W** to reel in and pull the goat toward the anchor. While airborne, hold **S** to lengthen the rope and use **A / D** to build swing momentum. Press **E** again to release.
 - Tap **Enter** while grounded with the grapple connected to bounce into a swing. Each goat can bounce once every two seconds.

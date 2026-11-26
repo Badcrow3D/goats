@@ -407,20 +407,94 @@ func _spawn_surface(mask: Terrain, footprint: Rect2i) -> int:
 	return surface
 
 
-func _match_spawn_positions(mask: Terrain) -> Array[Vector2]:
+func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
+	image.convert(Image.FORMAT_RGBA8)
+	var mask := Terrain.from_image(image)
 	var positions: Array[Vector2] = []
-	var spacing := maxi(1, goat_body.size.x * 2)
-	var world_width := floori(mask.width * terrain_view.scale.x)
-	for x in range(randi_range(0, spacing - 1), world_width, spacing):
+	var stride := maxi(1, floori(goat_body.size.x / 4.0))
+	var columns := range(randi_range(0, stride - 1), floori(mask.width * terrain_view.scale.x), stride)
+	columns.shuffle()
+	if mask.width >= 4 and image.get_pixel(3, mask.height - 1).a >= 0.5:
+		var colors := image.get_data().to_int32_array()
+		var grass := colors[(mask.height - 1) * mask.width + 3]
+		for x: int in columns:
+			var footprint := _bitmap_body_rect(Vector2(x, 0))
+			if footprint.position.x < 0 or footprint.end.x > mask.width:
+				continue
+			var center := footprint.get_center().x
+			var candidates: Array[Vector2] = []
+			var in_grass := false
+			for y in mask.height:
+				var is_grass := colors[y * mask.width + center] == grass
+				if is_grass and not in_grass and (y != mask.height - 1 or center >= 4):
+					var floor_y := _floor_above_grass(mask, footprint, y)
+					if floor_y >= 0:
+						candidates.append(Vector2(x, floor_y * terrain_view.scale.y - goat_body.end.y))
+				in_grass = is_grass
+			candidates.shuffle()
+			if _add_spawn_positions(mask, candidates, count, positions):
+				return positions
+
+	# Search every sampled footprint for open floors, including unmarked cave floors.
+	var floors: Array[Vector2] = []
+	for x: int in columns:
 		var footprint := _bitmap_body_rect(Vector2(x, 0))
 		if footprint.position.x < 0 or footprint.end.x > mask.width:
 			continue
-		var surface := _spawn_surface(mask, footprint)
-		if surface < mask.height and surface * terrain_view.scale.y >= goat_body.size.y:
-			positions.append(Vector2(x, surface * terrain_view.scale.y - goat_body.end.y))
-	positions.shuffle()
+		var air_rows := 0
+		for y in mask.height:
+			if mask.rect_is_free(footprint.position.x, y, footprint.size.x, 1):
+				air_rows += 1
+				continue
+			if air_rows * terrain_view.scale.y >= goat_body.size.y:
+				floors.append(Vector2(x, y * terrain_view.scale.y - goat_body.end.y))
+			air_rows = 0
+	for attempt in 4:
+		floors.shuffle()
+		if _add_spawn_positions(mask, floors, count, positions):
+			break
+		if attempt < 3:
+			positions.clear()
 	return positions
 
+
+func _floor_above_grass(mask: Terrain, footprint: Rect2i, grass_y: int) -> int:
+	# Find the nearest floor with full headroom, even if artwork rises above the grass.
+	var air_rows := 0
+	for y in range(grass_y - 1, -1, -1):
+		if mask.rect_is_free(footprint.position.x, y, footprint.size.x, 1):
+			air_rows += 1
+			if air_rows * terrain_view.scale.y >= goat_body.size.y:
+				return y + air_rows
+		else:
+			air_rows = 0
+	return -1
+
+
+func _add_spawn_positions(mask: Terrain, candidates: Array[Vector2], count: int, positions: Array[Vector2]) -> bool:
+	var spacing_squared := pow(2 * goat_body.size.x, 2)
+	for at in candidates:
+		if positions.any(func(other: Vector2) -> bool:
+			return at.distance_squared_to(other) < spacing_squared):
+			continue
+		if _has_spawn_walkway(mask, at):
+			positions.append(at)
+			if positions.size() == count:
+				return true
+	return false
+
+func _has_spawn_walkway(mask: Terrain, at: Vector2) -> bool:
+	for direction: int in [-1, 1]:
+		var next := at
+		for step in goat_body.size.x:
+			next.x += direction
+			next = _follow_slope(next, mask)
+			var rect := _bitmap_body_rect(next)
+			if rect.position.x < 0 or rect.end.x > mask.width or rect.position.y < 0:
+				return false
+			if not _body_is_free(next, mask) or _body_is_free(next + Vector2.DOWN, mask):
+				return false
+	return true
 
 func _bitmap_body_rect(at: Vector2) -> Rect2i:
 	# Cover every source pixel touched by the goat's world-space collision box.
@@ -430,9 +504,9 @@ func _bitmap_body_rect(at: Vector2) -> Rect2i:
 	return Rect2i(pixel_start, pixel_end - pixel_start)
 
 
-func _body_is_free(at: Vector2) -> bool:
+func _body_is_free(at: Vector2, mask: Terrain = terrain) -> bool:
 	var rect := _bitmap_body_rect(at)
-	return terrain.rect_is_free(rect.position.x, rect.position.y, rect.size.x, rect.size.y)
+	return mask.rect_is_free(rect.position.x, rect.position.y, rect.size.x, rect.size.y)
 
 
 func _is_grounded(body: Goat) -> bool:
@@ -534,15 +608,15 @@ func _sweep_horizontal(at: Vector2, target_x: float, follow_slope: bool) -> Vect
 	return at
 
 
-func _follow_slope(at: Vector2) -> Vector2:
+func _follow_slope(at: Vector2, mask: Terrain = terrain) -> Vector2:
 	# The step limits are in bitmap pixels, while the goat moves in world pixels.
 	var max_step_up := roundi(MAX_STEP_UP * terrain_view.scale.y)
 	var max_step_down := roundi(MAX_STEP_DOWN * terrain_view.scale.y)
 	for up in range(max_step_up + 1):
 		var candidate := at - Vector2(0, up)
-		if _body_is_free(candidate):
+		if _body_is_free(candidate, mask):
 			for down in max_step_down:
-				if not _body_is_free(candidate + Vector2.DOWN):
+				if not _body_is_free(candidate + Vector2.DOWN, mask):
 					break
 				candidate.y += 1.0
 			return candidate
@@ -652,11 +726,20 @@ func _start_match(filename: String, selected: Dictionary[int, Dictionary]) -> St
 	shuffled_colors.shuffle()
 	setup.colors = PackedStringArray(shuffled_colors)
 
-	setup.positions = _match_spawn_positions(Terrain.from_image(image))
 	var goat_count := GOATS_PER_MATCH_TEAM * selected.size()
+	setup.positions = _match_spawn_positions(image, goat_count)
 	if setup.positions.size() < goat_count:
-		return "Level does not have enough safe spawn positions for %d goats." % goat_count
-	setup.positions.resize(goat_count)
+		return "Could not find safe spawn positions for %d goats." % goat_count
+	# Each left-to-right group receives one goat per team in a fresh random order.
+	setup.positions.sort_custom(func(a: Vector2, b: Vector2) -> bool:
+		return a.x < b.x or (a.x == b.x and a.y < b.y))
+	var sorted_positions := setup.positions.duplicate()
+	var team_slots := range(selected.size())
+	for round_index in GOATS_PER_MATCH_TEAM:
+		team_slots.shuffle()
+		for slot in team_slots.size():
+			var roster_index: int = team_slots[slot] * GOATS_PER_MATCH_TEAM + round_index
+			setup.positions[roster_index] = sorted_positions[round_index * team_slots.size() + slot]
 
 	var config := ConfigFile.new()
 	config.set_value("match", "level", filename)
@@ -950,6 +1033,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _handle_camera_input(event: InputEvent) -> void:
+	if not console.visible and event.is_action_pressed(&"names"):
+		$Nameplates.cycle_size()
+		get_viewport().set_input_as_handled()
+		return
 	if not _can_use_ground_controls() and not (
 			event is InputEventMouseMotion
 			or event.is_action(&"arena_pointer")
