@@ -4,6 +4,8 @@ Sound and Music
 
 how to fix animation in grapple
 
+timer, turn ready countdown
+
 delay damage indicators until end of turn, focus one goat at a time and subtract health
 fly damage numbers up when taking damage
 knock health bar portions off when taking damage, flash it white
