@@ -10,6 +10,7 @@ const Crow := preload("res://goats/crow.gd")
 const CROW_SPAWN_INTERVAL := 10.0
 const DIRT_TEXTURE := preload("res://sprites/dirt.png")
 const BLAST_DIRT_TEXTURE := preload("res://sprites/dirt-16x16.png")
+const CONTACT_KNOCKBACK_SHARE := 0.65
 const BLAST_DIRT_FRAME_SIZE := 16
 # Opaque pixel counts in the sheet's seven frames, largest to smallest.
 const BLAST_DIRT_PIXELS := [148, 112, 76, 52, 24, 12, 4]
@@ -153,6 +154,7 @@ var is_charging_shot := false
 var shot_released := false
 var active_missile: Missile
 var active_dirt_drops := 0
+var blast_hit_goats: Array[Goat] = []
 var pending_item_blasts: Array[Callable] = []
 var mouse_unlocked := true
 var pointer_press_position := Vector2.INF
@@ -386,7 +388,7 @@ func _read_level_image(filename: String) -> Image:
 	return null
 
 
-func _spawn_at(preferred_x: int) -> Vector2:
+func _spawn_at(preferred_x: int, body: Goat) -> Vector2:
 	# Cast down through the mask across the goat's feet so slopes cannot bury its body.
 	for offset in ceili(arena_bounds.size.x):
 		for x in [preferred_x + offset, preferred_x - offset]:
@@ -395,7 +397,9 @@ func _spawn_at(preferred_x: int) -> Vector2:
 				continue
 			var surface := _spawn_surface(terrain, footprint)
 			if surface < terrain.height:
-				return Vector2(x, surface * terrain_view.scale.y - goat_body.end.y)
+				var at := Vector2(x, surface * terrain_view.scale.y - goat_body.end.y)
+				if not _goat_at(body, at):
+					return at
 	push_error("Level bitmap has no solid spawn surface.")
 	return Vector2(preferred_x, 0)
 
@@ -509,10 +513,20 @@ func _body_is_free(at: Vector2, mask: Terrain = terrain) -> bool:
 	return mask.rect_is_free(rect.position.x, rect.position.y, rect.size.x, rect.size.y)
 
 
+func _goat_at(body: Goat, at: Vector2) -> Goat:
+	# All goat bodies share the same offset and size in arena coordinates.
+	var box := Rect2(at, Vector2(goat_body.size))
+	for other in goats:
+		if other != body and box.intersects(Rect2(other.position, box.size)):
+			return other
+	return null
+
+
 func _is_grounded(body: Goat) -> bool:
 	if grapple_attached and body == active_goat:
 		return _grapple_contact(body.position + Vector2.DOWN * 0.25).y < -0.001
-	return body.velocity.y >= 0.0 and not _body_is_free(body.position + Vector2.DOWN)
+	var below := body.position + Vector2.DOWN
+	return body.velocity.y >= 0.0 and (not _body_is_free(below) or _goat_at(body, below))
 
 
 func _move_goat(body: Goat, delta: float) -> float:
@@ -520,22 +534,31 @@ func _move_goat(body: Goat, delta: float) -> float:
 	var grounded := _is_grounded(body)
 	var impact_velocity := body.velocity
 	var motion := impact_velocity * delta
-	var dy := 0.0 if grounded else _sweep_vertical(body.position, motion.y)
+	var dy := 0.0 if grounded else _sweep_vertical(body, motion.y)
 	body.position.y += dy
 	if not is_equal_approx(dy, motion.y) or _is_grounded(body):
-		body.position.y = roundf(body.position.y)
+		var normal := Vector2.UP
+		var contact := _goat_at(body, body.position + Vector2.DOWN * signf(motion.y))
+		if contact:
+			_bump_goat(body, contact, Vector2.DOWN * signf(motion.y))
+		else:
+			var snapped := Vector2(body.position.x, roundf(body.position.y))
+			if not _goat_at(body, snapped):
+				body.position = snapped
+			normal = _estimate_ground_normal(body.position)
 		body.velocity.y = 0.0
 		if motion.y > 0.0 and (not grounded or body.is_bouncing):
-			_handle_ground_impact(body, impact_velocity, _estimate_ground_normal(body.position))
+			_handle_ground_impact(body, impact_velocity, normal)
 
 	var target := body.position + Vector2(body.velocity.x * delta, 0.0)
-	body.position = _sweep_horizontal(body.position, target.x, grounded and not body.is_bouncing)
+	var follow_slope := grounded and not body.is_bouncing and not _body_is_free(body.position + Vector2.DOWN)
+	body.position = _sweep_horizontal(body, target.x, follow_slope)
 	if body.position.x != target.x:
 		body.velocity.x = -body.velocity.x * bounce_restitution if body.is_bouncing else 0.0
 
 	if body.position.y > arena_bounds.end.y or body.position.x < -goat_body.size.x \
 			or body.position.x > arena_bounds.end.x + goat_body.size.x:
-		body.position = _spawn_at(player_spawn_x)
+		body.position = _spawn_at(player_spawn_x, body)
 		body.velocity = Vector2.ZERO
 		_reset_fall_state(body)
 	return body.position.x - start.x
@@ -571,17 +594,56 @@ func _knockback_velocity(at: Vector2, amount: int, hit_direction: Vector2) -> Ve
 
 
 func _knock_back_goat(amount: int, hit_direction: Vector2, target: Goat) -> void:
+	blast_hit_goats.append(target)
+	var kick := target.velocity
+	if knockback_speed_per_damage != 0.0:
+		kick = _knockback_velocity(target.position, amount, hit_direction)
+	_start_goat_bounce(target, kick)
+
+
+func _start_goat_bounce(target: Goat, kick: Vector2) -> void:
 	if target == active_goat and grapple_attached:
 		_disconnect_grapple()
 	if not target.is_bouncing:
 		_reset_fall_state(target)
-	if knockback_speed_per_damage != 0.0:
-		target.velocity = _knockback_velocity(target.position, amount, hit_direction)
+	target.velocity = kick
 	target.is_bouncing = true
 	target.show_bounce_pose()
 	if target == active_goat:
 		is_charging_shot = false
 		shot_released = false
+
+
+func _bump_goat(body: Goat, other: Goat, direction: Vector2) -> void:
+	if not body.is_bouncing:
+		return
+	var closing_speed := (body.velocity - other.velocity).dot(direction)
+	# Ignore resting contact and goats already rebounding away from one another.
+	if closing_speed <= 0.0 or body.velocity.dot(direction) <= 0.0:
+		return
+	var kick := direction * closing_speed * CONTACT_KNOCKBACK_SHARE
+	if _is_grounded(other):
+		if direction.y > 0.0:
+			var side := 1.0 if other.position.x >= body.position.x else -1.0
+			kick.x = side * kick.y * 0.5
+		kick.y = -maxf(absf(kick.y), absf(kick.x) * 0.35)
+	_start_goat_bounce(other, other.velocity + kick)
+
+
+func _spread_blast_knockback() -> void:
+	# Seed the whole blast first so a goat in the damage radius keeps its own kick.
+	var i := 0
+	while i < blast_hit_goats.size():
+		var source := blast_hit_goats[i]
+		i += 1
+		# Movement sweeps can leave up to one world pixel between resting bodies.
+		var reach := Rect2(source.position, Vector2(goat_body.size)).grow(1.0)
+		for other in goats:
+			if other in blast_hit_goats or not reach.intersects(Rect2(other.position, Vector2(goat_body.size)), true):
+				continue
+			blast_hit_goats.append(other)
+			_start_goat_bounce(other, source.velocity * CONTACT_KNOCKBACK_SHARE)
+	blast_hit_goats.clear()
 
 
 func _nearby_surface_y(x: int, feet: int) -> int:
@@ -592,7 +654,8 @@ func _nearby_surface_y(x: int, feet: int) -> int:
 	return -1
 
 
-func _sweep_horizontal(at: Vector2, target_x: float, follow_slope: bool) -> Vector2:
+func _sweep_horizontal(body: Goat, target_x: float, follow_slope: bool) -> Vector2:
+	var at := body.position
 	if at.x == target_x and not follow_slope:
 		return at
 	var start_x := at.x
@@ -603,6 +666,10 @@ func _sweep_horizontal(at: Vector2, target_x: float, follow_slope: bool) -> Vect
 		if follow_slope:
 			next = _follow_slope(next)
 		if not _body_is_free(next):
+			break
+		var contact := _goat_at(body, next)
+		if contact:
+			_bump_goat(body, contact, Vector2.RIGHT * signf(target_x - start_x))
 			break
 		at = next
 	return at
@@ -623,12 +690,13 @@ func _follow_slope(at: Vector2, mask: Terrain = terrain) -> Vector2:
 	return at
 
 
-func _sweep_vertical(at: Vector2, distance: float) -> float:
+func _sweep_vertical(body: Goat, distance: float) -> float:
 	var steps := maxi(1, ceili(absf(distance)))
 	var step_y := distance / steps
 	var moved := 0.0
 	for i in steps:
-		if not _body_is_free(at + Vector2(0, moved + step_y)):
+		var next := body.position + Vector2(0, moved + step_y)
+		if not _body_is_free(next) or _goat_at(body, next):
 			break
 		moved += step_y
 	return moved
@@ -1697,9 +1765,11 @@ func _apply_blast(
 	var pixel := Vector2i(terrain_view.to_local(at).floor())
 	var radius := roundi(explosion_radius)
 	# Damage signals sample the surface synchronously, before the bitmap changes.
+	blast_hit_goats.clear()
 	if direct_hit:
 		direct_hit.apply_damage(peak_damage, travel_direction)
 	_apply_area_damage(damage_center, radius * terrain_view.scale.x, peak_damage, direct_hit)
+	_spread_blast_knockback()
 	var surface_normal := _estimate_impact_normal(pixel, travel_direction)
 	var crater := terrain.carve_circle(pixel.x, pixel.y, radius, true)
 	var scorch_width := roundi(scorch_radius_modifier)
