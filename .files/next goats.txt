@@ -2,10 +2,11 @@ how to fix animation in grapple
 
 knock health bar portions off when taking damage, flash it white
 
-mine, can be dud or 1-4 second fuse, 35 damage, cannot be destroyed, can be bounced
+mine, can be dud or 1-4 second fuse, 35 damage, cannot be destroyed, can be bounced, spinning in air animation, flashing when triggered animation, exploded frames
 health crate, +25 health not past maximum, can be destroyed
 crate, hides health or mine, can break to reveal from weapon or walking, parachutes down
 mushroom, health over time or poison over time, can be destroyed, grows from ground
+barrel add another exploded frame, remove hitbox right away
 
 + targets and goals objects
 + weapons as polygon
@@ -56,4 +57,4 @@ bottom left 4 pixels:
 3 - dirt
 4 - grass
 
-
+dirt settling is frame rate dependent in current form

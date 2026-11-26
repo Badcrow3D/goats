@@ -190,7 +190,6 @@ var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
 var goats: Array[Goat] = []
 var solid_items: Array[LevelItem] = []
-var authored_item_bounds: Array[Rect2] = []
 static var _next_match: MatchSetup
 var _match_setup: MatchSetup
 
@@ -344,9 +343,12 @@ func _setup_level() -> void:
 
 	terrain_view.setup(terrain, image)
 	for child in $Items.get_children():
+		if _match_setup != null:
+			$Items.remove_child(child)
+			child.queue_free()
+			continue
 		if child is LevelItem:
 			var bounds: Rect2 = child.collision_bounds_in(terrain_view)
-			authored_item_bounds.append(bounds)
 			var grounded := _grounded_item_bounds(terrain, bounds)
 			if not grounded.has_area():
 				child.queue_free()
@@ -448,12 +450,6 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 	var grass_color := image.get_pixel(3, image.get_height() - 1)
 	_clear_level_palette(image)
 	var mask := Terrain.from_image(image)
-	# Plan against the next arena, even if an item in the active match was destroyed.
-	var item_bounds: Array[Rect2] = []
-	for bounds in authored_item_bounds:
-		var grounded := _grounded_item_bounds(mask, bounds)
-		if grounded.has_area():
-			item_bounds.append(grounded)
 	var positions: Array[Vector2] = []
 	var stride := maxi(1, floori(goat_body.size.x / 4.0))
 	var columns := range(randi_range(0, stride - 1), floori(mask.width * terrain_view.scale.x), stride)
@@ -477,7 +473,7 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 						candidates.append(Vector2(x, floor_y * terrain_view.scale.y - goat_body.end.y))
 				in_grass = is_grass
 			candidates.shuffle()
-			if _add_spawn_positions(mask, candidates, count, positions, item_bounds):
+			if _add_spawn_positions(mask, candidates, count, positions):
 				return positions
 
 	# Search every sampled footprint for open floors, including unmarked cave floors.
@@ -496,7 +492,7 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 			air_rows = 0
 	for attempt in 4:
 		floors.shuffle()
-		if _add_spawn_positions(mask, floors, count, positions, item_bounds):
+		if _add_spawn_positions(mask, floors, count, positions):
 			break
 		if attempt < 3:
 			positions.clear()
@@ -516,32 +512,25 @@ func _floor_above_grass(mask: Terrain, footprint: Rect2i, grass_y: int) -> int:
 	return -1
 
 
-func _add_spawn_positions(mask: Terrain, candidates: Array[Vector2], count: int, positions: Array[Vector2], item_bounds: Array[Rect2]) -> bool:
+func _add_spawn_positions(mask: Terrain, candidates: Array[Vector2], count: int, positions: Array[Vector2]) -> bool:
 	var spacing_squared := pow(2 * goat_body.size.x, 2)
 	for at in candidates:
 		if positions.any(func(other: Vector2) -> bool:
 			return at.distance_squared_to(other) < spacing_squared):
 			continue
-		if _has_spawn_walkway(mask, at, item_bounds):
+		if _has_spawn_walkway(mask, at):
 			positions.append(at)
 			if positions.size() == count:
 				return true
 	return false
 
-func _has_spawn_walkway(mask: Terrain, at: Vector2, item_bounds: Array[Rect2]) -> bool:
-	var start := Rect2(_bitmap_body_rect(at))
-	for bounds in item_bounds:
-		if start.intersects(bounds):
-			return false
+func _has_spawn_walkway(mask: Terrain, at: Vector2) -> bool:
 	for direction: int in [-1, 1]:
 		var next := at
 		for step in goat_body.size.x:
 			next.x += direction
 			next = _follow_slope(next, mask)
 			var rect := _bitmap_body_rect(next)
-			for bounds in item_bounds:
-				if Rect2(rect).intersects(bounds):
-					return false
 			if rect.position.x < 0 or rect.end.x > mask.width or rect.position.y < 0:
 				return false
 			if not _body_is_free(next, mask) or _body_is_free(next + Vector2.DOWN, mask):
