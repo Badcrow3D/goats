@@ -155,7 +155,7 @@ centered = false
 position = Vector2(1537, 1387)
 
 [node name="ProximityMine" parent="Items" unique_id=1765085012 instance=ExtResource("mine")]
-position = Vector2(1500, 1250)
+position = Vector2(1487, 1365)
 
 [node name="ZoomEffect" type="CanvasLayer" parent="." unique_id=2089918821]
 
