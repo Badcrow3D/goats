@@ -14,6 +14,7 @@ script = ExtResource("1_barrel")
 solid_for_goats = true
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=2016869895]
+z_index = 2
 texture_filter = 1
 scale = Vector2(2, 2)
 texture = ExtResource("2_sprite")
