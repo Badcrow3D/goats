@@ -46,11 +46,13 @@ corner_radius_bottom_left = 3
 [node name="GoatsNewTest" type="Node2D" unique_id=2051334170]
 texture_filter = 1
 script = ExtResource("2_test")
+knockback_speed_per_damage = 2.0
 camera_max_zoom = 3
 gravity_scale = 0.5
 landing_pause_duration = 0.32
 
 [node name="Goats" type="Node2D" parent="." unique_id=893621732]
+z_index = 2
 
 [node name="Goat" parent="Goats" unique_id=163038628 instance=ExtResource("16_goat")]
 position = Vector2(1440, 1374)
@@ -83,7 +85,7 @@ mode = 0
 team_color = Color(0.3254902, 1, 0.42352942, 1)
 
 [node name="Goat5" parent="Goats" unique_id=1999858949 instance=ExtResource("16_goat")]
-position = Vector2(2163, 1113)
+position = Vector2(1781, 1127)
 team_id = 1
 goat_name = "Team 5"
 facing_direction = -1
@@ -91,7 +93,7 @@ mode = 0
 team_color = Color(0.2627451, 0.8039216, 1, 1)
 
 [node name="Goat6" parent="Goats" unique_id=611581317 instance=ExtResource("16_goat")]
-position = Vector2(2183, 1192)
+position = Vector2(2571, 851)
 team_id = 1
 goat_name = "Six"
 mode = 0
@@ -176,6 +178,7 @@ layer = 2
 script = ExtResource("nameplate_layer")
 
 [node name="Console" type="CanvasLayer" parent="." unique_id=1992235317]
+process_mode = 3
 layer = 3
 visible = false
 script = ExtResource("console_script")

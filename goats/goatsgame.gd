@@ -189,6 +189,8 @@ var cloud_count := 15
 var leaf_count := 30
 var teams: Dictionary[int, Team] = {}
 var goats: Array[Goat] = []
+var solid_items: Array[LevelItem] = []
+var authored_item_bounds: Array[Rect2] = []
 static var _next_match: MatchSetup
 var _match_setup: MatchSetup
 
@@ -199,15 +201,21 @@ func _ready() -> void:
 	_load_tuning()
 	if _match_setup != null:
 		level_filename = _match_setup.filename
+	arena_camera.limit_enabled = false
+	_setup_level()
+	if _match_setup != null:
 		_create_match_goats()
 	for child in goat_container.get_children():
 		if child is Goat:
 			goats.append(child)
 	active_goat = goats[0]
+	$Nameplates.active_goat = active_goat
 	if _match_setup != null:
 		active_goat.status = Goat.Status.ACTIVE
-	arena_camera.limit_enabled = false
-	_setup_level()
+	goat_body = active_goat.bitmap_body_rect()
+	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
+	for target in goats:
+		_reset_fall_state(target)
 	grapple_line.draw.connect(_draw_grapple_line)
 	grapple_line.hide()
 	grapple_line.z_as_relative = false
@@ -337,13 +345,33 @@ func _setup_level() -> void:
 	terrain_view.setup(terrain, image)
 	for child in $Items.get_children():
 		if child is LevelItem:
+			var bounds: Rect2 = child.collision_bounds_in(terrain_view)
+			authored_item_bounds.append(bounds)
+			var grounded := _grounded_item_bounds(terrain, bounds)
+			if not grounded.has_area():
+				child.queue_free()
+				continue
+			var offset := grounded.position - bounds.position
+			child.global_position = terrain_view.to_global(terrain_view.to_local(child.global_position) + offset)
 			child.terrain_view = terrain_view
 			child.exploded.connect(_queue_item_blast)
+			if child.solid_for_goats:
+				solid_items.append(child)
+				child.tree_exiting.connect(func() -> void: solid_items.erase(child))
+				child.limit_fall_distance = _limit_item_fall
 
-	goat_body = active_goat.bitmap_body_rect()
-	player_spawn_x = roundi(arena_bounds.size.x * 0.5)
-	for target in goats:
-		_reset_fall_state(target)
+
+func _grounded_item_bounds(mask: Terrain, bounds: Rect2) -> Rect2:
+	# Use the same bottom-center support pixel as LevelItem's falling physics.
+	var x := floori(bounds.get_center().x)
+	var y := clampi(floori(bounds.end.y), 0, mask.height)
+	while y > 0 and mask.is_solid(x, y - 1) and mask.is_solid(x, y):
+		y -= 1
+	while y < mask.height and not mask.is_solid(x, y):
+		y += 1
+	if y == mask.height:
+		return Rect2()
+	return Rect2(Vector2(bounds.position.x, y - bounds.size.y), bounds.size)
 
 
 func _create_match_goats() -> void:
@@ -398,7 +426,7 @@ func _spawn_at(preferred_x: int, body: Goat) -> Vector2:
 			var surface := _spawn_surface(terrain, footprint)
 			if surface < terrain.height:
 				var at := Vector2(x, surface * terrain_view.scale.y - goat_body.end.y)
-				if not _goat_at(body, at):
+				if not _goat_at(body, at) and not _item_blocks_goat(at):
 					return at
 	push_error("Level bitmap has no solid spawn surface.")
 	return Vector2(preferred_x, 0)
@@ -420,6 +448,12 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 	var grass_color := image.get_pixel(3, image.get_height() - 1)
 	_clear_level_palette(image)
 	var mask := Terrain.from_image(image)
+	# Plan against the next arena, even if an item in the active match was destroyed.
+	var item_bounds: Array[Rect2] = []
+	for bounds in authored_item_bounds:
+		var grounded := _grounded_item_bounds(mask, bounds)
+		if grounded.has_area():
+			item_bounds.append(grounded)
 	var positions: Array[Vector2] = []
 	var stride := maxi(1, floori(goat_body.size.x / 4.0))
 	var columns := range(randi_range(0, stride - 1), floori(mask.width * terrain_view.scale.x), stride)
@@ -443,7 +477,7 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 						candidates.append(Vector2(x, floor_y * terrain_view.scale.y - goat_body.end.y))
 				in_grass = is_grass
 			candidates.shuffle()
-			if _add_spawn_positions(mask, candidates, count, positions):
+			if _add_spawn_positions(mask, candidates, count, positions, item_bounds):
 				return positions
 
 	# Search every sampled footprint for open floors, including unmarked cave floors.
@@ -462,7 +496,7 @@ func _match_spawn_positions(image: Image, count: int) -> Array[Vector2]:
 			air_rows = 0
 	for attempt in 4:
 		floors.shuffle()
-		if _add_spawn_positions(mask, floors, count, positions):
+		if _add_spawn_positions(mask, floors, count, positions, item_bounds):
 			break
 		if attempt < 3:
 			positions.clear()
@@ -482,25 +516,32 @@ func _floor_above_grass(mask: Terrain, footprint: Rect2i, grass_y: int) -> int:
 	return -1
 
 
-func _add_spawn_positions(mask: Terrain, candidates: Array[Vector2], count: int, positions: Array[Vector2]) -> bool:
+func _add_spawn_positions(mask: Terrain, candidates: Array[Vector2], count: int, positions: Array[Vector2], item_bounds: Array[Rect2]) -> bool:
 	var spacing_squared := pow(2 * goat_body.size.x, 2)
 	for at in candidates:
 		if positions.any(func(other: Vector2) -> bool:
 			return at.distance_squared_to(other) < spacing_squared):
 			continue
-		if _has_spawn_walkway(mask, at):
+		if _has_spawn_walkway(mask, at, item_bounds):
 			positions.append(at)
 			if positions.size() == count:
 				return true
 	return false
 
-func _has_spawn_walkway(mask: Terrain, at: Vector2) -> bool:
+func _has_spawn_walkway(mask: Terrain, at: Vector2, item_bounds: Array[Rect2]) -> bool:
+	var start := Rect2(_bitmap_body_rect(at))
+	for bounds in item_bounds:
+		if start.intersects(bounds):
+			return false
 	for direction: int in [-1, 1]:
 		var next := at
 		for step in goat_body.size.x:
 			next.x += direction
 			next = _follow_slope(next, mask)
 			var rect := _bitmap_body_rect(next)
+			for bounds in item_bounds:
+				if Rect2(rect).intersects(bounds):
+					return false
 			if rect.position.x < 0 or rect.end.x > mask.width or rect.position.y < 0:
 				return false
 			if not _body_is_free(next, mask) or _body_is_free(next + Vector2.DOWN, mask):
@@ -529,11 +570,28 @@ func _goat_at(body: Goat, at: Vector2) -> Goat:
 	return null
 
 
+func _item_blocks_goat(at: Vector2) -> bool:
+	var box := Rect2(at + Vector2(goat_body.position), Vector2(goat_body.size))
+	for item in solid_items:
+		if not item.is_queued_for_deletion() and box.intersects(item.collision_bounds_in(self)):
+			return true
+	return false
+
+
+func _limit_item_fall(bounds: Rect2, distance: float) -> float:
+	var to_terrain := terrain_view.global_transform.affine_inverse() * global_transform
+	for goat in goats:
+		var box := to_terrain * Rect2(goat.position + Vector2(goat_body.position), Vector2(goat_body.size))
+		if bounds.position.x < box.end.x and bounds.end.x > box.position.x and bounds.end.y <= box.position.y:
+			distance = minf(distance, box.position.y - bounds.end.y)
+	return distance
+
+
 func _is_grounded(body: Goat) -> bool:
 	if grapple_attached and body == active_goat:
 		return _grapple_contact(body.position + Vector2.DOWN * 0.25).y < -0.001
 	var below := body.position + Vector2.DOWN
-	return body.velocity.y >= 0.0 and (not _body_is_free(below) or _goat_at(body, below))
+	return body.velocity.y >= 0.0 and (not _body_is_free(below) or _goat_at(body, below) or _item_blocks_goat(below))
 
 
 func _move_goat(body: Goat, delta: float) -> float:
@@ -545,12 +603,13 @@ func _move_goat(body: Goat, delta: float) -> float:
 	body.position.y += dy
 	if not is_equal_approx(dy, motion.y) or _is_grounded(body):
 		var normal := Vector2.UP
-		var contact := _goat_at(body, body.position + Vector2.DOWN * signf(motion.y))
+		var ahead := body.position + Vector2.DOWN * signf(motion.y)
+		var contact := _goat_at(body, ahead)
 		if contact:
 			_bump_goat(body, contact, Vector2.DOWN * signf(motion.y))
-		else:
+		elif not _item_blocks_goat(ahead):
 			var snapped := Vector2(body.position.x, roundf(body.position.y))
-			if not _goat_at(body, snapped):
+			if not _goat_at(body, snapped) and not _item_blocks_goat(snapped):
 				body.position = snapped
 			normal = _estimate_ground_normal(body.position)
 		body.velocity.y = 0.0
@@ -591,9 +650,10 @@ func _estimate_ground_normal(at: Vector2) -> Vector2:
 
 func _knockback_velocity(at: Vector2, amount: int, hit_direction: Vector2) -> Vector2:
 	var direction := hit_direction
+	var on_item := _item_blocks_goat(at + Vector2.DOWN)
 	if direction.is_zero_approx():
-		direction = _estimate_ground_normal(at)
-	elif not _body_is_free(at + Vector2.DOWN):
+		direction = Vector2.UP if on_item else _estimate_ground_normal(at)
+	elif on_item or not _body_is_free(at + Vector2.DOWN):
 		# Give grounded goats enough lift to move sideways on a level hit.
 		direction.y = minf(direction.y, -0.35)
 		direction = direction.normalized()
@@ -672,7 +732,7 @@ func _sweep_horizontal(body: Goat, target_x: float, follow_slope: bool) -> Vecto
 		var next := Vector2(lerpf(start_x, target_x, float(i) / steps), at.y)
 		if follow_slope:
 			next = _follow_slope(next)
-		if not _body_is_free(next):
+		if not _body_is_free(next) or _item_blocks_goat(next):
 			break
 		var contact := _goat_at(body, next)
 		if contact:
@@ -703,7 +763,7 @@ func _sweep_vertical(body: Goat, distance: float) -> float:
 	var moved := 0.0
 	for i in steps:
 		var next := body.position + Vector2(0, moved + step_y)
-		if not _body_is_free(next) or _goat_at(body, next):
+		if not _body_is_free(next) or _goat_at(body, next) or _item_blocks_goat(next):
 			break
 		moved += step_y
 	return moved
@@ -920,6 +980,8 @@ func _save_tuning() -> Error:
 
 
 func _walk_direction() -> float:
+	if match_camera_intro:
+		return 0.0
 	if grapple_attached or not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
 	return Input.get_axis(&"walk_left", &"walk_right")
@@ -983,7 +1045,8 @@ func _physics_process(delta: float) -> void:
 				grapple_line.hide()
 
 	var can_aim := (
-		active_goat.mode != Goat.Mode.GOAT_ONLY
+		not match_camera_intro
+		and active_goat.mode != Goat.Mode.GOAT_ONLY
 		and _can_control_movement()
 		and is_zero_approx(direction)
 	)
@@ -1020,6 +1083,7 @@ func _select_next_goat() -> void:
 	if active_goat.status == Goat.Status.ACTIVE:
 		active_goat.status = Goat.Status.ALIVE
 	active_goat = next_goat
+	$Nameplates.active_goat = active_goat
 	if active_goat.status == Goat.Status.ALIVE:
 		active_goat.status = Goat.Status.ACTIVE
 	_show_active_goat_arrow()
@@ -1033,7 +1097,7 @@ func _show_active_goat_arrow() -> void:
 	var arrow := Sprite2D.new()
 	arrow.texture = ACTIVE_GOAT_ARROW_TEXTURE
 	arrow.hframes = roundi(arrow.texture.get_width() / float(arrow.texture.get_height()))
-	arrow.position = Vector2(0, -34)
+	arrow.position = Vector2(0, -44)
 	arrow.scale = Vector2(2, 2)
 	arrow.z_index = 1
 	active_goat.add_child(arrow)
@@ -1069,22 +1133,14 @@ func _input(event: InputEvent) -> void:
 			_reload_level.call_deferred()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action(&"toggle_console"):
-		if event.is_action_pressed(&"toggle_console"):
-			_toggle_console()
-		get_viewport().set_input_as_handled()
-		return
 	if console.visible:
-		if event.is_action_pressed(&"cancel"):
-			_toggle_console()
-			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed(&"console_history_previous", true) and console.recall_previous_command():
-			get_viewport().set_input_as_handled()
+		return
+
+	if match_camera_intro:
 		return
 
 	if event.is_action_pressed(&"select_next_goat"):
-		if not match_camera_intro:
-			_select_next_goat()
+		_select_next_goat()
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"toggle_launcher"):
@@ -1115,14 +1171,32 @@ func _input(event: InputEvent) -> void:
 
 
 func _handle_camera_input(event: InputEvent) -> void:
-	if not console.visible and event.is_action_pressed(&"names"):
+	if event.is_action(&"toggle_console"):
+		if event.is_action_pressed(&"toggle_console"):
+			_toggle_console()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action(&"toggle_mouse_capture"):
+		if event.is_action_pressed(&"toggle_mouse_capture"):
+			mouse_unlocked = Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+			_update_mouse_mode(false)
+		get_viewport().set_input_as_handled()
+		return
+	if console.visible:
+		if event.is_action_pressed(&"cancel"):
+			_toggle_console()
+			get_viewport().set_input_as_handled()
+			return
+		if event.is_action_pressed(&"console_history_previous", true) and console.recall_previous_command():
+			get_viewport().set_input_as_handled()
+			return
+	if not match_camera_intro and not console.visible and event.is_action_pressed(&"names"):
 		$Nameplates.cycle_size()
 		get_viewport().set_input_as_handled()
 		return
 	if not _can_use_ground_controls() and not (
 			event is InputEventMouseMotion
 			or event.is_action(&"arena_pointer")
-			or event.is_action(&"toggle_mouse_capture")
 			or (grapple_attached and (
 				event.is_action(&"fire_grapple")
 				or event.is_action(&"camera_zoom_in")
@@ -1148,13 +1222,8 @@ func _handle_camera_input(event: InputEvent) -> void:
 		return
 	if match_camera_intro:
 		if event.is_action(&"camera_zoom_in") or event.is_action(&"camera_zoom_out") \
-				or event.is_action(&"arena_pointer") or event.is_action(&"toggle_mouse_capture"):
+				or event.is_action(&"arena_pointer"):
 			get_viewport().set_input_as_handled()
-		return
-	if event.is_action_pressed(&"toggle_mouse_capture"):
-		mouse_unlocked = not mouse_unlocked
-		_update_mouse_mode()
-		get_viewport().set_input_as_handled()
 		return
 	# Handle zoom in both cursor modes before routing pointer input.
 	var zoom_in := event.is_action_pressed(&"camera_zoom_in")
@@ -1241,7 +1310,7 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 		for pixel: Vector2i in grains:
 			if body.has_point(pixel) and terrain.is_solid(pixel.x, pixel.y):
 				var clear_position := target.position + Vector2.UP
-				while not _body_is_free(clear_position):
+				while not _body_is_free(clear_position) or _item_blocks_goat(clear_position):
 					clear_position.y -= 1.0
 				target.position = clear_position
 				target.velocity.y = minf(target.velocity.y, 0.0)
@@ -1251,7 +1320,7 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 					var remaining := GRAPPLE_RANGE - _pinned_length()
 					if span.length() > remaining:
 						var limited := target.position + (span.limit_length(remaining) - span)
-						if not _body_is_free(limited):
+						if not _body_is_free(limited) or _item_blocks_goat(limited):
 							_disconnect_grapple()
 							break
 						target.position = limited
@@ -1270,7 +1339,7 @@ func _toggle_console() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if console.visible:
+	if match_camera_intro or console.visible:
 		return
 	if grapple_attached and event.is_action(&"fire_grapple"):
 		if event.is_action_pressed(&"fire_grapple"):
@@ -1471,23 +1540,35 @@ func _grapple_contact(at: Vector2) -> Vector2:
 		for x in range(first.x, last.x + 1):
 			if not terrain.is_solid(x, y):
 				continue
-			var corner := Vector2(x, y) * cell
-			var offset := center - center.clamp(corner, corner + cell)
-			var distance := offset.length()
-			if distance < radius and radius - distance > correction.length():
-				correction = (offset / distance if distance > 0.0 else Vector2.UP) * (radius - distance)
+			var hit := _circle_box_correction(center, radius, Rect2(Vector2(x, y) * cell, cell))
+			if hit.length_squared() > correction.length_squared():
+				correction = hit
+	for item in solid_items:
+		if item.is_queued_for_deletion():
+			continue
+		var hit := _circle_box_correction(center, radius, item.collision_bounds_in(self))
+		if hit.length_squared() > correction.length_squared():
+			correction = hit
 	return correction
 
 
+func _circle_box_correction(center: Vector2, radius: float, box: Rect2) -> Vector2:
+	var offset := center - center.clamp(box.position, box.end)
+	var distance := offset.length()
+	if distance >= radius:
+		return Vector2.ZERO
+	return (offset / distance if distance > 0.0 else Vector2.UP) * (radius - distance)
+
+
 func _nearest_standing_position(at: Vector2) -> Vector2:
-	if _body_is_free(at):
+	if _body_is_free(at) and not _item_blocks_goat(at):
 		return at
 	var distance := 1
 	while true:
 		for offset in range(-distance, distance + 1):
 			for step: Vector2 in [Vector2(offset, -distance), Vector2(offset, distance),
 					Vector2(-distance, offset), Vector2(distance, offset)]:
-				if _body_is_free(at + step):
+				if _body_is_free(at + step) and not _item_blocks_goat(at + step):
 					return at + step
 		distance += 1
 	return at
@@ -1581,6 +1662,9 @@ func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
 
 func _begin_match_camera_intro() -> void:
 	match_camera_intro = true
+	$Nameplates.show_active_goat_hud = false
+	opening_nameplate_goat = active_goat
+	opening_nameplate_goat.set_nameplate_visible(true)
 	camera_zoom_level = 2.0
 	arena_camera.zoom = Vector2.ONE * camera_zoom_level
 	_set_camera_target(active_goat.global_position)
@@ -1590,9 +1674,13 @@ func _begin_match_camera_intro() -> void:
 	while Time.get_ticks_msec() < hold_until:
 		await get_tree().process_frame
 	_zoom_camera(-1)
-	camera_zoom_transition.finished.connect(func() -> void:
-		match_camera_intro = false
-	)
+	await camera_zoom_transition.finished
+	await get_tree().create_timer(1.0).timeout
+	if is_instance_valid(opening_nameplate_goat) and active_goat == opening_nameplate_goat:
+		opening_nameplate_goat.set_nameplate_visible(false)
+	opening_nameplate_goat = null
+	match_camera_intro = false
+	$Nameplates.show_active_goat_hud = true
 
 
 func _zoom_camera(amount: int, anchor_offset: Vector2 = Vector2.ZERO) -> void:
@@ -1636,10 +1724,10 @@ func _set_zoom_block_size(block_size: float) -> void:
 	zoom_material.set_shader_parameter("block_size", block_size)
 
 
-func _update_mouse_mode() -> void:
+func _update_mouse_mode(show_console_cursor: bool = true) -> void:
 	pointer_press_position = Vector2.INF
 	camera_dragging = false
-	var cursor_visible := mouse_unlocked or (console.visible and not get_tree().paused)
+	var cursor_visible := mouse_unlocked or (show_console_cursor and console.visible)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if cursor_visible else Input.MOUSE_MODE_CAPTURED
 
 

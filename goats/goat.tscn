@@ -297,14 +297,23 @@ visible = false
 position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
-[node name="JumpChargeMeter" type="Sprite2D" parent="." unique_id=1366841805]
+[node name="ChargeMeterTransform" type="RemoteTransform2D" parent="."]
+remote_path = NodePath("../ChargeMeters/Anchor")
+
+[node name="ChargeMeters" type="CanvasLayer" parent="."]
+layer = 4
+follow_viewport_enabled = true
+
+[node name="Anchor" type="Node2D" parent="ChargeMeters"]
+
+[node name="JumpChargeMeter" type="Sprite2D" parent="ChargeMeters/Anchor" unique_id=1366841805]
 visible = false
 position = Vector2(1, 32)
 texture = ExtResource("14_jump_charge")
 vframes = 28
 frame = 15
 
-[node name="ShotChargeMeter" type="Sprite2D" parent="." unique_id=1417714816]
+[node name="ShotChargeMeter" type="Sprite2D" parent="ChargeMeters/Anchor" unique_id=1417714816]
 visible = false
 position = Vector2(-18, 11)
 texture = ExtResource("15_shot_charge")

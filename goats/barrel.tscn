@@ -11,6 +11,7 @@ collision_layer = 8
 collision_mask = 0
 monitoring = false
 script = ExtResource("1_barrel")
+solid_for_goats = true
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=2016869895]
 texture_filter = 1

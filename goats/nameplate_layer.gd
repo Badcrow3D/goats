@@ -3,10 +3,18 @@ extends CanvasLayer
 const Goat := preload("res://goats/goat.gd")
 const MAX_PLATE_SCALE := 2
 const PLATE_GAP := 4.0
+const ACTIVE_GOAT_PLATE_MARGIN := 10.0
+const PLATE_REAPPEAR_DELAY := 1.0
+const ACTIVE_PLATE_BOTTOM_MARGIN := 12.0
+
+var active_goat: Goat
+var show_active_goat_hud := true
 
 var _anchors: Dictionary[Goat, Vector2] = {}
+var _clear_elapsed: Dictionary[Goat, float] = {}
 var _last_rects: Dictionary[Goat, Rect2] = {}
 var _last_view := Rect2()
+var _last_hud_rect := Rect2()
 var _plate_scale := MAX_PLATE_SCALE
 
 
@@ -28,12 +36,50 @@ func cycle_size() -> void:
 			goat.nameplate.scale = Vector2.ONE * _plate_scale
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not visible:
+		_clear_elapsed.clear()
 		return
+	_layout_plates()
+	if not is_instance_valid(active_goat):
+		return
+	var goat_to_screen := active_goat.get_global_transform_with_canvas()
+	var nearby := (goat_to_screen * Rect2(active_goat.bitmap_body_rect())).grow(ACTIVE_GOAT_PLATE_MARGIN)
+	for goat in _anchors:
+		var plate := goat.nameplate
+		if goat == active_goat or not plate.visible:
+			plate.modulate.a = 1.0
+			_clear_elapsed.erase(goat)
+			continue
+		var plate_rect := Rect2(plate.position, plate.size * plate.scale)
+		if nearby.intersects(plate_rect):
+			plate.modulate.a = 0.0
+			_clear_elapsed.erase(goat)
+			continue
+		if plate.modulate.a != 0.0:
+			continue
+		var elapsed: float = _clear_elapsed.get(goat, -delta) + delta
+		if elapsed >= PLATE_REAPPEAR_DELAY:
+			plate.modulate.a = 1.0
+			_clear_elapsed.erase(goat)
+		else:
+			_clear_elapsed[goat] = elapsed
+
+
+func _layout_plates() -> void:
 	var view := get_viewport().get_visible_rect()
+	var occupied: Array[Rect2] = []
+	if show_active_goat_hud and is_instance_valid(active_goat) and _anchors.has(active_goat):
+		var plate := active_goat.nameplate
+		var size := plate.size * plate.scale
+		plate.position = Vector2(view.get_center().x - size.x * 0.5,
+				view.end.y - ACTIVE_PLATE_BOTTOM_MARGIN - size.y).round()
+		plate.show()
+		occupied.append(Rect2(plate.position, size).grow(PLATE_GAP))
 	var rects: Dictionary[Goat, Rect2] = {}
 	for goat in _anchors:
+		if show_active_goat_hud and goat == active_goat:
+			continue
 		if not goat.nameplate.visible:
 			continue
 		var rect := _preferred_rect(goat)
@@ -41,12 +87,12 @@ func _process(_delta: float) -> void:
 			rects[goat] = rect
 		else:
 			goat.nameplate.position = rect.position
-	if rects == _last_rects and view == _last_view:
+	var hud_rect := occupied[0] if not occupied.is_empty() else Rect2()
+	if rects == _last_rects and view == _last_view and hud_rect == _last_hud_rect:
 		return
 	_last_rects = rects
 	_last_view = view
-
-	var occupied: Array[Rect2] = []
+	_last_hud_rect = hud_rect
 	for goat in rects:
 		var rect := rects[goat]
 		rect.position = _place_plate(rect, view, occupied)
@@ -104,5 +150,6 @@ func _place_plate(rect: Rect2, view: Rect2, occupied: Array[Rect2]) -> Vector2:
 
 func _remove_goat(goat: Goat) -> void:
 	_anchors.erase(goat)
+	_clear_elapsed.erase(goat)
 	if is_instance_valid(goat.nameplate):
 		goat.nameplate.queue_free()
