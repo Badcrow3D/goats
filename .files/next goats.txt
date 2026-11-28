@@ -8,6 +8,7 @@ how to fix animation in grapple
 
 laser digging
 
+remove goat with 0 hp
 address goat out of arena, shots out of arena
 turn, team and goat announcement, countdown timer, turn ready countdown
 
