@@ -286,6 +286,7 @@ func show_bounce_pose() -> void:
 		hold_current_pose()
 	_bounce_pose.frame_coords = Vector2i(column, row)
 	_bounce_pose.show()
+	mode = Mode.GOAT_ONLY
 	_showing_aim_pose = false
 	_apply_mode_layers()
 

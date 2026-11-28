@@ -1168,7 +1168,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed(&"toggle_launcher"):
-		if grapple_attached:
+		if grapple_attached or active_goat.is_bouncing:
 			get_viewport().set_input_as_handled()
 			return
 		match active_goat.mode:
@@ -1921,6 +1921,7 @@ func _fire_projectile(direction: Vector2, power: float = 1.0) -> Projectile:
 	projectile.impacted.connect(_roll_wind)
 	if projectile is Grenade:
 		projectile.ground_response = _grenade_ground_response
+		_spawn_trail_smoke(projectile.position, 1, 0.0)
 	elif projectile is Missile:
 		projectile.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
 		projectile.trail_sampled.connect(_spawn_trail_smoke)
@@ -2087,10 +2088,10 @@ func _spawn_smoke_burst(center: Vector2, count: int, radius: float) -> void:
 		_spawn_smoke(spawn_position, first_frame, SMOKE_FRAME_SECONDS, velocity)
 
 
-func _spawn_trail_smoke(at: Vector2, skip_frames := 0) -> void:
+func _spawn_trail_smoke(at: Vector2, skip_frames := 0, jitter := TRAIL_SMOKE_JITTER) -> void:
 	var offset := Vector2(
-		randf_range(-TRAIL_SMOKE_JITTER, TRAIL_SMOKE_JITTER),
-		randf_range(-TRAIL_SMOKE_JITTER, TRAIL_SMOKE_JITTER)
+		randf_range(-jitter, jitter),
+		randf_range(-jitter, jitter)
 	)
 	var first_frame := randi_range(TRAIL_SMOKE_MIN_START_FRAME, TRAIL_SMOKE_MAX_START_FRAME) + skip_frames
 	var wind_drift := (float(wind_speed) / wind_max) * TRAIL_SMOKE_WIND_SPEED

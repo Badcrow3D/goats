@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bh8acaffptpi2"]
 
-[ext_resource type="Script" path="res://goats/grenade.gd" id="1_e5dnr"]
+[ext_resource type="Script" uid="uid://dejfrdm88ghha" path="res://goats/grenade.gd" id="1_e5dnr"]
 
 [sub_resource type="RectangleShape2D" id="GrenadeShape"]
 size = Vector2(6, 6)
@@ -10,7 +10,7 @@ script = ExtResource("1_e5dnr")
 blast_damage = 45
 
 [node name="Polygon2D3" type="Polygon2D" parent="." unique_id=423575028]
-color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+color = Color(0.4117647, 0.41568628, 0.41568628, 1)
 polygon = PackedVector2Array(-3, -1, -3, 3, 3, 3, 3, -1)
 uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
 
@@ -19,9 +19,9 @@ color = Color(1, 0.24705882, 0.31764707, 1)
 polygon = PackedVector2Array(-3, -3, -3, -1, 3, -1, 3, -3)
 uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
 
-[node name="Area2D" type="Area2D" parent="."]
+[node name="Area2D" type="Area2D" parent="." unique_id=1885147837]
 collision_layer = 0
 collision_mask = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=886707243]
 shape = SubResource("GrenadeShape")

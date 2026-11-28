@@ -1,12 +1,11 @@
 Goats2 title screen logo, related to icon maybe, or draw Goats2 terrain with grass etc
-
 Sound and music
 
 army bunker things, buildings on level
 
-how to fix animation in grapple
+animation poses in aiming and grapple
 
-laser digging
+prox mine should bonk into items but not other things collide with them
 
 remove goat with 0 hp
 address goat out of arena, shots out of arena
