@@ -15,26 +15,24 @@ Aim, Set Fuse, Charge, Fire, Projectile, Bounce, Explode on Timer, Unlimited Use
 3) Rockets
 Aim, Fire, Multiple Projectiles, Low Wind, Spread, Small Explosions on Impact
 
-******
-
 4) Cannon
 Aim, Fire, Projectile, Through terrain, No drop, No explosion, Two Shots
 
-5) Homing
+* 5) Homing
 Activate, Choose Target, Aim, Charge, Fire, Projectile, Wind, Delayed Homing, Explode on Impact
 
-6) Airstrike
+* 6) Airstrike
 Activate, Choose Target, Multiple Projectiles from Above, Wind
 
 7) Laser
 Aim, Fire, Sweeping, Removes terrain, Low Direct Damage 
 
-8) Turret
+* 8) Turret
 Fire, Drop Turret, Facing Direction, Fires on Vision Cone, Limited Ammo, Low Health
 
-9) Dirt
+* 9) Dirt
 Aim, Charge, Fire, Projectile, Wind, Deposit Dirt on Impact, Unlimited Use
 
-0) Prox mine
+* 0) Prox mine
 Aim, Fire, Multiple Projectiles, Spread, Mines land then Activate
 

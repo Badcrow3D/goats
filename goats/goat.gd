@@ -6,7 +6,7 @@ signal mode_changed
 
 enum Facing { LEFT = -1, RIGHT = 1 }
 enum Status { ACTIVE, ALIVE, DEAD }
-enum Mode { GOAT_ONLY = 0, GRAPPLE = 1, LAUNCHER = 2, GRENADE = 3, ROCKETS = 4 }
+enum Mode { GOAT_ONLY = 0, GRAPPLE = 1, LAUNCHER = 2, GRENADE = 3, ROCKETS = 4, CANNON = 5 }
 
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const IDLE_SHEET := preload("res://sprites/goat_idle-24x24.png")
@@ -26,6 +26,7 @@ const AIM_CURSOR_STEP := AIM_POSE_STEP / 8.0
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var _bounce_pose: Sprite2D = $BouncePose
 @onready var _rockets: Node2D = $Weapons/Rockets
+@onready var _cannon: Node2D = $Weapons/Cannon
 @onready var _grenade: Node2D = $Weapons/Grenade
 @onready var _grapple: Node2D = $Weapons/Grapple
 @onready var _grapple_pivot: Node2D = $Weapons/Grapple/Pivot
@@ -216,6 +217,8 @@ func _select_weapon() -> void:
 		weapon = _grenade
 	elif mode == Mode.ROCKETS:
 		weapon = _rockets
+	elif mode == Mode.CANNON:
+		weapon = _cannon
 	_pivot = weapon.get_node("Pivot")
 	_muzzle_right = weapon.get_node("MuzzleRight")
 	_muzzle_left = weapon.get_node("MuzzleLeft")
@@ -225,7 +228,7 @@ func _select_weapon() -> void:
 
 func _apply_weapon_facing() -> void:
 	_sync_equipment_pose()
-	for weapon: Node2D in [_missile, _grapple, _grenade, _rockets]:
+	for weapon: Node2D in [_missile, _grapple, _grenade, _rockets, _cannon]:
 		weapon.transform = Transform2D(Vector2.RIGHT * float(facing_direction), Vector2.DOWN, weapon.position)
 
 
@@ -359,9 +362,10 @@ func _apply_mode_layers() -> void:
 	_grapple.visible = show_grapple
 	_grapple_pivot.visible = not aim_locked
 	_rockets.visible = mode == Mode.ROCKETS and show_equipment
+	_cannon.visible = mode == Mode.CANNON and show_equipment
 	_grenade.visible = mode == Mode.GRENADE and show_equipment
 	_missile.visible = show_launcher
-	var show_aim_pose := _showing_aim_pose and (show_launcher or show_grapple or _grenade.visible or _rockets.visible)
+	var show_aim_pose := _showing_aim_pose and show_equipment and mode != Mode.GOAT_ONLY
 	_sprite.visible = not _bounce_pose.visible
 	_aim_cursor.visible = show_aim_pose and not aim_locked
 

@@ -274,7 +274,7 @@ position = Vector2(-3, -5)
 [node name="MuzzleRight" type="Marker2D" parent="Weapons/Missile" unique_id=1893191331]
 
 [node name="MuzzleTip" type="Marker2D" parent="Weapons/Missile/MuzzleRight" unique_id=1780984275]
-position = Vector2(21, 0)
+position = Vector2(20, 0)
 
 [node name="MuzzleLeft" type="Marker2D" parent="Weapons/Missile" unique_id=878330686]
 position = Vector2(5, 0)
@@ -288,7 +288,7 @@ uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015,
 
 [node name="Polygon2D2" type="Polygon2D" parent="Weapons/Missile/Pivot" unique_id=42721556]
 color = Color(0.23529412, 0.23529412, 0.23529412, 1)
-polygon = PackedVector2Array(13, -3, 13, 3, 16, 3, 16, -3)
+polygon = PackedVector2Array(13, -3, 13, 3, 15, 3, 15, -3)
 uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
 
 [node name="Polygon2D3" type="Polygon2D" parent="Weapons/Missile" unique_id=746284624]
@@ -392,6 +392,98 @@ polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
 uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
 
 [node name="Polygon2D5" type="Polygon2D" parent="Weapons/Rockets" unique_id=1808729557]
+position = Vector2(0, 5)
+polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Cannon" type="Node2D" parent="Weapons" unique_id=1686459209]
+visible = false
+position = Vector2(-3, -5)
+
+[node name="MuzzleRight" type="Marker2D" parent="Weapons/Cannon" unique_id=654738449]
+
+[node name="MuzzleTip" type="Marker2D" parent="Weapons/Cannon/MuzzleRight" unique_id=1985386786]
+position = Vector2(24, 0)
+
+[node name="MuzzleLeft" type="Marker2D" parent="Weapons/Cannon" unique_id=1480480297]
+position = Vector2(5, 0)
+
+[node name="Pivot" type="Node2D" parent="Weapons/Cannon" unique_id=999534713]
+
+[node name="Polygon2D" type="Polygon2D" parent="Weapons/Cannon/Pivot" unique_id=1112455549]
+position = Vector2(0, 2)
+color = Color(0.4, 0.47843137, 0.21568628, 1)
+polygon = PackedVector2Array(-9, -5, -9, -1, -7, -1, -7, 1, 5, 1, 5, -1, 18, -1, 18, -5)
+uv = PackedVector2Array(-8.000004, -8.000001, -8.000004, 0, 0, 0, 0, 8, 16, 8, 16, 0, 32, 0, 32, -8.000001)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Weapons/Cannon/Pivot" unique_id=1586229443]
+position = Vector2(0, 2)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(18, -5, 18, -1, 20, -1, 20, -5)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Cannon" unique_id=228980178]
+position = Vector2(-1, 13)
+color = Color(0.5019608, 0.6156863, 0.30588236, 1)
+polygon = PackedVector2Array(-4, -8, -4, 0, 6, 0, 6, -8)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D4" type="Polygon2D" parent="Weapons/Cannon" unique_id=128807928]
+position = Vector2(0, 5)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D5" type="Polygon2D" parent="Weapons/Cannon" unique_id=1032085969]
+position = Vector2(0, 5)
+polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Laser" type="Node2D" parent="Weapons" unique_id=365166645]
+visible = false
+position = Vector2(-3, -5)
+
+[node name="MuzzleRight" type="Marker2D" parent="Weapons/Laser" unique_id=1843756054]
+
+[node name="MuzzleTip" type="Marker2D" parent="Weapons/Laser/MuzzleRight" unique_id=324755671]
+position = Vector2(11, 0)
+
+[node name="MuzzleLeft" type="Marker2D" parent="Weapons/Laser" unique_id=1047612426]
+position = Vector2(5, 0)
+
+[node name="Pivot" type="Node2D" parent="Weapons/Laser" unique_id=538564872]
+
+[node name="Polygon2D" type="Polygon2D" parent="Weapons/Laser/Pivot" unique_id=110258552]
+position = Vector2(0, 2)
+color = Color(0.4, 0.47843137, 0.21568628, 1)
+polygon = PackedVector2Array(-5, 1, -5, -5, 3, -5, 3, -3, 9, -3, 9, 1)
+uv = PackedVector2Array(-8.000004, 0, -8.000004, -8, 8, -8, 8, 0, 16, 0, 16, 7.999999)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Weapons/Laser/Pivot" unique_id=1242820192]
+position = Vector2(0, 2)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(9, -3, 9, 1, 11, 1, 11, -3)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Laser/Pivot" unique_id=1395725651]
+position = Vector2(0, 2)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-11, -3, -11, 1, -5, 1, -5, -3)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Laser" unique_id=1247614913]
+position = Vector2(-1, 13)
+color = Color(0.5019608, 0.6156863, 0.30588236, 1)
+polygon = PackedVector2Array(-4, -8, -4, 0, 6, 0, 6, -8)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D4" type="Polygon2D" parent="Weapons/Laser" unique_id=31405414]
+position = Vector2(0, 5)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D5" type="Polygon2D" parent="Weapons/Laser" unique_id=2056653140]
 position = Vector2(0, 5)
 polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
 uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)

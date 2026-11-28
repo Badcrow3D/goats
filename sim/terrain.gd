@@ -124,6 +124,18 @@ func add_solid(pixel: Vector2i) -> bool:
 	chunk.mask[i] = 1
 	return true
 
+func remove_solid(pixel: Vector2i) -> bool:
+	if not in_bounds(pixel.x, pixel.y):
+		return false
+	@warning_ignore("integer_division")
+	var chunk := chunk_at(pixel / CHUNK_SIZE)
+	var i := chunk.index_at(pixel.x, pixel.y)
+	if chunk.mask[i] == 0:
+		return false
+	chunk.mask[i] = 0
+	return true
+
+
 static func from_image(img: Image, alpha_threshold := 128) -> Terrain:
 	var src := img
 	if src.get_format() != Image.FORMAT_RGBA8:

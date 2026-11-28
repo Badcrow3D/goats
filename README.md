@@ -13,12 +13,13 @@ To rebind a control or add another key, mouse button, or controller input for th
 - **A / D** to walk.
 - **Tab** selects the next goat and centers the camera on it.
 - **Z** cycles inactive goats’ nameplates from 2× (default) to 1×, then hidden, then back to 2×.
-- **Left Shift** cycles the active goat through Goat Only → Grapple → Launcher → Grenade → Rockets → Goat Only.
+- **Left Shift** cycles the active goat through Goat Only → Grapple → Launcher → Grenade → Rockets → Cannon → Goat Only.
 - In Grapple mode, aim with **W / S** and press **E** to anchor the rope to terrain. Hold **W** to reel in and pull the goat toward the anchor. While airborne, hold **S** to lengthen the rope and use **A / D** to build swing momentum. Press **E** again to release.
 - Tap **Enter** while grounded with the grapple connected to bounce into a swing. Each goat can bounce once every two seconds.
 - Hold **Enter** to charge a jump in Goat Only mode. Release to jump.
 - Hold **Space** to charge a shot in Launcher or Grenade mode. Release to fire. Grenades bounce and explode four seconds after launch.
 - In Rockets mode, aim with **W / S** and press **Space** to immediately fire three rockets, 250 ms apart. Each rocket flies straight at half the speed of a fully charged missile, at a random angle 3° to 6° to either side of your aim, and explodes on impact or after one second. Walking and aiming resume after the third launch.
+- In Cannon mode, aim with **W / S** and press **Space** to immediately fire one shot within 3° of your aim. It cuts through up to 35 pixels of solid terrain and deals 25 damage to the first goat or item it hits.
 - Goats keep their momentum in the air. By default, a drop of 64 world pixels below the last grounded position disables controls until the goat settles. A hard landing can cause a bounce. Use `set fall_control_loss_distance <pixels>` to change the threshold.
 - When a goat walks off an edge, it holds its current frame for the first 24 world pixels of the drop. Adjust the threshold in the console with `set fall_animation_distance 24`.
 - In Launcher or Grenade mode, use **W / S** to aim while idle.

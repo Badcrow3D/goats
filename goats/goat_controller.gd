@@ -197,7 +197,7 @@ func _cancel_jump() -> void:
 
 
 func _mode_allows_jump() -> bool:
-	return not active_goat.has_charge_weapon() and active_goat.mode != GoatState.Mode.ROCKETS
+	return active_goat.mode == GoatState.Mode.GOAT_ONLY or active_goat.mode == GoatState.Mode.GRAPPLE
 
 
 func _unhandled_input(event: InputEvent) -> void:

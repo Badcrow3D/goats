@@ -7,6 +7,8 @@ animation poses in aiming and grapple
 
 prox mine should bonk into items but not other things collide with them
 
+artwork for homing airstrike dirt launchers, backpack or launcher for turret and mine
+
 remove goat with 0 hp
 address goat out of arena, shots out of arena
 turn, team and goat announcement, countdown timer, turn ready countdown

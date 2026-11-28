@@ -98,6 +98,10 @@ const ROCKET_MAX_SPREAD_DEGREES := 6.0
 const ROCKET_SPEED_MULTIPLIER := 0.5
 const ROCKET_BLAST_RADIUS := 9
 const ROCKET_EXPLOSION_SCALE := 0.5
+const Cannon := preload("res://goats/cannon.gd")
+const CANNON := preload("res://goats/cannon.tscn")
+const CANNON_SPREAD_DEGREES := 3.0
+const CANNON_DAMAGE := 25
 const DEFAULT_EXPLOSION_RADIUS := 18.0
 const EXPLOSION_SHAKE_DURATION := 0.25
 const EXPLOSION_SHAKE_PIXELS := 5.0
@@ -1181,6 +1185,8 @@ func _input(event: InputEvent) -> void:
 			Goat.Mode.GRENADE:
 				active_goat.mode = Goat.Mode.ROCKETS
 			Goat.Mode.ROCKETS:
+				active_goat.mode = Goat.Mode.CANNON
+			Goat.Mode.CANNON:
 				active_goat.mode = Goat.Mode.GOAT_ONLY
 		get_viewport().set_input_as_handled()
 		return
@@ -1383,6 +1389,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.ROCKETS:
 		if event.is_action_pressed(&"charge_weapon") and _shot_simulation_finished():
 			_fire_rocket_burst()
+		get_viewport().set_input_as_handled()
+	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.CANNON:
+		if event.is_action_pressed(&"charge_weapon") and _shot_simulation_finished():
+			_fire_cannon()
 		get_viewport().set_input_as_handled()
 	elif event.is_action(&"charge_jump") and _mode_allows_jump():
 		if grapple_attached:
@@ -1898,6 +1908,31 @@ func _launch_rocket(origin: Vector2, direction: Vector2, shooter: GoatHurtbox) -
 	add_child(rocket)
 
 
+func _fire_cannon() -> void:
+	var shot := CANNON.instantiate() as Cannon
+	var spread := deg_to_rad(randf_range(-CANNON_SPREAD_DEGREES, CANNON_SPREAD_DEGREES))
+	shot.position = to_local(active_goat.muzzle_tip_position())
+	shot.velocity = active_goat.aim_direction().rotated(spread) * shot.speed
+	shot.shooter_hurtbox = active_goat.get_hurtbox()
+	shot.terrain_view = terrain_view
+	shot.hit_target.connect(_apply_cannon_hit)
+	shot.carved_terrain.connect(_check_crow_perch)
+	active_projectile = shot
+	add_child(shot)
+	_spawn_trail_smoke(shot.position, 1, 0.0)
+
+
+func _apply_cannon_hit(at: Vector2, target: Area2D, direction: Vector2) -> void:
+	target.apply_damage(CANNON_DAMAGE, direction)
+	blast_hit_goats.clear()
+	_spawn_trail_smoke(to_local(at), 1, 0.0)
+
+
+func _check_crow_perch() -> void:
+	if is_instance_valid(crow):
+		crow.check_perch_after_blast(terrain)
+
+
 func _shot_simulation_finished() -> bool:
 	return (
 		not is_instance_valid(active_projectile)
@@ -1966,8 +2001,7 @@ func _apply_blast(
 	_spread_blast_knockback()
 	var surface_normal := _estimate_impact_normal(pixel, travel_direction)
 	var crater := terrain_view.blast(pixel, radius, roundi(scorch_radius_modifier), TERRAIN_BURN_COLOR)
-	if is_instance_valid(crow):
-		crow.check_perch_after_blast(terrain)
+	_check_crow_perch()
 	_throw_blast_dirt(pixel, crater.erased_pixels, surface_normal)
 
 

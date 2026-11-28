@@ -98,6 +98,19 @@ func blast(center: Vector2i, radius: int, scorch_width: int, color: Color) -> Te
 				_commit(id)
 	return crater
 
+func erase_pixels(pixels: Array[Vector2i]) -> void:
+	var changed: Dictionary[Vector2i, bool] = {}
+	for pixel in pixels:
+		if not terrain.remove_solid(pixel):
+			continue
+		@warning_ignore("integer_division")
+		var id := pixel / Terrain.CHUNK_SIZE
+		_tiles[id].image.set_pixelv(pixel - id * Terrain.CHUNK_SIZE, Color(0, 0, 0, 0))
+		changed[id] = true
+	for id in changed:
+		_commit(id)
+
+
 func deposit(grains: Dictionary[Vector2i, Color]) -> void:
 	var changed: Dictionary[Vector2i, bool] = {}
 	for pixel in grains:
