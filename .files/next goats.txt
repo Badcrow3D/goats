@@ -1,22 +1,24 @@
 Goats2 title screen logo, related to icon maybe, or draw Goats2 terrain with grass etc
-Sound and music
+
++ Sound and music
+
+use WASD for moving target reticle for homing and airstrike
 
 laser stop before terrain a few pixels, draw a red pixel circle at end of laser, scorch edges
 
 army bunker things, buildings on level
-animation poses in aiming and grapple
 prox mine should bonk into items, but other things shouldnt collide with prox mine
 
 artwork for homing airstrike dirt launchers, backpack or launcher for turret and mine
 try grenade circle collision shape
-active goat arrowon ui layer, maybe larger and offscreen arrow too
+active goat arrow on ui layer, maybe larger and offscreen arrow too
 
-remove goat with 0 hp
 address goat out of arena, shots out of arena
 turn, team and goat announcement, countdown timer, turn ready countdown
 
 status numbers, -yellow damage, +green healing, -purple poison
 delay damage indicators until end of turn, focus one goat at a time and subtract health
+remove goat with 0 hp
 fly damage numbers up when taking damage
 knock health bar portions off when taking damage, flash it white
 
@@ -41,18 +43,18 @@ New match: add team, remove team, Teams, back
 Teams: add team, remove team, Edit team
 Edit team: team name, 12 goat names, save, cancel, back
 
-+ falling damage, ends turn, adjust bouncing
-+ turn time limit, time display
-+ retreat time after shot, then turn ends, player switch notice
-bouncing grenade weapon test
-parachute to get backpack, mode switch to deploy launcher
-- mini map or radar when zoomed in
+falling damage, ends turn, adjust bouncing
+turn time limit, time display
+retreat time after shot, then turn ends, player switch notice
 
-add bindings for weapons
+dirt settling is frame rate dependent in current form
+tall pixel towers of dirt should fall
 
-Walk Q, Grapple E, 
+------------------------------------
+
+Walk Shift, Cycle Q, Grapple E, 
 1 Missile 2 Grenade 3 Rockets 4 Cannon 5 Laser 6 Homing 7 Airstrike
-8 Turret, 9 Dirt, 0 Prox mine
+8 Turret 9 Dirt 0 Prox mine
 QE ACDGHLMRTW
 -bfijknoqsuvxyz
 
@@ -75,9 +77,6 @@ bottom left 4 pixels:
 2 - scorched
 3 - dirt
 4 - grass
-
-dirt settling is frame rate dependent in current form
-tall pixel towers of dirt should fall
 
 
 
