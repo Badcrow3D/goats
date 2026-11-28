@@ -1,6 +1,8 @@
 extends Node2D
 
 const GoatState := preload("res://goats/goat.gd")
+const Projectile := preload("res://goats/projectile.gd")
+const GRENADE := preload("res://goats/grenade.tscn")
 const MISSILE := preload("res://goats/missile.tscn")
 const Missile := preload("res://goats/missile.gd")
 const JUMP_CHARGE_FRAME_SECONDS := 0.08
@@ -150,7 +152,7 @@ func _handle_ground_impact(target: GoatState, impact_velocity: Vector2, normal :
 			target.play_landing_pose()
 		return
 	target.landing_pause_pending = true
-	var rebound := _ground_rebound(impact_velocity, normal)
+	var rebound := _ground_rebound(impact_velocity, normal, bounce_restitution)
 	if rebound.y < -bounce_stop_speed:
 		target.velocity = rebound
 		target.show_bounce_pose()
@@ -168,12 +170,12 @@ func _on_goat_bounced(_target: GoatState) -> void:
 	pass
 
 
-func _ground_rebound(impact_velocity: Vector2, normal: Vector2) -> Vector2:
+func _ground_rebound(impact_velocity: Vector2, normal: Vector2, restitution: float) -> Vector2:
 	var reflected := impact_velocity.bounce(normal)
 	# A ground hit must send the goat clear of the floor, even at a grazing angle.
 	if impact_velocity.dot(normal) >= 0.0 or reflected.y >= 0.0:
 		reflected = impact_velocity.bounce(Vector2.UP)
-	return reflected * bounce_restitution
+	return reflected * restitution
 
 
 func _reset_fall_state(target: GoatState) -> void:
@@ -195,20 +197,20 @@ func _cancel_jump() -> void:
 
 
 func _mode_allows_jump() -> bool:
-	return active_goat.mode != GoatState.Mode.LAUNCHER
+	return not active_goat.has_charge_weapon() and active_goat.mode != GoatState.Mode.ROCKETS
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _mode_allows_jump() and event.is_action(&"charge_jump"):
 		_handle_jump_input(event)
 		return
-	if active_goat.is_bouncing or active_goat.mode != GoatState.Mode.LAUNCHER:
+	if active_goat.is_bouncing or not active_goat.has_charge_weapon():
 		return
 	if event.is_action_pressed(&"fire_at_pointer"):
 		var direction := active_goat.direction_to_target(get_global_mouse_position())
 		if direction == Vector2.ZERO:
 			direction = Vector2(facing, 0)
-		_fire_missile(direction)
+		_fire_projectile(direction)
 
 
 func _handle_jump_input(event: InputEvent) -> void:
@@ -222,12 +224,13 @@ func _handle_jump_input(event: InputEvent) -> void:
 		jump_released = true
 
 
-func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
-	if active_goat.mode != GoatState.Mode.LAUNCHER:
+func _fire_projectile(direction: Vector2, power: float = 1.0) -> Projectile:
+	if not active_goat.has_charge_weapon():
 		return null
-	var missile := MISSILE.instantiate() as Missile
-	missile.position = to_local(active_goat.missile_spawn_position())
-	missile.velocity = direction * missile.speed * power
-	missile.shooter_hurtbox = active_goat.get_hurtbox()
-	add_child(missile)
-	return missile
+	var scene := GRENADE if active_goat.mode == GoatState.Mode.GRENADE else MISSILE
+	var projectile := scene.instantiate() as Projectile
+	projectile.position = to_local(active_goat.muzzle_tip_position())
+	projectile.velocity = direction * projectile.speed * power
+	projectile.shooter_hurtbox = active_goat.get_hurtbox()
+	add_child(projectile)
+	return projectile

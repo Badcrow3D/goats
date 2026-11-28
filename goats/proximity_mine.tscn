@@ -1,23 +1,24 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://xdqaoacr32hy"]
 
-[ext_resource type="Script" path="res://goats/proximity_mine.gd" id="1"]
-[ext_resource type="Texture2D" path="res://sprites/mine-7x5.png" id="2"]
+[ext_resource type="Script" uid="uid://dsqejrteeuw0u" path="res://goats/proximity_mine.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://nem5bmar8b8u" path="res://sprites/mine-7x5.png" id="2"]
 
 [sub_resource type="RectangleShape2D" id="MineShape"]
-size = Vector2(14, 10)
+size = Vector2(15, 11)
 
-[node name="ProximityMine" type="Area2D" groups=["level_items"]]
+[node name="ProximityMine" type="Area2D" unique_id=2034466997 groups=["level_items"]]
 collision_layer = 8
 collision_mask = 0
 monitoring = false
 script = ExtResource("1")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=73347125]
 texture_filter = 1
-texture = ExtResource("2")
 scale = Vector2(2, 2)
+texture = ExtResource("2")
 hframes = 4
 vframes = 6
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1083096886]
+position = Vector2(0.5, 0.5)
 shape = SubResource("MineShape")

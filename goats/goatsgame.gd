@@ -1,5 +1,6 @@
 extends "res://goats/goat_controller.gd"
 
+const Grenade := preload("res://goats/grenade.gd")
 const Goat := preload("res://goats/goat.gd")
 const GOAT_SCENE := preload("res://goats/goat.tscn")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
@@ -90,6 +91,13 @@ class MatchSetup:
 
 const WALK_HOLD_MSEC := 80
 const wind_max := 6
+const ROCKET := preload("res://goats/rocket.tscn")
+const ROCKET_INTERVAL := 0.250
+const ROCKET_MIN_SPREAD_DEGREES := 2.0
+const ROCKET_MAX_SPREAD_DEGREES := 4.0
+const ROCKET_SPEED_MULTIPLIER := 0.5
+const ROCKET_BLAST_RADIUS := 9
+const ROCKET_EXPLOSION_SCALE := 0.5
 const DEFAULT_EXPLOSION_RADIUS := 18.0
 const EXPLOSION_SHAKE_DURATION := 0.25
 const EXPLOSION_SHAKE_PIXELS := 5.0
@@ -153,7 +161,9 @@ var walk_start_msec := 0
 var shot_charge := 0.0
 var is_charging_shot := false
 var shot_released := false
-var active_missile: Missile
+var outstanding_rockets := 0
+var firing_rocket_burst := false
+var active_projectile: Projectile
 var active_dirt_drops := 0
 var blast_hit_goats: Array[Goat] = []
 var pending_item_blasts: Array[Callable] = []
@@ -177,6 +187,8 @@ var grapple_start_pixel := Vector2i.ZERO
 var grapple_end_pixel := Vector2i.ZERO
 var grapple_miss_time := 0.0
 var grapple_attached := false
+var grapple_target: Area2D
+var grapple_target_offset := Vector2.ZERO
 var grapple_anchor := Vector2.ZERO
 var grapple_length := 0.0:
 	set(value):
@@ -630,7 +642,10 @@ func _move_goat(body: Goat, delta: float) -> float:
 
 
 func _estimate_ground_normal(at: Vector2) -> Vector2:
-	var footprint := _bitmap_body_rect(at)
+	return _footprint_ground_normal(_bitmap_body_rect(at))
+
+
+func _footprint_ground_normal(footprint: Rect2i) -> Vector2:
 	var left := footprint.position.x
 	var right := footprint.end.x - 1
 	var feet := footprint.end.y
@@ -983,7 +998,7 @@ func _save_tuning() -> Error:
 func _walk_direction() -> float:
 	if match_camera_intro:
 		return 0.0
-	if grapple_attached or not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
+	if firing_rocket_burst or grapple_attached or not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
 	return Input.get_axis(&"walk_left", &"walk_right")
 
@@ -1017,6 +1032,15 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if grapple_attached and not is_same(grapple_target, null):
+		if not is_instance_valid(grapple_target) or grapple_target.is_queued_for_deletion():
+			_disconnect_grapple()
+		else:
+			grapple_anchor = grapple_target.to_global(grapple_target_offset)
+			var pixel := Vector2i(terrain_view.to_local(grapple_anchor).floor())
+			if pixel != grapple_end_pixel:
+				grapple_end_pixel = pixel
+				grapple_line.queue_redraw()
 	while not pending_item_blasts.is_empty():
 		var blast: Callable = pending_item_blasts.pop_front()
 		blast.call()
@@ -1051,13 +1075,13 @@ func _physics_process(delta: float) -> void:
 		and _can_control_movement()
 		and is_zero_approx(direction)
 	)
-	if can_aim and not grapple_attached and not console.visible:
+	if can_aim and not firing_rocket_burst and not grapple_attached and not console.visible:
 		var elevation := Input.get_axis(&"aim_down", &"aim_up")
 		active_goat.aim_degrees = clampf(active_goat.aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
 	active_goat.update_aim_pose(can_aim or grapple_attached, active_goat.aim_degrees, cursor_distance)
 	if grapple_attached:
-		var start_pixel := Vector2i(terrain_view.to_local(active_goat.muzzle_origin()).floor())
+		var start_pixel := Vector2i(terrain_view.to_local(active_goat.muzzle_tip_position()).floor())
 		if start_pixel != grapple_start_pixel:
 			grapple_start_pixel = start_pixel
 			grapple_line.queue_redraw()
@@ -1118,11 +1142,10 @@ func _on_goat_mode_changed(target: Goat) -> void:
 	if target.mode != Goat.Mode.GRAPPLE:
 		_disconnect_grapple()
 	walk_start_msec = 0
-	if active_goat.mode == Goat.Mode.LAUNCHER:
+	is_charging_shot = false
+	shot_released = false
+	if not _mode_allows_jump():
 		_cancel_jump()
-	else:
-		is_charging_shot = false
-		shot_released = false
 	_update_charge_meters()
 
 
@@ -1154,14 +1177,18 @@ func _input(event: InputEvent) -> void:
 			Goat.Mode.GRAPPLE:
 				active_goat.mode = Goat.Mode.LAUNCHER
 			Goat.Mode.LAUNCHER:
+				active_goat.mode = Goat.Mode.GRENADE
+			Goat.Mode.GRENADE:
+				active_goat.mode = Goat.Mode.ROCKETS
+			Goat.Mode.ROCKETS:
 				active_goat.mode = Goat.Mode.GOAT_ONLY
 		get_viewport().set_input_as_handled()
 		return
 	var walk_left := event.is_action_pressed(&"walk_left")
 	if (walk_left or event.is_action_pressed(&"walk_right")) \
-			and not grapple_attached and _can_control_movement() and not is_charging_jump:
+			and not firing_rocket_burst and not grapple_attached and _can_control_movement() and not is_charging_jump:
 		var direction := -1.0 if walk_left else 1.0
-		if active_goat.mode == Goat.Mode.LAUNCHER and direction != facing:
+		if not _mode_allows_jump() and direction != facing:
 			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
 		else:
 			walk_start_msec = 0
@@ -1317,7 +1344,7 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 				target.velocity.y = minf(target.velocity.y, 0.0)
 				if grapple_attached and target == active_goat:
 					var pivot := _rope_pivot()
-					var span := target.muzzle_origin() - pivot
+					var span := target.muzzle_tip_position() - pivot
 					var remaining := GRAPPLE_RANGE - _pinned_length()
 					if span.length() > remaining:
 						var limited := target.position + (span.limit_length(remaining) - span)
@@ -1325,7 +1352,7 @@ func _lift_goats_after_deposit(grains: Dictionary[Vector2i, Color]) -> void:
 							_disconnect_grapple()
 							break
 						target.position = limited
-					grapple_length = _pinned_length() + target.muzzle_origin().distance_to(pivot)
+					grapple_length = _pinned_length() + target.muzzle_tip_position().distance_to(pivot)
 				break
 
 
@@ -1340,7 +1367,7 @@ func _toggle_console() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if match_camera_intro or console.visible:
+	if match_camera_intro or console.visible or firing_rocket_burst:
 		return
 	if grapple_attached and event.is_action(&"fire_grapple"):
 		if event.is_action_pressed(&"fire_grapple"):
@@ -1353,6 +1380,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed(&"fire_grapple"):
 			_fire_grapple()
 		get_viewport().set_input_as_handled()
+	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.ROCKETS:
+		if event.is_action_pressed(&"charge_weapon") and _shot_simulation_finished():
+			_fire_rocket_burst()
+		get_viewport().set_input_as_handled()
 	elif event.is_action(&"charge_jump") and _mode_allows_jump():
 		if grapple_attached:
 			if event.is_action_pressed(&"charge_jump"):
@@ -1360,7 +1391,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			super(event)
 		get_viewport().set_input_as_handled()
-	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.LAUNCHER:
+	elif event.is_action(&"charge_weapon") and active_goat.has_charge_weapon():
 		if event.is_action_pressed(&"charge_weapon") and not is_charging_shot and _shot_simulation_finished():
 			is_charging_shot = true
 			shot_charge = 0.0
@@ -1372,7 +1403,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _bounce_on_grapple() -> void:
 	if not is_zero_approx(active_goat.grapple_bounce_cooldown):
 		return
-	var tangent := _rope_pivot().direction_to(active_goat.muzzle_origin()).orthogonal()
+	var tangent := _rope_pivot().direction_to(active_goat.muzzle_tip_position()).orthogonal()
 	if tangent == Vector2.ZERO:
 		return
 	if is_zero_approx(tangent.y):
@@ -1406,7 +1437,7 @@ func _step_grapple(delta: float) -> void:
 		var reel_speed := minf(reel, 0.0) if grounded else reel
 		if grounded and is_zero_approx(reel_speed) and active_goat.velocity.length() < 1.0:
 			break
-		var origin := active_goat.muzzle_origin()
+		var origin := active_goat.muzzle_tip_position()
 		var pivot := _rope_pivot()
 		var pinned := _pinned_length()
 		var free_length := maxf(0.0, grapple_length - pinned)
@@ -1582,17 +1613,30 @@ func _disconnect_grapple() -> void:
 		active_goat.position = _nearest_standing_position(active_goat.position)
 		active_goat.last_ground_position = active_goat.position
 	grapple_attached = false
+	grapple_target = null
 	grapple_bends.clear()
 	grapple_miss_time = 0.0
 	grapple_line.hide()
 
 
 func _fire_grapple() -> void:
-	var origin := active_goat.muzzle_origin()
+	var origin := active_goat.muzzle_tip_position()
 	var end := origin + active_goat.aim_direction() * GRAPPLE_RANGE
 	var terrain_origin := terrain_view.to_local(origin)
 	var terrain_end := terrain_view.to_local(end)
 	var hit_fraction := _grapple_hit_fraction(terrain_origin, terrain_end - terrain_origin)
+	var ray := PhysicsRayQueryParameters2D.create(origin, end,
+		GoatHurtbox.COLLISION_MASK | LevelItem.COLLISION_MASK, [active_goat.get_hurtbox().get_rid()])
+	ray.collide_with_areas = true
+	ray.collide_with_bodies = false
+	ray.hit_from_inside = true
+	var hit := get_world_2d().direct_space_state.intersect_ray(ray)
+	if not hit.is_empty():
+		var target_fraction := origin.distance_to(hit.position) / GRAPPLE_RANGE
+		if hit_fraction < 0.0 or target_fraction <= hit_fraction:
+			hit_fraction = target_fraction
+			grapple_target = hit.collider
+			grapple_target_offset = grapple_target.to_local(hit.position)
 	grapple_miss_time = GRAPPLE_MISS_SECONDS if hit_fraction < 0.0 else 0.0
 	if hit_fraction >= 0.0:
 		grapple_attached = true
@@ -1818,42 +1862,83 @@ func _update_shot_charge(delta: float) -> void:
 
 	var charge_ratio := minf(shot_charge / fire_charge_time, 1.0)
 	var power := lerpf(fire_min_amount, fire_max_amount, charge_ratio)
-	_fire_missile(active_goat.aim_direction(), power)
+	_fire_projectile(active_goat.aim_direction(), power)
 	is_charging_shot = false
 	shot_released = false
 
 
+func _fire_rocket_burst() -> void:
+	var origins := active_goat.rocket_muzzle_positions()
+	var direction := active_goat.aim_direction()
+	var shooter := active_goat.get_hurtbox()
+	firing_rocket_burst = true
+	outstanding_rockets = origins.size()
+	_launch_rocket(origins[0], direction, shooter)
+	var burst := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	for index in range(1, origins.size()):
+		burst.tween_interval(ROCKET_INTERVAL)
+		burst.tween_callback(_launch_rocket.bind(origins[index], direction, shooter))
+	burst.tween_callback(func(): firing_rocket_burst = false)
+
+
+func _launch_rocket(origin: Vector2, direction: Vector2, shooter: GoatHurtbox) -> void:
+	var rocket := ROCKET.instantiate() as Missile
+	rocket.position = to_local(origin)
+	var spread := deg_to_rad(randf_range(ROCKET_MIN_SPREAD_DEGREES, ROCKET_MAX_SPREAD_DEGREES))
+	if randi_range(0, 1) == 0:
+		spread = -spread
+	rocket.velocity = direction.rotated(spread) * rocket.speed * fire_max_amount * ROCKET_SPEED_MULTIPLIER
+	rocket.shooter_hurtbox = shooter
+	rocket.terrain = terrain
+	rocket.terrain_pixel_size = terrain_view.scale
+	rocket.exploded_at.connect(_apply_projectile_blast.bind(
+		rocket.blast_damage, ROCKET_BLAST_RADIUS, ROCKET_EXPLOSION_SCALE))
+	rocket.trail_sampled.connect(_spawn_trail_smoke.bind(1))
+	rocket.tree_exited.connect(func(): outstanding_rockets -= 1)
+	add_child(rocket)
+
+
 func _shot_simulation_finished() -> bool:
 	return (
-		not is_instance_valid(active_missile)
+		not is_instance_valid(active_projectile)
+		and outstanding_rockets == 0
 		and active_dirt_drops == 0
 		and pending_item_blasts.is_empty()
 		and get_tree().get_node_count_in_group(LevelItem.DETONATING_GROUP) == 0
 	)
 
 
-func _fire_missile(direction: Vector2, power: float = 1.0) -> Missile:
+func _fire_projectile(direction: Vector2, power: float = 1.0) -> Projectile:
 	if not _shot_simulation_finished():
 		return null
-	var missile := super(direction, power)
-	if missile == null:
+	var projectile := super(direction, power)
+	if projectile == null:
 		return null
-	active_missile = missile
-	missile.terrain = terrain
-	missile.terrain_pixel_size = terrain_view.scale
-	missile.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
-	missile.exploded_at.connect(_apply_missile_blast.bind(missile.blast_damage))
-	missile.impacted.connect(_roll_wind)
-	missile.trail_sampled.connect(_spawn_trail_smoke)
-	return missile
+	active_projectile = projectile
+	projectile.terrain = terrain
+	projectile.terrain_pixel_size = terrain_view.scale
+	projectile.exploded_at.connect(_apply_projectile_blast.bind(projectile.blast_damage))
+	projectile.impacted.connect(_roll_wind)
+	if projectile is Grenade:
+		projectile.ground_response = _grenade_ground_response
+	elif projectile is Missile:
+		projectile.wind_acceleration = (float(wind_speed) / wind_max) * wind_scale
+		projectile.trail_sampled.connect(_spawn_trail_smoke)
+	return projectile
 
 
-func _apply_missile_blast(
-	world_pixel: Vector2i, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int
+func _grenade_ground_response(impact_velocity: Vector2, footprint: Rect2i) -> Vector2:
+	var rebound := _ground_rebound(impact_velocity, _footprint_ground_normal(footprint), Grenade.BOUNCE_RESTITUTION)
+	return rebound if rebound.y < -bounce_stop_speed else Vector2.ZERO
+
+
+func _apply_projectile_blast(
+	world_pixel: Vector2i, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int,
+	radius_override := -1, visual_scale := 1.0
 ) -> void:
 	var at := to_global(Vector2(world_pixel))
 	var damage_center := terrain_view.to_global(terrain_view.to_local(at).floor())
-	_apply_blast(at, damage_center, direct_hit, travel_direction, peak_damage)
+	_apply_blast(at, damage_center, direct_hit, travel_direction, peak_damage, radius_override, visual_scale)
 
 
 func _queue_item_blast(center: Vector2, damage: int) -> void:
@@ -1865,12 +1950,13 @@ func _blast_radius_pixels() -> int:
 
 
 func _apply_blast(
-	at: Vector2, damage_center: Vector2, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int
+	at: Vector2, damage_center: Vector2, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int,
+	radius_override := -1, visual_scale := 1.0
 ) -> void:
-	_play_explosion(to_local(at))
+	_play_explosion(to_local(at), visual_scale)
 	_shake_camera()
 	var pixel := Vector2i(terrain_view.to_local(at).floor())
-	var radius := _blast_radius_pixels()
+	var radius := _blast_radius_pixels() if radius_override < 0 else radius_override
 	# Damage signals sample the surface synchronously, before the bitmap changes.
 	blast_hit_goats.clear()
 	if direct_hit:
@@ -1965,12 +2051,12 @@ func _throw_blast_dirt(center: Vector2i, erased_pixels: int, surface_normal: Vec
 		_spawn_dirt(Vector2(center), stamp, launch_velocity)
 
 
-func _play_explosion(hit_position: Vector2) -> void:
+func _play_explosion(hit_position: Vector2, visual_scale: float) -> void:
 	var explosion := Sprite2D.new()
 	explosion.texture = EXPLOSION_TEXTURE
 	explosion.hframes = roundi(EXPLOSION_TEXTURE.get_width() / float(EXPLOSION_TEXTURE.get_height()))
 	explosion.position = hit_position
-	explosion.scale = terrain_view.scale
+	explosion.scale = terrain_view.scale * visual_scale
 	explosion.z_index = 1
 	add_child(explosion)
 
@@ -2001,12 +2087,12 @@ func _spawn_smoke_burst(center: Vector2, count: int, radius: float) -> void:
 		_spawn_smoke(spawn_position, first_frame, SMOKE_FRAME_SECONDS, velocity)
 
 
-func _spawn_trail_smoke(at: Vector2) -> void:
+func _spawn_trail_smoke(at: Vector2, skip_frames := 0) -> void:
 	var offset := Vector2(
 		randf_range(-TRAIL_SMOKE_JITTER, TRAIL_SMOKE_JITTER),
 		randf_range(-TRAIL_SMOKE_JITTER, TRAIL_SMOKE_JITTER)
 	)
-	var first_frame := randi_range(TRAIL_SMOKE_MIN_START_FRAME, TRAIL_SMOKE_MAX_START_FRAME)
+	var first_frame := randi_range(TRAIL_SMOKE_MIN_START_FRAME, TRAIL_SMOKE_MAX_START_FRAME) + skip_frames
 	var wind_drift := (float(wind_speed) / wind_max) * TRAIL_SMOKE_WIND_SPEED
 	var velocity := Vector2(wind_drift, -TRAIL_SMOKE_RISE_SPEED)
 	_spawn_smoke(at + offset, first_frame, TRAIL_SMOKE_FRAME_SECONDS, velocity)

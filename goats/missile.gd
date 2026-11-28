@@ -1,44 +1,35 @@
-extends CharacterBody2D
+extends "res://goats/projectile.gd"
 
-signal impacted
-signal exploded_at(pixel: Vector2i, direct_hit: Area2D, travel_direction: Vector2)
 signal trail_sampled(at: Vector2)
 
-const ANGLE_FRAMES := 40
 const TRAIL_SPACING := 16.0
 const FIRST_TRAIL_SAMPLE_DISTANCE := 8.0
 const TRAIL_LAG_SAMPLES := 1
-const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
-const LevelItem := preload("res://goats/level_item.gd")
 
-@export var speed := 220.0
-@export var gravity := 400.0
-@export var blast_damage := 50
+@onready var collider: CollisionShape2D = $Area2D/CollisionShape2D
+@onready var impact_cast: ShapeCast2D = $Area2D/CollisionShape2D/ImpactCast
 
-@onready var sprite: Sprite2D = $Sprite2D
-@onready var collider: CollisionShape2D = $CollisionShape2D
-@onready var impact_cast: ShapeCast2D = $ImpactCast
 
-var shooter_hurtbox: GoatHurtbox
-var terrain: Terrain
-var terrain_pixel_size := Vector2.ONE
 var wind_acceleration := 0.0
-var lifetime := 4.0
+@export var lifetime := 4.0
+@export var explode_on_timeout := false
 var distance_to_next_trail := FIRST_TRAIL_SAMPLE_DISTANCE
 var trail_positions: Array[Vector2] = []
 
 
 func _ready() -> void:
+	impact_cast.shape = collider.shape
 	if is_instance_valid(shooter_hurtbox):
 		impact_cast.add_exception(shooter_hurtbox)
-	_update_sprite_angle()
+	_face_velocity()
 
 
 func _physics_process(delta: float) -> void:
+	delta = minf(lifetime, delta)
 	lifetime -= delta
 	velocity.x += wind_acceleration * delta
 	velocity.y += gravity * delta
-	_update_sprite_angle()
+	_face_velocity()
 	# Ignore the shooter only until the missile has cleared its hurtbox.
 	if is_instance_valid(shooter_hurtbox) and not impact_cast.shape.collide(
 		impact_cast.global_transform, shooter_hurtbox.collider.shape, shooter_hurtbox.collider.global_transform
@@ -62,12 +53,16 @@ func _physics_process(delta: float) -> void:
 	impact_cast.target_position = impact_cast.global_transform.basis_xform_inv(motion)
 	impact_cast.force_shapecast_update()
 	if impact_cast.is_colliding():
+		var contact := impact_cast.get_collision_point(0)
+		var direct_hit: Area2D
 		for index in impact_cast.get_collision_count():
-			var hurtbox := impact_cast.get_collider(index) as Area2D
-			if hurtbox is GoatHurtbox or hurtbox is LevelItem:
-				var contact := impact_cast.get_collision_point(index)
-				exploded_at.emit(Vector2i(get_parent().to_local(contact).floor()), hurtbox, velocity.normalized())
+			var target := impact_cast.get_collider(index)
+			if target is GoatHurtbox or target is LevelItem:
+				direct_hit = target
+				contact = impact_cast.get_collision_point(index)
 				break
+		if direct_hit or explode_on_timeout:
+			exploded_at.emit(Vector2i(get_parent().to_local(contact).floor()), direct_hit, velocity.normalized())
 		impacted.emit()
 		queue_free()
 	elif bitmap_hit:
@@ -76,12 +71,12 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 	else:
 		var start := position
-		var collision := move_and_collide(motion)
+		position += motion
 		_sample_trail(start, position - start)
-		if collision:
-			impacted.emit()
-			queue_free()
-		elif lifetime <= 0.0:
+		if lifetime <= 0.0:
+			if explode_on_timeout:
+				exploded_at.emit(Vector2i(position.floor()), null, velocity.normalized())
+				impacted.emit()
 			queue_free()
 
 
@@ -95,11 +90,7 @@ func _sample_trail(start: Vector2, motion: Vector2) -> void:
 	distance_to_next_trail -= distance
 
 
-func _update_sprite_angle() -> void:
+func _face_velocity() -> void:
 	if velocity.is_zero_approx():
 		return
-	# Frame 0 points up. The remaining frames rotate clockwise in 9° steps.
-	var turns := (velocity.angle() + PI / 2.0) / TAU
-	sprite.frame = posmod(roundi(turns * ANGLE_FRAMES), ANGLE_FRAMES)
-	collider.rotation = TAU * sprite.frame / ANGLE_FRAMES
-	impact_cast.rotation = collider.rotation
+	rotation = velocity.angle()

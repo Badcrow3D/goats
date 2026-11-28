@@ -6,13 +6,10 @@
 [ext_resource type="Script" uid="uid://c05vd1v7u6uxe" path="res://goats/goat_hurtbox.gd" id="9_hurtbox"]
 [ext_resource type="Texture2D" uid="uid://cg7vpw67vt7a5" path="res://sprites/chargejump26x8.png" id="14_jump_charge"]
 [ext_resource type="Texture2D" uid="uid://bvkqfinesecim" path="res://sprites/chargepower8x26.png" id="15_shot_charge"]
-[ext_resource type="Texture2D" uid="uid://ubpgij5mvrq4" path="res://sprites/grapple-48x48.png" id="16_grapple_aim"]
 [ext_resource type="Texture2D" uid="uid://c58haxakw4aio" path="res://sprites/goatjump-24x24.png" id="17_jump"]
 [ext_resource type="Shader" uid="uid://bmciwo1vwsfxd" path="res://goats/goat_palette.gdshader" id="18_palette"]
 [ext_resource type="Texture2D" uid="uid://bo37ia6axnsam" path="res://sprites/bounce-24x24.png" id="19_bounce"]
 [ext_resource type="PackedScene" uid="uid://y0sofjs7swm6" path="res://goats/nameplate.tscn" id="20_nameplate"]
-
-[ext_resource type="Texture2D" path="res://sprites/grapple-walk-24x24.png" id="grapple_walk"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_goat_palette"]
 resource_local_to_scene = true
@@ -22,6 +19,14 @@ shader_parameter/light_color = Color(0.7529412, 0.7529412, 0.7529412, 1)
 shader_parameter/midtone_color = Color(0.69411767, 0.8039216, 0.80784315, 1)
 shader_parameter/shadow_color = Color(0.4117647, 0.41568628, 0.41568628, 1)
 shader_parameter/team_color = Color(1, 0.24705882, 0.31764707, 1)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_0"]
+atlas = ExtResource("7_layers")
+region = Rect2(0, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="Atlas_walk_5"]
+atlas = ExtResource("7_layers")
+region = Rect2(0, 24, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_jump_1"]
 atlas = ExtResource("17_jump")
@@ -71,10 +76,6 @@ region = Rect2(240, 0, 24, 24)
 atlas = ExtResource("17_jump")
 region = Rect2(264, 0, 24, 24)
 
-[sub_resource type="AtlasTexture" id="Atlas_walk_5"]
-atlas = ExtResource("7_layers")
-region = Rect2(0, 24, 24, 24)
-
 [sub_resource type="AtlasTexture" id="Atlas_walk_6"]
 atlas = ExtResource("7_layers")
 region = Rect2(24, 24, 24, 24)
@@ -90,10 +91,6 @@ region = Rect2(72, 24, 24, 24)
 [sub_resource type="AtlasTexture" id="Atlas_walk_9"]
 atlas = ExtResource("7_layers")
 region = Rect2(96, 24, 24, 24)
-
-[sub_resource type="AtlasTexture" id="Atlas_walk_0"]
-atlas = ExtResource("7_layers")
-region = Rect2(0, 0, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_1"]
 atlas = ExtResource("7_layers")
@@ -115,18 +112,18 @@ region = Rect2(96, 0, 24, 24)
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("Atlas_walk_5")
-}],
-"loop": 0,
-"name": &"idle_left",
-"speed": 8.0
-}, {
-"frames": [{
-"duration": 1.0,
 "texture": SubResource("Atlas_walk_0")
 }],
 "loop": 0,
 "name": &"idle",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_5")
+}],
+"loop": 0,
+"name": &"idle_left",
 "speed": 8.0
 }, {
 "frames": [{
@@ -230,19 +227,57 @@ script = ExtResource("8_goat_state")
 
 [node name="Weapons" type="Node2D" parent="." unique_id=1237287070]
 
+[node name="Grapple" type="Node2D" parent="Weapons" unique_id=430052384]
+visible = false
+position = Vector2(-3, -5)
+
+[node name="MuzzleRight" type="Marker2D" parent="Weapons/Grapple" unique_id=1775269853]
+
+[node name="MuzzleTip" type="Marker2D" parent="Weapons/Grapple/MuzzleRight" unique_id=1301534524]
+
+[node name="MuzzleLeft" type="Marker2D" parent="Weapons/Grapple" unique_id=1124373617]
+position = Vector2(5, 0)
+
+[node name="Pivot" type="Node2D" parent="Weapons/Grapple" unique_id=501015580]
+
+[node name="Polygon2D" type="Polygon2D" parent="Weapons/Grapple/Pivot" unique_id=1631897119]
+color = Color(0.4, 0.47843137, 0.21568628, 1)
+polygon = PackedVector2Array(-5, -3, -5, 1, 5, 1, 5, -3)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Weapons/Grapple/Pivot" unique_id=986098059]
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(5, -1, 5, 1, 9, 1, 9, -1)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Grapple" unique_id=1603249165]
+position = Vector2(-1, 13)
+color = Color(0.5019608, 0.6156863, 0.30588236, 1)
+polygon = PackedVector2Array(-4, -8, -4, 0, 6, 0, 6, -8)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D4" type="Polygon2D" parent="Weapons/Grapple" unique_id=44695609]
+position = Vector2(0, 5)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D5" type="Polygon2D" parent="Weapons/Grapple" unique_id=768591409]
+position = Vector2(0, 5)
+polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
 [node name="Missile" type="Node2D" parent="Weapons" unique_id=505720912]
+visible = false
 position = Vector2(-3, -5)
 
 [node name="MuzzleRight" type="Marker2D" parent="Weapons/Missile" unique_id=1893191331]
 
 [node name="MuzzleTip" type="Marker2D" parent="Weapons/Missile/MuzzleRight" unique_id=1780984275]
-position = Vector2(17, 0)
+position = Vector2(21, 0)
 
 [node name="MuzzleLeft" type="Marker2D" parent="Weapons/Missile" unique_id=878330686]
 position = Vector2(5, 0)
-
-[node name="LeftOrigin" type="Marker2D" parent="Weapons/Missile" unique_id=1666610021]
-position = Vector2(3, 13)
 
 [node name="Pivot" type="Node2D" parent="Weapons/Missile" unique_id=355217397]
 
@@ -273,17 +308,99 @@ position = Vector2(0, 5)
 polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
 uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
 
+[node name="Grenade" type="Node2D" parent="Weapons" unique_id=445179738]
+visible = false
+position = Vector2(-3, -5)
+
+[node name="MuzzleRight" type="Marker2D" parent="Weapons/Grenade" unique_id=548692300]
+
+[node name="MuzzleTip" type="Marker2D" parent="Weapons/Grenade/MuzzleRight" unique_id=226036023]
+position = Vector2(9, 0)
+
+[node name="MuzzleLeft" type="Marker2D" parent="Weapons/Grenade" unique_id=2131797783]
+position = Vector2(5, 0)
+
+[node name="Pivot" type="Node2D" parent="Weapons/Grenade" unique_id=1466211776]
+
+[node name="Polygon2D" type="Polygon2D" parent="Weapons/Grenade/Pivot" unique_id=1405658395]
+color = Color(0.4, 0.47843137, 0.21568628, 1)
+polygon = PackedVector2Array(-9, -1, -7, -1, -7, -3, 7, -3, 7, 3, -9, 3)
+uv = PackedVector2Array(-16, 0, -7.999996, 0, -7.999996, -8, 8, -8, 8, 8, -16, 8)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Weapons/Grenade/Pivot" unique_id=1203134567]
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(7, -3, 7, 3, 9, 3, 9, -3)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Grenade" unique_id=1075384644]
+position = Vector2(-1, 13)
+color = Color(0.5019608, 0.6156863, 0.30588236, 1)
+polygon = PackedVector2Array(-4, -8, -4, 0, 6, 0, 6, -8)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D4" type="Polygon2D" parent="Weapons/Grenade" unique_id=664763574]
+position = Vector2(0, 5)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D5" type="Polygon2D" parent="Weapons/Grenade" unique_id=1126280965]
+position = Vector2(0, 5)
+polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Rockets" type="Node2D" parent="Weapons" unique_id=531011062]
+visible = false
+position = Vector2(-3, -5)
+
+[node name="MuzzleRight" type="Marker2D" parent="Weapons/Rockets" unique_id=2147141709]
+
+[node name="MuzzleTip" type="Marker2D" parent="Weapons/Rockets/MuzzleRight" unique_id=1514587336]
+position = Vector2(10, 1)
+
+[node name="MuzzleTip2" type="Marker2D" parent="Weapons/Rockets/MuzzleRight" unique_id=2002196276]
+position = Vector2(10, -2)
+
+[node name="MuzzleTip3" type="Marker2D" parent="Weapons/Rockets/MuzzleRight" unique_id=481473137]
+position = Vector2(10, -5)
+
+[node name="MuzzleLeft" type="Marker2D" parent="Weapons/Rockets" unique_id=2119810381]
+position = Vector2(5, 0)
+
+[node name="Pivot" type="Node2D" parent="Weapons/Rockets" unique_id=1811041583]
+
+[node name="Polygon2D" type="Polygon2D" parent="Weapons/Rockets/Pivot" unique_id=182028638]
+color = Color(0.4, 0.47843137, 0.21568628, 1)
+polygon = PackedVector2Array(-7, 1, -9, 1, -9, -7, 5, -7, 5, 3, -7, 3)
+uv = PackedVector2Array(-16, 0, -7.999996, 0, -7.999996, -8, 8, -8, 8, 8, -16, 8)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Weapons/Rockets/Pivot" unique_id=1844968729]
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(5, -7, 5, 3, 7, 3, 7, -7)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Rockets" unique_id=2134233179]
+position = Vector2(-1, 13)
+color = Color(0.5019608, 0.6156863, 0.30588236, 1)
+polygon = PackedVector2Array(-4, -8, -4, 0, 6, 0, 6, -8)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D4" type="Polygon2D" parent="Weapons/Rockets" unique_id=11994959]
+position = Vector2(0, 5)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D5" type="Polygon2D" parent="Weapons/Rockets" unique_id=1808729557]
+position = Vector2(0, 5)
+polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2143000917]
 material = SubResource("ShaderMaterial_goat_palette")
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_goat")
 animation = &"walk_right"
-
-[node name="Grapple" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
-visible = false
-show_behind_parent = true
-texture = ExtResource("grapple_walk")
-hframes = 10
 
 [node name="BouncePose" type="Sprite2D" parent="." unique_id=824175151]
 visible = false
@@ -307,13 +424,6 @@ script = ExtResource("9_hurtbox")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1123215417]
 position = Vector2(0, 3)
 shape = SubResource("Rectangle_hurtbox")
-
-[node name="GrappleAimPose" type="Sprite2D" parent="." unique_id=1750366653]
-visible = false
-texture = ExtResource("16_grapple_aim")
-hframes = 6
-vframes = 2
-frame = 2
 
 [node name="AimCursor" type="Sprite2D" parent="." unique_id=1092474658]
 visible = false
@@ -350,3 +460,4 @@ offset_left = -30.0
 offset_top = -31.0
 offset_right = 30.0
 offset_bottom = -12.0
+metadata/_edit_use_anchors_ = true
