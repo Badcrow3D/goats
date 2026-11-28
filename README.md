@@ -18,7 +18,7 @@ To rebind a control or add another key, mouse button, or controller input for th
 - Tap **Enter** while grounded with the grapple connected to bounce into a swing. Each goat can bounce once every two seconds.
 - Hold **Enter** to charge a jump in Goat Only mode. Release to jump.
 - Hold **Space** to charge a shot in Launcher or Grenade mode. Release to fire. Grenades bounce and explode four seconds after launch.
-- In Rockets mode, aim with **W / S** and press **Space** to immediately fire three rockets, 250 ms apart. Each rocket flies straight at half the speed of a fully charged missile, at a random angle 2° to 4° to either side of your aim, and explodes on impact or after one second. Walking and aiming resume after the third launch.
+- In Rockets mode, aim with **W / S** and press **Space** to immediately fire three rockets, 250 ms apart. Each rocket flies straight at half the speed of a fully charged missile, at a random angle 3° to 6° to either side of your aim, and explodes on impact or after one second. Walking and aiming resume after the third launch.
 - Goats keep their momentum in the air. By default, a drop of 64 world pixels below the last grounded position disables controls until the goat settles. A hard landing can cause a bounce. Use `set fall_control_loss_distance <pixels>` to change the threshold.
 - When a goat walks off an edge, it holds its current frame for the first 24 world pixels of the drop. Adjust the threshold in the console with `set fall_animation_distance 24`.
 - In Launcher or Grenade mode, use **W / S** to aim while idle.
