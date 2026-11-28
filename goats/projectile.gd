@@ -5,7 +5,10 @@ const LevelItem := preload("res://goats/level_item.gd")
 
 var shooter_hurtbox: GoatHurtbox
 
+# Emitted by the missile and grenade scripts.
+@warning_ignore("unused_signal")
 signal impacted
+@warning_ignore("unused_signal")
 signal exploded_at(pixel: Vector2i, direct_hit: Area2D, travel_direction: Vector2)
 
 @export var speed := 220.0

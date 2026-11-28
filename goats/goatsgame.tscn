@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://cib86inmjlc13" path="res://sprites/arrow.png" id="18_offscreen_arrow"]
 [ext_resource type="PackedScene" uid="uid://bl3oiwvwxvn1m" path="res://goats/barrel.tscn" id="19_barrel"]
 [ext_resource type="Script" uid="uid://chyd27w7lvcgh" path="res://goats/console.gd" id="console_script"]
-[ext_resource type="PackedScene" path="res://goats/proximity_mine.tscn" id="mine"]
+[ext_resource type="PackedScene" uid="uid://xdqaoacr32hy" path="res://goats/proximity_mine.tscn" id="mine"]
 [ext_resource type="Script" uid="uid://b8l6uevidf2wn" path="res://goats/nameplate_layer.gd" id="nameplate_layer"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_zoom_pixelation"]

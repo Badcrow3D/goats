@@ -6,7 +6,7 @@ signal mode_changed
 
 enum Facing { LEFT = -1, RIGHT = 1 }
 enum Status { ACTIVE, ALIVE, DEAD }
-enum Mode { GOAT_ONLY = 0, GRAPPLE = 1, LAUNCHER = 2, GRENADE = 3, ROCKETS = 4, CANNON = 5 }
+enum Mode { GOAT_ONLY = 0, GRAPPLE = 1, LAUNCHER = 2, GRENADE = 3, ROCKETS = 4, CANNON = 5, LASER = 6 }
 
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const IDLE_SHEET := preload("res://sprites/goat_idle-24x24.png")
@@ -27,6 +27,7 @@ const AIM_CURSOR_STEP := AIM_POSE_STEP / 8.0
 @onready var _bounce_pose: Sprite2D = $BouncePose
 @onready var _rockets: Node2D = $Weapons/Rockets
 @onready var _cannon: Node2D = $Weapons/Cannon
+@onready var _laser: Node2D = $Weapons/Laser
 @onready var _grenade: Node2D = $Weapons/Grenade
 @onready var _grapple: Node2D = $Weapons/Grapple
 @onready var _grapple_pivot: Node2D = $Weapons/Grapple/Pivot
@@ -59,7 +60,7 @@ var jump_launch_speed := 0.0
 var aim_degrees := 0.0
 
 var _walking := false
-var _showing_aim_pose := false
+var _show_aim_cursor := false
 var aim_locked := false:
 	set(value):
 		aim_locked = value
@@ -92,7 +93,7 @@ var _idle_rows_remaining := 0
 		if mode == value:
 			return
 		mode = value
-		_showing_aim_pose = false
+		_show_aim_cursor = false
 		if is_node_ready():
 			_select_weapon()
 			_apply_mode_layers()
@@ -219,6 +220,8 @@ func _select_weapon() -> void:
 		weapon = _rockets
 	elif mode == Mode.CANNON:
 		weapon = _cannon
+	elif mode == Mode.LASER:
+		weapon = _laser
 	_pivot = weapon.get_node("Pivot")
 	_muzzle_right = weapon.get_node("MuzzleRight")
 	_muzzle_left = weapon.get_node("MuzzleLeft")
@@ -228,7 +231,7 @@ func _select_weapon() -> void:
 
 func _apply_weapon_facing() -> void:
 	_sync_equipment_pose()
-	for weapon: Node2D in [_missile, _grapple, _grenade, _rockets, _cannon]:
+	for weapon: Node2D in [_missile, _grapple, _grenade, _rockets, _cannon, _laser]:
 		weapon.transform = Transform2D(Vector2.RIGHT * float(facing_direction), Vector2.DOWN, weapon.position)
 
 
@@ -290,7 +293,7 @@ func show_bounce_pose() -> void:
 	_bounce_pose.frame_coords = Vector2i(column, row)
 	_bounce_pose.show()
 	mode = Mode.GOAT_ONLY
-	_showing_aim_pose = false
+	_show_aim_cursor = false
 	_apply_mode_layers()
 
 
@@ -342,13 +345,12 @@ func _sync_equipment_pose() -> void:
 
 
 func update_aim_pose(can_aim: bool, pose_aim_degrees: float, cursor_distance: float) -> void:
-	# Let the layered sprite finish its walk tail before switching poses.
-	_showing_aim_pose = can_aim and _is_standing()
-	var snapped_aim := snappedf(pose_aim_degrees, AIM_CURSOR_STEP) if _showing_aim_pose or mode == Mode.GRAPPLE else 0.0
+	_show_aim_cursor = can_aim and _is_standing()
+	var snapped_aim := snappedf(pose_aim_degrees, AIM_CURSOR_STEP)
 	var angle := deg_to_rad(snapped_aim)
 	_muzzle_right.rotation = -angle
 	_pivot.rotation = -angle
-	if _showing_aim_pose:
+	if _show_aim_cursor:
 		var origin := muzzle_origin()
 		var direction := aim_direction()
 		_aim_cursor.global_position = (origin + direction * cursor_distance).round()
@@ -363,11 +365,11 @@ func _apply_mode_layers() -> void:
 	_grapple_pivot.visible = not aim_locked
 	_rockets.visible = mode == Mode.ROCKETS and show_equipment
 	_cannon.visible = mode == Mode.CANNON and show_equipment
+	_laser.visible = mode == Mode.LASER and show_equipment
 	_grenade.visible = mode == Mode.GRENADE and show_equipment
 	_missile.visible = show_launcher
-	var show_aim_pose := _showing_aim_pose and show_equipment and mode != Mode.GOAT_ONLY
 	_sprite.visible = not _bounce_pose.visible
-	_aim_cursor.visible = show_aim_pose and not aim_locked
+	_aim_cursor.visible = _show_aim_cursor and show_equipment and mode != Mode.GOAT_ONLY and not aim_locked
 
 
 func update_jump_meter(show_charge: bool, charge_ratio: float) -> void:

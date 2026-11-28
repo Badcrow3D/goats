@@ -1,13 +1,14 @@
 Goats2 title screen logo, related to icon maybe, or draw Goats2 terrain with grass etc
 Sound and music
 
+laser stop before terrain a few pixels, draw a red pixel circle at end of laser, scorch edges
+
 army bunker things, buildings on level
-
 animation poses in aiming and grapple
-
-prox mine should bonk into items but not other things collide with them
+prox mine should bonk into items, but other things shouldnt collide with prox mine
 
 artwork for homing airstrike dirt launchers, backpack or launcher for turret and mine
+try grenade circle collision shape
 
 remove goat with 0 hp
 address goat out of arena, shots out of arena

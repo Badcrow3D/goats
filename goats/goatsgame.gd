@@ -41,6 +41,11 @@ const GRAPPLE_SWING_RESTITUTION := 0.75
 const GRAPPLE_BOUNCE_HEIGHT := 24.0 # Standing sprite height in world pixels.
 const GRAPPLE_BOUNCE_STRENGTH := 0.75
 const GRAPPLE_BOUNCE_COOLDOWN := 2.0
+const LASER_RANGE := 150.0
+const LASER_CARVE_RADIUS := 8
+const LASER_CONTACT_SECONDS := 0.25
+const LASER_MISS_SECONDS := 1.0
+const LASER_HIT_SECONDS := 2.0
 const ACTIVE_GOAT_ARROW_TEXTURE := preload("res://sprites/arrow-16x16.png")
 const ACTIVE_GOAT_ARROW_FRAME_SECONDS := 0.08
 const OFFSCREEN_ARROW_MARGIN := 40.0
@@ -166,7 +171,8 @@ var shot_charge := 0.0
 var is_charging_shot := false
 var shot_released := false
 var outstanding_rockets := 0
-var firing_rocket_burst := false
+var rocket_burst: Tween
+var rocket_burst_shooter: Goat
 var active_projectile: Projectile
 var active_dirt_drops := 0
 var blast_hit_goats: Array[Goat] = []
@@ -198,6 +204,13 @@ var grapple_length := 0.0:
 	set(value):
 		grapple_length = clampf(value, 0.0, GRAPPLE_RANGE)
 var grapple_bends: Array[RopeBend] = []
+var laser_line := Node2D.new()
+var laser_start_pixel := Vector2i.ZERO
+var laser_end_pixel := Vector2i.ZERO
+var laser_elapsed := 0.0
+var laser_hit_terrain := false
+var laser_has_contact := false
+var laser_contact_time := 0.0
 var goat_body: Rect2i
 var player_spawn_x: int
 var wind_scale := 4.0
@@ -238,6 +251,12 @@ func _ready() -> void:
 	grapple_line.z_as_relative = false
 	grapple_line.z_index = 1
 	terrain_view.add_child(grapple_line)
+	laser_line.draw.connect(func(): _draw_pixel_span(laser_line, laser_start_pixel, laser_end_pixel))
+	laser_line.hide()
+	laser_line.z_as_relative = false
+	laser_line.z_index = grapple_line.z_index
+	laser_line.self_modulate = Color("#ff3f51")
+	terrain_view.add_child(laser_line)
 	if _match_setup == null:
 		var player_team := Team.new(active_goat.team_id, "Blue", Color.CORNFLOWER_BLUE)
 		teams[player_team.id] = player_team
@@ -694,6 +713,7 @@ func _start_goat_bounce(target: Goat, kick: Vector2) -> void:
 	target.velocity = kick
 	target.is_bouncing = true
 	target.show_bounce_pose()
+	_interrupt_rocket_burst(target)
 	if target == active_goat:
 		is_charging_shot = false
 		shot_released = false
@@ -1002,7 +1022,7 @@ func _save_tuning() -> Error:
 func _walk_direction() -> float:
 	if match_camera_intro:
 		return 0.0
-	if firing_rocket_burst or grapple_attached or not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
+	if rocket_burst != null or grapple_attached or not _can_use_ground_controls() or console.visible or Time.get_ticks_msec() < walk_start_msec:
 		return 0.0
 	return Input.get_axis(&"walk_left", &"walk_right")
 
@@ -1079,7 +1099,7 @@ func _physics_process(delta: float) -> void:
 		and _can_control_movement()
 		and is_zero_approx(direction)
 	)
-	if can_aim and not firing_rocket_burst and not grapple_attached and not console.visible:
+	if can_aim and rocket_burst == null and not grapple_attached and not console.visible:
 		var elevation := Input.get_axis(&"aim_down", &"aim_up")
 		active_goat.aim_degrees = clampf(active_goat.aim_degrees + elevation * aim_speed * delta, -90.0, 90.0)
 
@@ -1089,6 +1109,8 @@ func _physics_process(delta: float) -> void:
 		if start_pixel != grapple_start_pixel:
 			grapple_start_pixel = start_pixel
 			grapple_line.queue_redraw()
+	if laser_line.visible:
+		_step_laser(delta)
 	_update_shot_charge(delta)
 	_update_charge_meters()
 
@@ -1145,6 +1167,8 @@ func _on_goat_mode_changed(target: Goat) -> void:
 		return
 	if target.mode != Goat.Mode.GRAPPLE:
 		_disconnect_grapple()
+	if target.mode != Goat.Mode.LASER:
+		laser_line.hide()
 	walk_start_msec = 0
 	is_charging_shot = false
 	shot_released = false
@@ -1187,12 +1211,14 @@ func _input(event: InputEvent) -> void:
 			Goat.Mode.ROCKETS:
 				active_goat.mode = Goat.Mode.CANNON
 			Goat.Mode.CANNON:
+				active_goat.mode = Goat.Mode.LASER
+			Goat.Mode.LASER:
 				active_goat.mode = Goat.Mode.GOAT_ONLY
 		get_viewport().set_input_as_handled()
 		return
 	var walk_left := event.is_action_pressed(&"walk_left")
 	if (walk_left or event.is_action_pressed(&"walk_right")) \
-			and not firing_rocket_burst and not grapple_attached and _can_control_movement() and not is_charging_jump:
+			and rocket_burst == null and not grapple_attached and _can_control_movement() and not is_charging_jump:
 		var direction := -1.0 if walk_left else 1.0
 		if not _mode_allows_jump() and direction != facing:
 			walk_start_msec = Time.get_ticks_msec() + WALK_HOLD_MSEC
@@ -1373,7 +1399,7 @@ func _toggle_console() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if match_camera_intro or console.visible or firing_rocket_burst:
+	if match_camera_intro or console.visible or rocket_burst != null:
 		return
 	if grapple_attached and event.is_action(&"fire_grapple"):
 		if event.is_action_pressed(&"fire_grapple"):
@@ -1393,6 +1419,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.CANNON:
 		if event.is_action_pressed(&"charge_weapon") and _shot_simulation_finished():
 			_fire_cannon()
+		get_viewport().set_input_as_handled()
+	elif event.is_action(&"charge_weapon") and active_goat.mode == Goat.Mode.LASER:
+		if event.is_action_pressed(&"charge_weapon") and _shot_simulation_finished():
+			_fire_laser()
 		get_viewport().set_input_as_handled()
 	elif event.is_action(&"charge_jump") and _mode_allows_jump():
 		if grapple_attached:
@@ -1567,7 +1597,7 @@ func _rope_span_blocked(from: Vector2, to: Vector2) -> bool:
 		return false
 	# The anchor can lie exactly on a solid cell's edge. Sample its outgoing side.
 	var start := from + motion.limit_length(0.0005)
-	return _grapple_hit_fraction(start, to - start) >= 0.0
+	return _terrain_hit_fraction(start, to - start) >= 0.0
 
 
 func _grapple_contact(at: Vector2) -> Vector2:
@@ -1634,7 +1664,7 @@ func _fire_grapple() -> void:
 	var end := origin + active_goat.aim_direction() * GRAPPLE_RANGE
 	var terrain_origin := terrain_view.to_local(origin)
 	var terrain_end := terrain_view.to_local(end)
-	var hit_fraction := _grapple_hit_fraction(terrain_origin, terrain_end - terrain_origin)
+	var hit_fraction := _terrain_hit_fraction(terrain_origin, terrain_end - terrain_origin)
 	var ray := PhysicsRayQueryParameters2D.create(origin, end,
 		GoatHurtbox.COLLISION_MASK | LevelItem.COLLISION_MASK, [active_goat.get_hurtbox().get_rid()])
 	ray.collide_with_areas = true
@@ -1665,24 +1695,24 @@ func _fire_grapple() -> void:
 
 func _draw_grapple_line() -> void:
 	if grapple_bends.is_empty():
-		_draw_rope_span(grapple_start_pixel, grapple_end_pixel)
+		_draw_pixel_span(grapple_line, grapple_start_pixel, grapple_end_pixel)
 		return
 	var from := grapple_end_pixel
 	for bend in grapple_bends:
 		var joint := Vector2i(terrain_view.to_local(bend.joint).floor())
-		_draw_rope_span(from, joint)
+		_draw_pixel_span(grapple_line, from, joint)
 		from = joint
-	_draw_rope_span(from, grapple_start_pixel)
+	_draw_pixel_span(grapple_line, from, grapple_start_pixel)
 
 
-func _draw_rope_span(from: Vector2i, to: Vector2i) -> void:
+func _draw_pixel_span(line: Node2D, from: Vector2i, to: Vector2i) -> void:
 	# Each step fills one pixel on the terrain grid.
 	var pixel := from
 	var distance := (to - pixel).abs()
 	var step := (to - pixel).sign()
 	var error := distance.x - distance.y
 	while true:
-		grapple_line.draw_rect(Rect2(Vector2(pixel), Vector2.ONE), Color.WHITE)
+		line.draw_rect(Rect2(Vector2(pixel), Vector2.ONE), Color.WHITE)
 		if pixel == to:
 			break
 		var doubled_error := 2 * error
@@ -1694,7 +1724,7 @@ func _draw_rope_span(from: Vector2i, to: Vector2i) -> void:
 			pixel.y += step.y
 
 
-func _grapple_hit_fraction(origin: Vector2, motion: Vector2) -> float:
+func _terrain_hit_fraction(origin: Vector2, motion: Vector2) -> float:
 	# Visit each bitmap cell in the order the shot enters it.
 	var cell := Vector2i(origin.floor())
 	var step := Vector2i(motion.sign())
@@ -1881,14 +1911,25 @@ func _fire_rocket_burst() -> void:
 	var origins := active_goat.rocket_muzzle_positions()
 	var direction := active_goat.aim_direction()
 	var shooter := active_goat.get_hurtbox()
-	firing_rocket_burst = true
-	outstanding_rockets = origins.size()
-	_launch_rocket(origins[0], direction, shooter)
-	var burst := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	rocket_burst_shooter = active_goat
+	rocket_burst = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	for index in range(1, origins.size()):
-		burst.tween_interval(ROCKET_INTERVAL)
-		burst.tween_callback(_launch_rocket.bind(origins[index], direction, shooter))
-	burst.tween_callback(func(): firing_rocket_burst = false)
+		rocket_burst.tween_interval(ROCKET_INTERVAL)
+		rocket_burst.tween_callback(_launch_rocket.bind(origins[index], direction, shooter))
+	rocket_burst.finished.connect(_finish_rocket_burst)
+	_launch_rocket(origins[0], direction, shooter)
+
+
+func _interrupt_rocket_burst(target: Goat) -> void:
+	if target != rocket_burst_shooter:
+		return
+	rocket_burst.kill()
+	_finish_rocket_burst()
+
+
+func _finish_rocket_burst() -> void:
+	rocket_burst = null
+	rocket_burst_shooter = null
 
 
 func _launch_rocket(origin: Vector2, direction: Vector2, shooter: GoatHurtbox) -> void:
@@ -1905,6 +1946,7 @@ func _launch_rocket(origin: Vector2, direction: Vector2, shooter: GoatHurtbox) -
 		rocket.blast_damage, ROCKET_BLAST_RADIUS, ROCKET_EXPLOSION_SCALE))
 	rocket.trail_sampled.connect(_spawn_trail_smoke.bind(1))
 	rocket.tree_exited.connect(func(): outstanding_rockets -= 1)
+	outstanding_rockets += 1
 	add_child(rocket)
 
 
@@ -1928,6 +1970,50 @@ func _apply_cannon_hit(at: Vector2, target: Area2D, direction: Vector2) -> void:
 	_spawn_trail_smoke(to_local(at), 1, 0.0)
 
 
+func _fire_laser() -> void:
+	laser_elapsed = 0.0
+	laser_hit_terrain = false
+	laser_has_contact = false
+	laser_contact_time = 0.0
+	_trace_laser()
+	laser_line.show()
+	laser_line.queue_redraw()
+
+
+func _step_laser(delta: float) -> void:
+	laser_elapsed += delta
+	_trace_laser()
+	if laser_has_contact:
+		laser_contact_time += delta
+		if laser_contact_time >= LASER_CONTACT_SECONDS or is_equal_approx(laser_contact_time, LASER_CONTACT_SECONDS):
+			terrain_view.blast(laser_end_pixel, LASER_CARVE_RADIUS, 0, Color.TRANSPARENT)
+			_check_crow_perch()
+			laser_contact_time = 0.0
+			_trace_laser()
+	var duration := LASER_HIT_SECONDS if laser_hit_terrain else LASER_MISS_SECONDS
+	if laser_elapsed >= duration or is_equal_approx(laser_elapsed, duration):
+		laser_line.hide()
+
+
+func _trace_laser() -> void:
+	var muzzle := active_goat.muzzle_tip_position()
+	var origin := terrain_view.to_local(muzzle)
+	var direction := terrain_view.to_local(muzzle + active_goat.aim_direction()) - origin
+	var motion := direction.normalized() * LASER_RANGE
+	var fraction := _terrain_hit_fraction(origin, motion)
+	var has_contact := fraction >= 0.0
+	var start := Vector2i(origin.floor())
+	var end := Vector2i((origin + motion * (fraction if has_contact else 1.0)).floor())
+	if has_contact != laser_has_contact or end != laser_end_pixel:
+		laser_contact_time = 0.0
+	laser_has_contact = has_contact
+	laser_hit_terrain = laser_hit_terrain or has_contact
+	if start != laser_start_pixel or end != laser_end_pixel:
+		laser_start_pixel = start
+		laser_end_pixel = end
+		laser_line.queue_redraw()
+
+
 func _check_crow_perch() -> void:
 	if is_instance_valid(crow):
 		crow.check_perch_after_blast(terrain)
@@ -1936,6 +2022,8 @@ func _check_crow_perch() -> void:
 func _shot_simulation_finished() -> bool:
 	return (
 		not is_instance_valid(active_projectile)
+		and rocket_burst == null
+		and not laser_line.visible
 		and outstanding_rockets == 0
 		and active_dirt_drops == 0
 		and pending_item_blasts.is_empty()
@@ -2109,6 +2197,7 @@ func _spawn_explosion_smoke(center: Vector2) -> void:
 
 
 func _on_goat_bounced(target: Goat) -> void:
+	_interrupt_rocket_burst(target)
 	var impact_position := target.position + Vector2(0, goat_body.end.y)
 	_spawn_smoke_burst(impact_position, randi_range(1, 2), 0.0)
 
