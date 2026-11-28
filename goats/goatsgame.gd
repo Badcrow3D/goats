@@ -361,8 +361,10 @@ func _setup_level() -> void:
 				child.queue_free()
 				continue
 			var offset := grounded.position - bounds.position
-			if child is ProximityMine and offset.y > 0.0:
-				offset.y = 0.0 # Let the mine fall to the sampled surface during play.
+			if child is ProximityMine:
+				child.get_blast_radius = _blast_radius_pixels
+				if offset.y > 0.0:
+					offset.y = 0.0 # Let the mine fall to the sampled surface during play.
 			child.global_position = terrain_view.to_global(terrain_view.to_local(child.global_position) + offset)
 			child.terrain_view = terrain_view
 			child.exploded.connect(_queue_item_blast)
@@ -1858,13 +1860,17 @@ func _queue_item_blast(center: Vector2, damage: int) -> void:
 	pending_item_blasts.append(_apply_blast.bind(center, center, null, Vector2.ZERO, damage))
 
 
+func _blast_radius_pixels() -> int:
+	return roundi(explosion_radius)
+
+
 func _apply_blast(
 	at: Vector2, damage_center: Vector2, direct_hit: Area2D, travel_direction: Vector2, peak_damage: int
 ) -> void:
 	_play_explosion(to_local(at))
 	_shake_camera()
 	var pixel := Vector2i(terrain_view.to_local(at).floor())
-	var radius := roundi(explosion_radius)
+	var radius := _blast_radius_pixels()
 	# Damage signals sample the surface synchronously, before the bitmap changes.
 	blast_hit_goats.clear()
 	if direct_hit:

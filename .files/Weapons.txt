@@ -16,16 +16,16 @@ Aim, Set Fuse, Charge, Fire, Projectile, Bounce, Explode on Timer, Unlimited Use
 Aim, Fire, Multiple Projectiles, Low Wind, Spread, Small Explosions on Impact
 
 4) Cannon
-Aim, Fire, Projectile, Through terrain, No drop, No explosion
+Aim, Fire, Projectile, Through terrain, No drop, No explosion, Two Shots
 
-5) Laser
-Aim, Fire, Sweeping, Removes terrain, Low Direct Damage 
-
-6) Homing
+5) Homing
 Activate, Choose Target, Aim, Charge, Fire, Projectile, Wind, Delayed Homing, Explode on Impact
 
-7) Airstrike
+6) Airstrike
 Activate, Choose Target, Multiple Projectiles from Above, Wind
+
+7) Laser
+Aim, Fire, Sweeping, Removes terrain, Low Direct Damage 
 
 8) Turret
 Fire, Drop Turret, Facing Direction, Fires on Vision Cone, Limited Ammo, Low Health

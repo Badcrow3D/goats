@@ -2,34 +2,40 @@ Goats2 title screen logo, related to icon maybe, or draw Goats2 terrain with gra
 
 Sound and Music
 
+army bunker things, buildings on level
+
 how to fix animation in grapple
 
-timer, turn ready countdown
+laser digging
 
+address goat out of arena, shots out of arena
+turn, team and goat announcement, countdown timer, turn ready countdown
+
+status numbers, -yellow damage, +green healing, -purple poison
 delay damage indicators until end of turn, focus one goat at a time and subtract health
 fly damage numbers up when taking damage
 knock health bar portions off when taking damage, flash it white
 
-health crate, +25 health not past maximum, can be destroyed
-crate, hides random teleport, health or mine, can break to reveal from weapon or walking, parachutes down, could also provide weapon or ammo when limited in future
-mushroom, health over time or poison over time, can be destroyed, grows from ground
++ buttons
++ health, +25 health not past maximum, can be destroyed
++ crate, hides random, for now health or mine, can break to reveal from weapon or walking, parachutes down later, could also provide weapon or ammo when limited in future
++ mushroom, health over time or poison over time, can be destroyed, grows from ground
+
+on activate new goat or begin match, swish active bottom goat name plate so that it starts a bit higher up and then goes down to its destination, hide old nameplate right away
 
 + goat pixel emoji face reactions instead of voices, still add sound effects
 + targets and goals objects
 + weapons as polygon
 + flag or wind speed meter, in addition to leaves
 
-address goat out of arena, shots out of arena
-turn team and goat announcement, countdown
+ambient butterflies, maybe other critters
 
 background parallax layers
 
 Main menu: New match, Teams, quit
 New match: add team, remove team, Teams, back
 Teams: add team, remove team, Edit team
-Edit team: team name, 10 goat names, save, cancel, back
-
-laser digging
+Edit team: team name, 12 goat names, save, cancel, back
 
 + falling damage, ends turn, adjust bouncing
 + turn time limit, time display
@@ -67,4 +73,7 @@ bottom left 4 pixels:
 4 - grass
 
 dirt settling is frame rate dependent in current form
+tall pixel towers of dirt should fall
+
+
 

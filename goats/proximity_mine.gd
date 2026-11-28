@@ -1,6 +1,6 @@
 extends "res://goats/level_item.gd"
 
-const TRIGGER_RADIUS := 24.0 # Terrain pixels
+const TRIGGER_RADIUS_RATIO := 0.75
 const FRAME_SECONDS := 0.08
 const PEAK_DAMAGE := 35
 enum Row { IDLE, ARMED, RIGHT, LEFT, ARMED_RIGHT, ARMED_LEFT }
@@ -11,6 +11,7 @@ var fuse_duration := 0.0
 var fuse_elapsed := 0.0
 var velocity := Vector2.ZERO
 var animation_elapsed := 0.0
+var get_blast_radius: Callable
 
 
 func apply_damage(amount: int, hit_direction := Vector2.ZERO) -> void:
@@ -49,6 +50,7 @@ func _update_animation(delta: float) -> void:
 
 
 func _goat_in_range() -> bool:
+	var trigger_radius := int(get_blast_radius.call()) * TRIGGER_RADIUS_RATIO
 	for hurtbox in get_tree().get_nodes_in_group(&"goat_hurtboxes"):
 		if hurtbox.get_parent().health <= 0:
 			continue
@@ -56,7 +58,7 @@ func _goat_in_range() -> bool:
 		var bounds := shape_node.shape.get_rect()
 		var nearest := shape_node.to_local(global_position).clamp(bounds.position, bounds.end)
 		var offset := terrain_view.to_local(shape_node.to_global(nearest)) - terrain_view.to_local(global_position)
-		if offset.length_squared() <= TRIGGER_RADIUS * TRIGGER_RADIUS:
+		if offset.length_squared() <= trigger_radius * trigger_radius:
 			return true
 	return false
 
