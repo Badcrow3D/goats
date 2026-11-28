@@ -9,6 +9,7 @@ prox mine should bonk into items, but other things shouldnt collide with prox mi
 
 artwork for homing airstrike dirt launchers, backpack or launcher for turret and mine
 try grenade circle collision shape
+active goat arrowon ui layer, maybe larger and offscreen arrow too
 
 remove goat with 0 hp
 address goat out of arena, shots out of arena

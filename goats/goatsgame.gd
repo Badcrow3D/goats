@@ -2,6 +2,15 @@ extends "res://goats/goat_controller.gd"
 
 const Grenade := preload("res://goats/grenade.gd")
 const Goat := preload("res://goats/goat.gd")
+const MODE_SELECTION_ACTIONS := {
+	&"select_goat_mode": Goat.Mode.GOAT_ONLY,
+	&"select_grapple": Goat.Mode.GRAPPLE,
+	&"select_missile": Goat.Mode.LAUNCHER,
+	&"select_grenade": Goat.Mode.GRENADE,
+	&"select_rockets": Goat.Mode.ROCKETS,
+	&"select_cannon": Goat.Mode.CANNON,
+	&"select_laser": Goat.Mode.LASER,
+}
 const GOAT_SCENE := preload("res://goats/goat.tscn")
 const GoatHurtbox := preload("res://goats/goat_hurtbox.gd")
 const LevelItem := preload("res://goats/level_item.gd")
@@ -1195,27 +1204,17 @@ func _input(event: InputEvent) -> void:
 		_select_next_goat()
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed(&"toggle_launcher"):
-		if grapple_attached or active_goat.is_bouncing:
-			get_viewport().set_input_as_handled()
-			return
-		match active_goat.mode:
-			Goat.Mode.GOAT_ONLY:
-				active_goat.mode = Goat.Mode.GRAPPLE
-			Goat.Mode.GRAPPLE:
-				active_goat.mode = Goat.Mode.LAUNCHER
-			Goat.Mode.LAUNCHER:
-				active_goat.mode = Goat.Mode.GRENADE
-			Goat.Mode.GRENADE:
-				active_goat.mode = Goat.Mode.ROCKETS
-			Goat.Mode.ROCKETS:
-				active_goat.mode = Goat.Mode.CANNON
-			Goat.Mode.CANNON:
-				active_goat.mode = Goat.Mode.LASER
-			Goat.Mode.LASER:
-				active_goat.mode = Goat.Mode.GOAT_ONLY
+	if event.is_action_pressed(&"cycle_mode"):
+		if not grapple_attached:
+			active_goat.mode = ((active_goat.mode + 1) % Goat.Mode.size()) as Goat.Mode
 		get_viewport().set_input_as_handled()
 		return
+	for action: StringName in MODE_SELECTION_ACTIONS:
+		if event.is_action_pressed(action):
+			if not grapple_attached:
+				active_goat.mode = MODE_SELECTION_ACTIONS[action]
+			get_viewport().set_input_as_handled()
+			return
 	var walk_left := event.is_action_pressed(&"walk_left")
 	if (walk_left or event.is_action_pressed(&"walk_right")) \
 			and rocket_burst == null and not grapple_attached and _can_control_movement() and not is_charging_jump:

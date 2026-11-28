@@ -1,7 +1,9 @@
 Goat Grapple Missile Grenade Rockets Cannon Laser Homing Airstrike Turret Dirt Prox
 
-Q) Goat
+Shift) Goat
 Jump, Doesn't end Turn, Default, Always Available
+
+Q) Cycle modes
 
 E) Grapple
 Aim, Fire, Connect, Swing, Disconnect, Doesn't end Turn
@@ -18,14 +20,14 @@ Aim, Fire, Multiple Projectiles, Low Wind, Spread, Small Explosions on Impact
 4) Cannon
 Aim, Fire, Projectile, Through terrain, No drop, No explosion, Two Shots
 
-* 5) Homing
+5) Laser
+Aim, Fire, Sweeping, Removes terrain, Low Direct Damage 
+
+* 6) Homing
 Activate, Choose Target, Aim, Charge, Fire, Projectile, Wind, Delayed Homing, Explode on Impact
 
-* 6) Airstrike
+* 7) Airstrike
 Activate, Choose Target, Multiple Projectiles from Above, Wind
-
-7) Laser
-Aim, Fire, Sweeping, Removes terrain, Low Direct Damage 
 
 * 8) Turret
 Fire, Drop Turret, Facing Direction, Fires on Vision Cone, Limited Ammo, Low Health
