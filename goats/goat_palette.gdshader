@@ -24,7 +24,7 @@ void fragment() {
 		sprite.rgb = midtone_color.rgb;
 	} else if (rgb == ivec3(64)) {
 		sprite.rgb = shadow_color.rgb;
-	} else if (rgb == ivec3(0, 0, 255)) {
+	} else if (rgb == ivec3(0, 0, 255) || rgb == ivec3(0)) {
 		sprite.rgb = team_color.rgb;
 	}
 

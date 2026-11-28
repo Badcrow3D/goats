@@ -1,6 +1,5 @@
 [gd_scene format=3 uid="uid://8cps383vrqb8"]
 
-[ext_resource type="Texture2D" uid="uid://esl3egao3nvd" path="res://sprites/launcher48.png" id="3_aim"]
 [ext_resource type="Texture2D" uid="uid://dtk8305fl0qa7" path="res://sprites/cursor2.png" id="4_cursor"]
 [ext_resource type="Texture2D" uid="uid://dnq7vkaobym62" path="res://sprites/goat-24x24.png" id="7_layers"]
 [ext_resource type="Script" uid="uid://dhlyoougflpuv" path="res://goats/goat.gd" id="8_goat_state"]
@@ -11,7 +10,9 @@
 [ext_resource type="Texture2D" uid="uid://c58haxakw4aio" path="res://sprites/goatjump-24x24.png" id="17_jump"]
 [ext_resource type="Shader" uid="uid://bmciwo1vwsfxd" path="res://goats/goat_palette.gdshader" id="18_palette"]
 [ext_resource type="Texture2D" uid="uid://bo37ia6axnsam" path="res://sprites/bounce-24x24.png" id="19_bounce"]
-[ext_resource type="PackedScene" path="res://goats/nameplate.tscn" id="20_nameplate"]
+[ext_resource type="PackedScene" uid="uid://y0sofjs7swm6" path="res://goats/nameplate.tscn" id="20_nameplate"]
+
+[ext_resource type="Texture2D" path="res://sprites/grapple-walk-24x24.png" id="grapple_walk"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_goat_palette"]
 resource_local_to_scene = true
@@ -21,10 +22,6 @@ shader_parameter/light_color = Color(0.7529412, 0.7529412, 0.7529412, 1)
 shader_parameter/midtone_color = Color(0.69411767, 0.8039216, 0.80784315, 1)
 shader_parameter/shadow_color = Color(0.4117647, 0.41568628, 0.41568628, 1)
 shader_parameter/team_color = Color(1, 0.24705882, 0.31764707, 1)
-
-[sub_resource type="AtlasTexture" id="Atlas_idle"]
-atlas = ExtResource("7_layers")
-region = Rect2(0, 48, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_jump_1"]
 atlas = ExtResource("17_jump")
@@ -76,49 +73,57 @@ region = Rect2(264, 0, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_5"]
 atlas = ExtResource("7_layers")
-region = Rect2(120, 48, 24, 24)
+region = Rect2(0, 24, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_6"]
 atlas = ExtResource("7_layers")
-region = Rect2(144, 48, 24, 24)
+region = Rect2(24, 24, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_7"]
 atlas = ExtResource("7_layers")
-region = Rect2(168, 48, 24, 24)
+region = Rect2(48, 24, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_8"]
 atlas = ExtResource("7_layers")
-region = Rect2(192, 48, 24, 24)
+region = Rect2(72, 24, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_9"]
 atlas = ExtResource("7_layers")
-region = Rect2(216, 48, 24, 24)
+region = Rect2(96, 24, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_0"]
 atlas = ExtResource("7_layers")
-region = Rect2(0, 48, 24, 24)
+region = Rect2(0, 0, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_1"]
 atlas = ExtResource("7_layers")
-region = Rect2(24, 48, 24, 24)
+region = Rect2(24, 0, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_2"]
 atlas = ExtResource("7_layers")
-region = Rect2(48, 48, 24, 24)
+region = Rect2(48, 0, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_3"]
 atlas = ExtResource("7_layers")
-region = Rect2(72, 48, 24, 24)
+region = Rect2(72, 0, 24, 24)
 
 [sub_resource type="AtlasTexture" id="Atlas_walk_4"]
 atlas = ExtResource("7_layers")
-region = Rect2(96, 48, 24, 24)
+region = Rect2(96, 0, 24, 24)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_goat"]
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("Atlas_idle")
+"texture": SubResource("Atlas_walk_5")
+}],
+"loop": 0,
+"name": &"idle_left",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_walk_0")
 }],
 "loop": 0,
 "name": &"idle",
@@ -223,27 +228,62 @@ texture_filter = 1
 collision_layer = 2
 script = ExtResource("8_goat_state")
 
+[node name="Weapons" type="Node2D" parent="." unique_id=1237287070]
+
+[node name="Missile" type="Node2D" parent="Weapons" unique_id=505720912]
+position = Vector2(-3, -5)
+
+[node name="MuzzleRight" type="Marker2D" parent="Weapons/Missile" unique_id=1893191331]
+
+[node name="MuzzleTip" type="Marker2D" parent="Weapons/Missile/MuzzleRight" unique_id=1780984275]
+position = Vector2(17, 0)
+
+[node name="MuzzleLeft" type="Marker2D" parent="Weapons/Missile" unique_id=878330686]
+position = Vector2(5, 0)
+
+[node name="LeftOrigin" type="Marker2D" parent="Weapons/Missile" unique_id=1666610021]
+position = Vector2(3, 13)
+
+[node name="Pivot" type="Node2D" parent="Weapons/Missile" unique_id=355217397]
+
+[node name="Polygon2D" type="Polygon2D" parent="Weapons/Missile/Pivot" unique_id=540889170]
+color = Color(0.4, 0.47843137, 0.21568628, 1)
+polygon = PackedVector2Array(-9, -3, -9, 3, 13, 3, 13, -3)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D2" type="Polygon2D" parent="Weapons/Missile/Pivot" unique_id=42721556]
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(13, -3, 13, 3, 16, 3, 16, -3)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D3" type="Polygon2D" parent="Weapons/Missile" unique_id=746284624]
+position = Vector2(-1, 13)
+color = Color(0.5019608, 0.6156863, 0.30588236, 1)
+polygon = PackedVector2Array(-4, -8, -4, 0, 6, 0, 6, -8)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D4" type="Polygon2D" parent="Weapons/Missile" unique_id=337174217]
+position = Vector2(0, 5)
+color = Color(0.23529412, 0.23529412, 0.23529412, 1)
+polygon = PackedVector2Array(-3, -6, -3, 0, 3, 0, 3, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
+[node name="Polygon2D5" type="Polygon2D" parent="Weapons/Missile" unique_id=1313478976]
+position = Vector2(0, 5)
+polygon = PackedVector2Array(-1, -6, -1, -4, 1, -4, 1, -6)
+uv = PackedVector2Array(-55.999985, -16.000002, -56.000015, 8.000004, 56.000015, 7.9999986, 56.000015, -16.000002)
+
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2143000917]
 material = SubResource("ShaderMaterial_goat_palette")
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_goat")
 animation = &"walk_right"
-frame = 4
-frame_progress = 0.74607253
 
 [node name="Grapple" type="Sprite2D" parent="AnimatedSprite2D" unique_id=755079811]
 visible = false
 show_behind_parent = true
-texture = ExtResource("7_layers")
+texture = ExtResource("grapple_walk")
 hframes = 10
-vframes = 3
-
-[node name="Launcher" type="Sprite2D" parent="AnimatedSprite2D" unique_id=151829350]
-show_behind_parent = true
-texture = ExtResource("7_layers")
-hframes = 10
-vframes = 3
-frame = 10
 
 [node name="BouncePose" type="Sprite2D" parent="." unique_id=824175151]
 visible = false
@@ -257,15 +297,6 @@ vframes = 2
 position = Vector2(0, 16)
 shape = SubResource("Rectangle_goat")
 
-[node name="MuzzleRight" type="Marker2D" parent="." unique_id=1893191331]
-position = Vector2(-3, -5)
-
-[node name="MuzzleTip" type="Marker2D" parent="MuzzleRight" unique_id=1780984275]
-position = Vector2(17, 0)
-
-[node name="MuzzleLeft" type="Marker2D" parent="." unique_id=878330686]
-position = Vector2(2, -5)
-
 [node name="Hurtbox" type="Area2D" parent="." unique_id=886225771 groups=["goat_hurtboxes"]]
 position = Vector2(0, 12)
 collision_layer = 4
@@ -276,14 +307,6 @@ script = ExtResource("9_hurtbox")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1123215417]
 position = Vector2(0, 3)
 shape = SubResource("Rectangle_hurtbox")
-
-[node name="AimPose" type="Sprite2D" parent="." unique_id=1377482768]
-visible = false
-material = SubResource("ShaderMaterial_goat_palette")
-texture = ExtResource("3_aim")
-hframes = 21
-vframes = 2
-frame = 10
 
 [node name="GrappleAimPose" type="Sprite2D" parent="." unique_id=1750366653]
 visible = false
@@ -297,14 +320,14 @@ visible = false
 position = Vector2(37, -6)
 texture = ExtResource("4_cursor")
 
-[node name="ChargeMeterTransform" type="RemoteTransform2D" parent="."]
+[node name="ChargeMeterTransform" type="RemoteTransform2D" parent="." unique_id=1441980226]
 remote_path = NodePath("../ChargeMeters/Anchor")
 
-[node name="ChargeMeters" type="CanvasLayer" parent="."]
+[node name="ChargeMeters" type="CanvasLayer" parent="." unique_id=421506057]
 layer = 4
 follow_viewport_enabled = true
 
-[node name="Anchor" type="Node2D" parent="ChargeMeters"]
+[node name="Anchor" type="Node2D" parent="ChargeMeters" unique_id=1364972155]
 
 [node name="JumpChargeMeter" type="Sprite2D" parent="ChargeMeters/Anchor" unique_id=1366841805]
 visible = false

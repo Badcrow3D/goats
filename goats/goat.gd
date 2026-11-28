@@ -13,23 +13,30 @@ const IDLE_SHEET := preload("res://sprites/goat_idle-24x24.png")
 const IDLE_FRAME_SIZE := 24
 const IDLE_ROW_LENGTHS := [6, 23, 7, 7, 3, 3, 41, 18]
 const IDLE_ANIMATION_PREFIX := "idle_row_"
+# Marker offsets in source pixels, relative to (9, 16) in the first right walk frame.
+const WALK_RIGHT_OFFSETS: Array[Vector2] = [
+	Vector2.ZERO, Vector2(1, 0), Vector2(1, -2), Vector2(1, -1), Vector2(1, 0),
+]
+const WALK_LEFT_OFFSETS: Array[Vector2] = [
+	Vector2(3, 0), Vector2(2, 0), Vector2(2, -2), Vector2(2, -1), Vector2(2, 0),
+]
 const AIM_POSE_STEP := 9.0
 const AIM_CURSOR_STEP := AIM_POSE_STEP / 8.0
 const GRAPPLE_AIM_POSE_STEP := 45.0
-const RIGHT_AIM_ORIGIN := Vector2(-3, -6)
-const LEFT_AIM_ORIGIN := Vector2(2, -6)
 
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var _bounce_pose: Sprite2D = $BouncePose
 @onready var _grapple: Sprite2D = $AnimatedSprite2D/Grapple
 @onready var _grapple_aim_pose: Sprite2D = $GrappleAimPose
-@onready var _launcher: Sprite2D = $AnimatedSprite2D/Launcher
-@onready var _muzzle_right: Marker2D = $MuzzleRight
-@onready var _muzzle_left: Marker2D = $MuzzleLeft
-@onready var _muzzle_tip: Marker2D = $MuzzleRight/MuzzleTip
+@onready var _weapons: Node2D = $Weapons
+@onready var _missile: Node2D = $Weapons/Missile
+@onready var _pivot: Node2D = $Weapons/Missile/Pivot
+@onready var _weapons_rest_position := _weapons.position
+@onready var _muzzle_right: Marker2D = $Weapons/Missile/MuzzleRight
+@onready var _muzzle_left: Marker2D = $Weapons/Missile/MuzzleLeft
+@onready var _muzzle_tip: Marker2D = $Weapons/Missile/MuzzleRight/MuzzleTip
 @onready var _hurtbox: GoatHurtbox = $Hurtbox
 @onready var _collider: CollisionShape2D = $CollisionShape2D
-@onready var _aim_pose: Sprite2D = $AimPose
 @onready var _aim_cursor: Sprite2D = $AimCursor
 @onready var _jump_meter: Sprite2D = $ChargeMeters/Anchor/JumpChargeMeter
 @onready var _shot_meter: Sprite2D = $ChargeMeters/Anchor/ShotChargeMeter
@@ -74,7 +81,8 @@ var _idle_rows_remaining := 0
 		if facing_direction == value:
 			return
 		facing_direction = value
-		if is_node_ready() and not Engine.is_editor_hint():
+		if is_node_ready():
+			_apply_weapon_facing()
 			_apply_idle_facing()
 @export var status := Status.ALIVE
 @export var mode := Mode.LAUNCHER:
@@ -111,6 +119,7 @@ var _idle_rows_remaining := 0
 
 
 func _ready() -> void:
+	_apply_weapon_facing()
 	_nameplate_label.text = goat_name
 	_bounce_pose.material = _sprite.material
 	_bounce_pose.scale = _sprite.scale
@@ -144,11 +153,16 @@ func _add_idle_animations() -> void:
 			frames.add_frame(animation_name, frame_texture)
 
 
+func _is_standing() -> bool:
+	return _sprite.animation == &"idle" or _sprite.animation == &"idle_left"
+
+
 func can_play_idle_animation() -> bool:
-	return status == Status.ALIVE and not is_bouncing and _sprite.animation == &"idle"
+	return status == Status.ALIVE and not is_bouncing and _is_standing()
 
 
 func play_idle_animation() -> void:
+	_sprite.flip_h = facing_direction == Facing.LEFT
 	_idle_rows_remaining = 2
 	_play_next_idle_row()
 
@@ -190,11 +204,14 @@ func set_nameplate_visible(visible_on_goat: bool) -> void:
 	nameplate.visible = visible_on_goat
 
 
-func _apply_idle_facing() -> void:
-	if _sprite.animation != &"idle":
-		return
-	_sprite.flip_h = facing_direction == Facing.LEFT
+func _apply_weapon_facing() -> void:
 	_sync_equipment_pose()
+	_missile.transform = Transform2D(Vector2.RIGHT * float(facing_direction), Vector2.DOWN, _missile.position)
+
+
+func _apply_idle_facing() -> void:
+	if _is_standing():
+		show_standing_pose()
 
 
 func update_walk_pose(walking: bool) -> void:
@@ -209,7 +226,7 @@ func update_walk_pose(walking: bool) -> void:
 		_sprite.play(&"walk_left" if facing_direction == Facing.LEFT else &"walk_right")
 	elif _sprite.animation == &"jump":
 		show_standing_pose()
-	elif _sprite.animation == &"idle":
+	elif _is_standing():
 		show_standing_pose()
 	else:
 		_sprite.play()
@@ -265,8 +282,9 @@ func play_landing_pose() -> void:
 func show_standing_pose() -> void:
 	_idle_rows_remaining = 0
 	_hide_bounce_pose()
-	_sprite.play(&"idle")
-	_apply_idle_facing()
+	_sprite.flip_h = false
+	_sprite.play(&"idle_left" if facing_direction == Facing.LEFT else &"idle")
+	_sync_equipment_pose()
 
 
 func _hide_bounce_pose() -> void:
@@ -284,29 +302,35 @@ func _on_pose_finished() -> void:
 
 func _on_walk_cycle_finished() -> void:
 	if not _walking:
-		_sprite.play(&"idle")
-		_apply_idle_facing()
+		show_standing_pose()
 
 
 func _sync_equipment_pose() -> void:
+	var offset := Vector2.ZERO
+	if _sprite.animation == &"walk_right":
+		offset = WALK_RIGHT_OFFSETS[_sprite.frame] * _sprite.scale
+	elif _sprite.animation == &"walk_left" or _sprite.animation == &"idle_left":
+		offset = WALK_LEFT_OFFSETS[_sprite.frame] * _sprite.scale
+	elif facing_direction == Facing.LEFT:
+		offset = _muzzle_left.position - _muzzle_right.position
+	_weapons.position = _weapons_rest_position + offset
+
 	var column := _sprite.frame
-	if _sprite.animation == &"walk_left":
+	if _sprite.animation == &"walk_left" or _sprite.animation == &"idle_left":
 		column += 5
 	elif _sprite.animation == &"jump" or _sprite.animation == &"land" or _is_playing_idle_animation():
 		column = 0
 	_grapple.frame_coords = Vector2i(column, 0)
-	_launcher.frame_coords = Vector2i(column, 1)
 	_grapple.flip_h = _sprite.flip_h
-	_launcher.flip_h = _sprite.flip_h
 
 
 func update_aim_pose(can_aim: bool, pose_aim_degrees: float, cursor_distance: float) -> void:
 	# Let the layered sprite finish its walk tail before switching poses.
-	_showing_aim_pose = can_aim and _sprite.animation == &"idle"
+	_showing_aim_pose = can_aim and _is_standing()
 	var snapped_aim := snappedf(pose_aim_degrees, AIM_CURSOR_STEP) if _showing_aim_pose or mode == Mode.GRAPPLE else 0.0
 	var angle := deg_to_rad(snapped_aim)
 	_muzzle_right.rotation = -angle
-	_muzzle_left.rotation = angle
+	_pivot.rotation = -angle
 	if _showing_aim_pose:
 		var faces_left := facing_direction == Facing.LEFT
 		var row := 1 if faces_left else 0
@@ -316,10 +340,8 @@ func update_aim_pose(can_aim: bool, pose_aim_degrees: float, cursor_distance: fl
 			_grapple_aim_pose.frame_coords = Vector2i(column, row)
 			origin = grapple_pivot_position()
 		else:
-			var column := roundi((90.0 - snapped_aim) / AIM_POSE_STEP)
-			_aim_pose.frame_coords = Vector2i(column, row)
-			origin = _aim_pose.to_global(LEFT_AIM_ORIGIN if faces_left else RIGHT_AIM_ORIGIN)
-		var direction := Vector2(float(facing_direction) * cos(angle), -sin(angle))
+			origin = muzzle_origin()
+		var direction := aim_direction()
 		_aim_cursor.global_position = (origin + direction * cursor_distance).round()
 	_apply_mode_layers()
 
@@ -328,12 +350,11 @@ func _apply_mode_layers() -> void:
 	var show_equipment := not _is_playing_idle_animation()
 	var show_grapple := mode == Mode.GRAPPLE and show_equipment
 	var show_launcher := mode == Mode.LAUNCHER and show_equipment
-	_aim_pose.visible = _showing_aim_pose and show_launcher
 	_grapple.visible = show_grapple and not _showing_aim_pose
 	_grapple_aim_pose.visible = show_grapple and _showing_aim_pose
-	_launcher.visible = show_launcher
-	var show_aim_pose := _aim_pose.visible or _grapple_aim_pose.visible
-	_sprite.visible = not show_aim_pose and not _bounce_pose.visible
+	_missile.visible = show_launcher
+	var show_aim_pose := _showing_aim_pose and (show_launcher or show_grapple)
+	_sprite.visible = not _grapple_aim_pose.visible and not _bounce_pose.visible
 	_aim_cursor.visible = show_aim_pose and not aim_locked
 
 
@@ -354,12 +375,8 @@ func update_shot_meter(show_meter: bool, charge_ratio: float) -> void:
 		_shot_meter.position.x = -float(facing_direction) * _shot_meter_distance
 
 
-func _active_muzzle() -> Marker2D:
-	return _muzzle_left if facing_direction == Facing.LEFT else _muzzle_right
-
-
 func aim_direction() -> Vector2:
-	return Vector2(float(facing_direction), 0.0).rotated(_active_muzzle().global_rotation)
+	return _muzzle_right.global_transform.x.normalized()
 
 
 func grapple_pivot_position() -> Vector2:
@@ -367,16 +384,15 @@ func grapple_pivot_position() -> Vector2:
 
 
 func direction_to_target(target: Vector2) -> Vector2:
-	return _active_muzzle().global_position.direction_to(target)
+	return _muzzle_right.global_position.direction_to(target)
 
 
 func muzzle_origin() -> Vector2:
-	return _active_muzzle().global_position
+	return _muzzle_right.global_position
 
 
 func missile_spawn_position() -> Vector2:
-	var tip_offset := Vector2(_muzzle_tip.position.x * float(facing_direction), _muzzle_tip.position.y)
-	return _active_muzzle().to_global(tip_offset)
+	return _muzzle_tip.global_position
 
 
 func get_hurtbox() -> GoatHurtbox:
