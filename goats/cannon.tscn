@@ -7,7 +7,7 @@ size = Vector2(8, 2)
 
 [node name="CannonP" type="Node2D" unique_id=313679542]
 script = ExtResource("1_cannon")
-speed = 880.0
+speed = 3520.0
 gravity = 0.0
 
 [node name="Polygon2D3" type="Polygon2D" parent="." unique_id=423575028]

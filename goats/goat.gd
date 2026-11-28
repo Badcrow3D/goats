@@ -21,9 +21,13 @@ const WALK_LEFT_OFFSETS: Array[Vector2] = [
 	Vector2(3, 0), Vector2(2, 0), Vector2(2, -2), Vector2(2, -1), Vector2(2, 0),
 ]
 const AIM_POSE_STEP := 9.0
+const AIM_POSE_FRAME_COUNT := 21
+const AIM_RIGHT_ROW := 4
+const AIM_LEFT_ROW := 5
 const AIM_CURSOR_STEP := AIM_POSE_STEP / 8.0
 
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var _aim_pose: Sprite2D = $AimPose
 @onready var _bounce_pose: Sprite2D = $BouncePose
 @onready var _rockets: Node2D = $Weapons/Rockets
 @onready var _cannon: Node2D = $Weapons/Cannon
@@ -61,6 +65,7 @@ var aim_degrees := 0.0
 
 var _walking := false
 var _show_aim_cursor := false
+var _aim_pose_column := 0
 var aim_locked := false:
 	set(value):
 		aim_locked = value
@@ -87,6 +92,7 @@ var _idle_rows_remaining := 0
 		if is_node_ready():
 			_apply_weapon_facing()
 			_apply_idle_facing()
+			_apply_mode_layers()
 @export var status := Status.ALIVE
 @export var mode := Mode.LAUNCHER:
 	set(value):
@@ -346,6 +352,7 @@ func _sync_equipment_pose() -> void:
 
 func update_aim_pose(can_aim: bool, pose_aim_degrees: float, cursor_distance: float) -> void:
 	_show_aim_cursor = can_aim and _is_standing()
+	_aim_pose_column = clampi(roundi((90.0 - pose_aim_degrees) / AIM_POSE_STEP), 0, AIM_POSE_FRAME_COUNT - 1)
 	var snapped_aim := snappedf(pose_aim_degrees, AIM_CURSOR_STEP)
 	var angle := deg_to_rad(snapped_aim)
 	_muzzle_right.rotation = -angle
@@ -368,8 +375,12 @@ func _apply_mode_layers() -> void:
 	_laser.visible = mode == Mode.LASER and show_equipment
 	_grenade.visible = mode == Mode.GRENADE and show_equipment
 	_missile.visible = show_launcher
-	_sprite.visible = not _bounce_pose.visible
 	_aim_cursor.visible = _show_aim_cursor and show_equipment and mode != Mode.GOAT_ONLY and not aim_locked
+	_aim_pose.visible = _aim_cursor.visible and _is_standing() and not _bounce_pose.visible
+	if _aim_pose.visible:
+		var row := AIM_LEFT_ROW if facing_direction == Facing.LEFT else AIM_RIGHT_ROW
+		_aim_pose.frame_coords = Vector2i(_aim_pose_column, row)
+	_sprite.visible = not _bounce_pose.visible and not _aim_pose.visible
 
 
 func update_jump_meter(show_charge: bool, charge_ratio: float) -> void:
